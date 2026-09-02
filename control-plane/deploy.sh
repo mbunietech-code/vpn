@@ -20,6 +20,10 @@ php artisan view:cache
 php artisan event:cache || true
 
 echo "==> storage link"
-php artisan storage:link || true
+php artisan storage:link 2>/dev/null || {
+  # Hostinger disables exec()/symlink() from PHP — do it in the shell.
+  [ -e public/storage ] || ln -sfn ../storage/app/public public/storage
+}
+mkdir -p storage/app/public/qr storage/app/private/proofs
 
 echo "deployed $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
