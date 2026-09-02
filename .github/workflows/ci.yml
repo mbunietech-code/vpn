@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  control-plane:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: control-plane
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, bcmath, gd, zip, sodium
+          coverage: none
+      - name: Install
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Prepare
+        run: |
+          cp .env.example .env || true
+          php artisan key:generate
+          touch database/database.sqlite
+      - name: Test
+        run: php artisan test
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/database.sqlite
+
+  client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.0'
+      - run: flutter pub get
+      - run: dart analyze lib
+      - run: flutter test
+      - run: flutter build apk --debug
+
+  node-agent:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: node/node-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - run: go vet ./...
+      - run: CGO_ENABLED=0 go build -o mvpn-agent .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mvpn-agent-linux-amd64
+          path: node/node-agent/mvpn-agent

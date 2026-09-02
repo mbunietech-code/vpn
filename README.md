@@ -14,7 +14,7 @@ scope — authoritative), `06-Design-System`.
 | `control-plane/` | Backend API + admin panel. Users, plans, subscriptions, payments, provisioning, AI alerts. | Laravel 13 + Filament 4 + MySQL (SQLite for local dev) | **scaffolded, core flow tested** |
 | `node/install.sh` | One-shot node bootstrap: Xray VLESS+REALITY, sing-box Hysteria2, Caddy camouflage, ufw. | Bash | drafted, needs a VPS to run |
 | `node/node-agent/` | Per-node daemon: pulls peer list from control plane, renders configs, hot-reloads engines, reports health. | Go 1.23 | drafted |
-| `client/` | Flutter app. Onboarding → plans (¥/$) → pay → poll → auto-connect. | Flutter 3.44 + sing-box libbox (planned: Hiddify-Next fork) | scaffolded |
+| `client/` | Flutter app. Auth (OTP) → plans (¥/$) → pay → poll → auto-connect. | Flutter 3.44; sing-box libbox planned (Hiddify-Next fork) | **UI + backend wired; tunnel still simulated** |
 
 ## Control plane — local dev
 

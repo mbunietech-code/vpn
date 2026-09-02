@@ -74,6 +74,20 @@ class _AuthScreenState extends State<AuthScreen> {
                     TextField(
                       controller: _id,
                       keyboardType: TextInputType.emailAddress,
+                      autofocus: true,
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (_) {
+                        if (_id.text.trim().isNotEmpty && !_busy) {
+                          _run(() async {
+                            final hint =
+                                await state.requestOtpReturningDebug(_id.text);
+                            setState(() {
+                              _sent = true;
+                              _debugHint = hint;
+                            });
+                          });
+                        }
+                      },
                       decoration: const InputDecoration(
                         labelText: 'Simu (+255…) au email',
                         border: OutlineInputBorder(),
@@ -100,6 +114,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       controller: _code,
                       keyboardType: TextInputType.number,
                       maxLength: 6,
+                      autofocus: true,
+                      onChanged: (v) {
+                        setState(() {});
+                        if (v.length == 6 && !_busy) {
+                          _run(() => state.verifyOtp(v));
+                        }
+                      },
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: const InputDecoration(
                         labelText: 'Msimbo wa tarakimu 6',

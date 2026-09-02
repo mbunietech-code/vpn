@@ -28,11 +28,15 @@
 - `install.sh` — idempotent bootstrap: SSH hardening, ufw, Xray-core (VLESS+REALITY:443), sing-box (Hysteria2), Caddy camouflage site, systemd units, agent env.
 - `node-agent/` (Go 1.23) — pulls peer list every 15s, patches Xray/sing-box client lists, hot-reloads, posts health every 60s. `go build` not yet run (no Go toolchain here) — build on the node or in CI.
 
-### `client/` (Flutter 3.44) — UI shell matching the mockups
+### `client/` (Flutter 3.44) — UI + real backend integration
 - Theme: light + dark from the design tokens.
-- Screens: Home (connect ring, status, current node, mini-stats), Servers (Ping toggle, Optimal card, region-grouped node list), Session Stats (duration, throughput chart, transfer totals), Settings (kill-switch, auto-connect, auto-reconnect, protocol preference, peer ID + copy, import config, about).
-- Runs on **simulated** connection state (`VpnController`). `ApiClient` stub ready for wiring.
-- **No real tunnel yet** — that is the Hiddify-Next fork work (Phase 5).
+- Screens: **Auth** (phone/email → OTP), **Plans** (¥/$ toggle, live from `/api/plans`), **Checkout** (provider pick → hosted pay page → poll), Home, Servers, Session Stats, Settings.
+- `AppState` + `ApiClient` (package:http): OTP login (Sanctum token persisted), plan load, checkout, subscription polling, auto-activation gate (`needsAuth → needsPlan → ready`).
+- `SubParser`: `/sub/{token}` bundle → node list feeding the connect UI.
+- **Verified end-to-end** (local): OTP → `dev/pay` → active subscription + 2 peers → `/sub/{token}` → `/api/node/peers`.
+- Tests: `dart analyze` clean, 3 tests green (widget + SubParser). Windows .exe builds & runs.
+- **The tunnel itself is still simulated** (`VpnController`) — real sing-box engine is the Hiddify-Next fork work (Phase 5).
+- `--dart-define=MVPN_API=https://cp.mbunievpn.com` to point at a real control plane.
 
 ---
 
@@ -45,12 +49,15 @@
 4. Change the seeded admin password; set real plan prices in the admin panel.
 
 ### Engineering — continue
-5. Deploy control-plane to its VPS (MySQL, Redis, Horizon, `schedule:work`, `queue:work`, Caddy TLS).
-6. `go build` the node-agent; run `install.sh` on the node VPS; register the node in the admin panel (paste REALITY pubkey / short-id / SNI / per-node secret from install output).
-7. Wire real SMS (Africa's Talking or Twilio) + email OTP senders.
-8. End-to-end test: real checkout (test keys) → webhook → provisioning → import `/sub/{token}` into a stock sing-box/Hiddify client → connect through the node.
-9. Fork **Hiddify-Next**, rebrand from `06-Design-System`, replace profile onboarding with MVPN auth + plans + pay + poll, lock protocol templates, keep kill-switch / DNS guard / fallback. Build Android → Windows → macOS → Linux.
+5. Deploy control-plane to its VPS — see **`control-plane/DEPLOY.md`** (MySQL, Redis, Horizon, `schedule:work`, `queue:work`, TLS).
+6. `go build` the node-agent + run `install.sh` + register the node — see **`node/DEPLOY.md`**.
+7. Wire real SMS (Africa's Talking or Twilio) + email OTP senders (replace the `logger()->info` in `AuthController`).
+8. Register webhooks with Stripe + Cryptomus; end-to-end test with test keys → real webhook → provisioning → import `/sub/{token}` into a stock Hiddify client → connect through the node.
+9. Fork **Hiddify-Next**, rebrand from `06-Design-System`, drop in the MVPN `AppState` flow (auth + plans + pay + poll already built here), lock protocol templates, keep kill-switch / DNS guard / fallback. Build Android → Windows → macOS → Linux.
 10. Second node + CDN front + 24–72 h field test from inside China.
+
+### CI
+`.github/workflows/ci.yml` runs control-plane tests, Flutter analyze+test+APK, and the Go agent build on every push.
 
 ### Soft-launch recommendation
 Crypto-only payment + Android-only, once step 8 + Android build are done and one node is field-tested. Add Stripe/Alipay + desktop as they clear.
