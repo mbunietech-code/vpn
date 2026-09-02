@@ -12,7 +12,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vpn = MvpnScope.of(context);
+    final vpn = MvpnScope.of(context).vpn;
     final c = context.mvpn;
 
     final (label, color) = switch (vpn.status) {
@@ -182,7 +182,7 @@ class _CurrentNodeCard extends StatelessWidget {
 class _MiniStats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final vpn = MvpnScope.of(context);
+    final vpn = MvpnScope.of(context).vpn;
     final c = context.mvpn;
     final s = vpn.stats;
     final latency = vpn.currentNode.latencyMs;

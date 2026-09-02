@@ -10,16 +10,20 @@ class ServersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vpn = MvpnScope.of(context);
+    final vpn = MvpnScope.of(context).vpn;
     final c = context.mvpn;
 
-    const regionOrder = ['Americas', 'Europe', 'Asia-Pacific'];
+    const regionOrder = ['Americas', 'Europe', 'Asia-Pacific', 'Servers'];
+    int rank(String r) {
+      final i = regionOrder.indexOf(r);
+      return i < 0 ? regionOrder.length : i;
+    }
+
     final grouped = <String, List<VpnNode>>{};
     for (final n in vpn.nodes) {
       grouped.putIfAbsent(n.region, () => []).add(n);
     }
-    final regions = grouped.keys.toList()
-      ..sort((a, b) => regionOrder.indexOf(a).compareTo(regionOrder.indexOf(b)));
+    final regions = grouped.keys.toList()..sort((a, b) => rank(a).compareTo(rank(b)));
 
     return Scaffold(
       appBar: AppBar(
@@ -157,7 +161,7 @@ class _NodeRow extends StatelessWidget {
                 ],
               ),
             ),
-            Text('${node.latencyMs}ms',
+            Text(node.latencyKnown ? '${node.latencyMs}ms' : '—',
                 style: TextStyle(fontSize: 13, color: c.textSecondary)),
             const SizedBox(width: 8),
             SignalBars(node.bars),

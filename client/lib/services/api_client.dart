@@ -1,20 +1,15 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
-/// Thin client for the MVPN control plane.
-///
-/// Not yet wired into the UI (the app currently runs on [VpnController]'s
-/// simulated data). Ready for Phase 5 when the Hiddify-fork engine + real
-/// auth/checkout land. Uses `HttpClient` from dart:io via a pluggable sender
-/// so tests can stub it; kept dependency-free for now.
+/// Client for the MVPN control plane.
 class ApiClient {
-  ApiClient({required this.baseUrl, this.token, HttpSender? sender})
-      : _send = sender ?? _defaultSender;
+  ApiClient({required this.baseUrl, this.token, http.Client? httpClient})
+      : _http = httpClient ?? http.Client();
 
-  final String baseUrl;
+  String baseUrl;
   String? token;
-  final HttpSender _send;
+  final http.Client _http;
 
   Future<Map<String, dynamic>> requestOtp(String identifier) =>
       _post('/api/auth/otp/request', {'identifier': identifier});
@@ -27,30 +22,44 @@ class ApiClient {
         'device_name': deviceName,
       });
 
+  Future<Map<String, dynamic>> me() => _get('/api/me');
+
   Future<Map<String, dynamic>> plans() => _get('/api/plans');
 
-  Future<Map<String, dynamic>> checkout(
-          {required String plan, required String provider, required String currency}) =>
+  Future<Map<String, dynamic>> checkout({
+    required String plan,
+    required String provider,
+    required String currency,
+  }) =>
       _post('/api/checkout',
           {'plan': plan, 'provider': provider, 'currency': currency});
 
   Future<Map<String, dynamic>> subscription() => _get('/api/subscription');
 
-  Future<Map<String, dynamic>> registerDevice(
-          {required String fingerprint, required String platform, String? name}) =>
+  Future<Map<String, dynamic>> registerDevice({
+    required String fingerprint,
+    required String platform,
+    String? name,
+  }) =>
       _post('/api/subscription/device', {
         'fingerprint': fingerprint,
         'platform': platform,
         'name': ?name,
       });
 
-  /// Fetches the raw subscription bundle from /sub/{token}.
+  /// LOCAL-ONLY: simulate a completed payment (control plane must be in `local`).
+  Future<Map<String, dynamic>> devPay() => _post('/api/dev/pay', {});
+
+  /// Raw subscription bundle from an absolute /sub/{token} URL.
   Future<String> fetchSubscription(String subUrl) async {
-    final res = await _send('GET', subUrl, null, _headers());
+    final res = await _http.get(Uri.parse(subUrl), headers: _headers());
+    if (res.statusCode >= 400) {
+      throw ApiException(res.statusCode, {'body': res.body});
+    }
     return res.body;
   }
 
-  // ---- internals --------------------------------------------------------
+  // ---- internals ------------------------------------------------------
 
   Map<String, String> _headers() => {
         'Accept': 'application/json',
@@ -59,17 +68,20 @@ class ApiClient {
       };
 
   Future<Map<String, dynamic>> _get(String path) async {
-    final res = await _send('GET', '$baseUrl$path', null, _headers());
+    final res = await _http.get(Uri.parse('$baseUrl$path'), headers: _headers());
     return _decode(res);
   }
 
   Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body) async {
-    final res =
-        await _send('POST', '$baseUrl$path', jsonEncode(body), _headers());
+    final res = await _http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers(),
+      body: jsonEncode(body),
+    );
     return _decode(res);
   }
 
-  Map<String, dynamic> _decode(HttpResponseLite res) {
+  Map<String, dynamic> _decode(http.Response res) {
     final data = res.body.isEmpty
         ? <String, dynamic>{}
         : jsonDecode(res.body) as Map<String, dynamic>;
@@ -84,27 +96,16 @@ class ApiException implements Exception {
   ApiException(this.status, this.body);
   final int status;
   final Map<String, dynamic> body;
+
+  String get message {
+    if (body['message'] is String) return body['message'] as String;
+    if (body['errors'] is Map) {
+      final errs = (body['errors'] as Map).values.first;
+      if (errs is List && errs.isNotEmpty) return errs.first.toString();
+    }
+    return 'Request failed ($status)';
+  }
+
   @override
-  String toString() => 'ApiException($status): $body';
-}
-
-@immutable
-class HttpResponseLite {
-  const HttpResponseLite(this.statusCode, this.body);
-  final int statusCode;
-  final String body;
-}
-
-typedef HttpSender = Future<HttpResponseLite> Function(
-  String method,
-  String url,
-  String? body,
-  Map<String, String> headers,
-);
-
-Future<HttpResponseLite> _defaultSender(
-    String method, String url, String? body, Map<String, String> headers) async {
-  // Deferred import of dart:io to keep this file usable in pure-Dart tests.
-  throw UnimplementedError(
-      'Wire a real HTTP sender (package:http) when auth/checkout are enabled.');
+  String toString() => 'ApiException($status): $message';
 }

@@ -79,6 +79,16 @@ class VpnController extends ChangeNotifier {
     _set(VpnStatus.disconnected);
   }
 
+  /// Replace the node list from a freshly parsed subscription.
+  void setNodes(List<VpnNode> nodes) {
+    if (nodes.isEmpty) return;
+    _nodes = nodes;
+    if (!_nodes.any((n) => n.id == _currentNode.id)) {
+      _currentNode = _nodes.first;
+    }
+    notifyListeners();
+  }
+
   void selectNode(VpnNode node) {
     _currentNode = node;
     notifyListeners();

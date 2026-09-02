@@ -32,8 +32,11 @@ class VpnNode {
   final String quality;
   final String? optimizedFor;
 
-  /// 0..4 signal bars from latency
+  bool get latencyKnown => latencyMs > 0;
+
+  /// 0..4 signal bars from latency (0 = unknown → no bars)
   int get bars => switch (latencyMs) {
+        <= 0 => 0,
         <= 60 => 4,
         <= 120 => 3,
         <= 200 => 2,

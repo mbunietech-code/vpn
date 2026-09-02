@@ -11,7 +11,7 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vpn = MvpnScope.of(context);
+    final vpn = MvpnScope.of(context).vpn;
     final c = context.mvpn;
 
     return Scaffold(

@@ -2,10 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Models\Node;
 use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class MvpnSeeder extends Seeder
 {
@@ -42,6 +44,23 @@ class MvpnSeeder extends Seeder
                 'price_cny_cents' => $p['cny'],
                 'sort' => $p['sort'],
                 'is_active' => true,
+            ]);
+        }
+
+        // --- demo node (local dev only) so provisioning has a target ---
+        if (app()->environment('local')) {
+            Node::updateOrCreate(['public_host' => 'hk1.mbunievpn.test'], [
+                'name' => 'Hong Kong 1',
+                'region' => 'hk',
+                'api_base' => 'https://hk1.mbunievpn.test',
+                'api_secret' => 'dev-node-secret-hk1',
+                'reality_pubkey' => 'DEMO_REALITY_PUBKEY_'.Str::random(20),
+                'reality_short_id' => bin2hex(random_bytes(8)),
+                'reality_sni' => 'www.microsoft.com',
+                'hysteria_port_range' => '20000-30000',
+                'hysteria_cert_sha256' => strtoupper(chunk_split(bin2hex(random_bytes(16)), 2, ':')),
+                'status' => 'online',
+                'last_health_at' => now(),
             ]);
         }
     }

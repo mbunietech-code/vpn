@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CheckoutController;
+use App\Http\Controllers\Api\DevController;
 use App\Http\Controllers\Api\NodeController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\SubscriptionController;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,6 +30,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('subscription', [SubscriptionController::class, 'show']);
     Route::post('subscription/device', [SubscriptionController::class, 'registerDevice']);
+
+    if (App::environment('local')) {
+        Route::post('dev/pay', [DevController::class, 'pay']);
+    }
 });
 
 /*

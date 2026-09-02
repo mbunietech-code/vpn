@@ -1,23 +1,22 @@
 import 'package:flutter/widgets.dart';
 
-import 'vpn_controller.dart';
+import 'app_state.dart';
 
-/// Lightweight DI without extra packages.
-class MvpnScope extends InheritedNotifier<VpnController> {
+/// Single app-wide state holder (auth + subscription + VPN), no extra packages.
+class MvpnScope extends InheritedNotifier<AppState> {
   const MvpnScope({
     super.key,
-    required VpnController controller,
+    required AppState state,
     required super.child,
-  }) : super(notifier: controller);
+  }) : super(notifier: state);
 
-  static VpnController of(BuildContext context) {
+  static AppState of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<MvpnScope>();
     assert(scope != null, 'MvpnScope not found in widget tree');
     return scope!.notifier!;
   }
 
-  /// Read without subscribing to rebuilds.
-  static VpnController read(BuildContext context) {
-    return (context.getInheritedWidgetOfExactType<MvpnScope>()!).notifier!;
+  static AppState read(BuildContext context) {
+    return context.getInheritedWidgetOfExactType<MvpnScope>()!.notifier!;
   }
 }

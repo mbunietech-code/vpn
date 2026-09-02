@@ -10,7 +10,7 @@ class SessionStatsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vpn = MvpnScope.of(context);
+    final vpn = MvpnScope.of(context).vpn;
     final c = context.mvpn;
     final s = vpn.stats;
 
