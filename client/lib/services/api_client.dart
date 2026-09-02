@@ -48,6 +48,40 @@ class ApiClient {
 
   Future<Map<String, dynamic>> subscription() => _get('/api/subscription');
 
+  // ---- v1 manual payment ----------------------------------------------
+
+  Future<Map<String, dynamic>> paymentMethods() => _get('/api/payment-methods');
+
+  Future<Map<String, dynamic>> manualCheckout({
+    required String plan,
+    required String currency,
+    int? methodId,
+  }) =>
+      _post('/api/checkout/manual', {
+        'plan': plan,
+        'currency': currency,
+        'method_id': ?methodId,
+      });
+
+  Future<void> uploadProof({
+    required int invoiceId,
+    required File image,
+    String? note,
+  }) async {
+    final req = http.MultipartRequest(
+        'POST', Uri.parse('$baseUrl/api/invoices/$invoiceId/proof'))
+      ..headers['Accept'] = 'application/json'
+      ..headers['Authorization'] = 'Bearer $token'
+      ..files.add(await http.MultipartFile.fromPath('proof', image.path));
+    if (note != null && note.isNotEmpty) req.fields['note'] = note;
+
+    final res = await http.Response.fromStream(await _http.send(req));
+    if (res.statusCode >= 400) {
+      throw ApiException(res.statusCode,
+          res.body.isEmpty ? {} : jsonDecode(res.body) as Map<String, dynamic>);
+    }
+  }
+
   Future<Map<String, dynamic>> registerDevice({
     required String fingerprint,
     required String platform,

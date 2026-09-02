@@ -15,14 +15,27 @@ class SubscriptionController extends Controller
         $sub = $user->activeSubscription()
             ?? $user->subscriptions()->latest()->first();
 
-        if (! $sub) {
-            return response()->json(['status' => 'none']);
-        }
-
-        $pendingInvoice = $user->invoices()
-            ->where('status', 'pending')
+        $pending = $user->invoices()
+            ->whereIn('status', ['pending', 'pending_review'])
             ->where('expires_at', '>', now())
             ->latest()->first();
+
+        $pendingBlock = $pending ? [
+            'invoice_id' => $pending->id,
+            'plan' => $pending->plan_code,
+            'status' => $pending->status,              // pending | pending_review
+            'proof_uploaded' => (bool) $pending->proof_path,
+            'amount' => $pending->amount_cents,
+            'currency' => $pending->currency,
+        ] : null;
+
+        if (! $sub) {
+            return response()->json([
+                'status' => $pending ? 'pending' : 'none',
+                'pending_invoice' => $pendingBlock,
+                'awaiting_payment' => (bool) $pending,
+            ]);
+        }
 
         return response()->json([
             'status' => $sub->status,                  // pending | active | expired | suspended
@@ -33,7 +46,8 @@ class SubscriptionController extends Controller
             'sub_url' => $sub->isActive()
                 ? url("/sub/{$sub->sub_token}")
                 : null,
-            'awaiting_payment' => (bool) $pendingInvoice,
+            'pending_invoice' => $pendingBlock,
+            'awaiting_payment' => (bool) $pending,
         ]);
     }
 

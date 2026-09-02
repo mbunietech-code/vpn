@@ -65,6 +65,18 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
         children: [
+          if (state.pendingInvoice != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: InlineNotice(
+                text: state.pendingInvoice!['proof_uploaded'] == true
+                    ? 'Malipo yako yanasubiri idhini ya admin. Utapata access ukishaidhinishwa.'
+                    : 'Una malipo ambayo hayajakamilika. Fungua "Kifurushi & malipo" kumalizia.',
+                tone: NoticeTone.warning,
+                action: 'Angalia',
+                onAction: () => state.refreshSubscription(),
+              ),
+            ),
           if (state.subStatus == 'expired' || state.subStatus == 'suspended')
             Padding(
               padding: const EdgeInsets.only(bottom: 14),

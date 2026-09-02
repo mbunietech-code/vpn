@@ -23,6 +23,13 @@ Route::get('/bin/sing-box-version', [BinaryController::class, 'version']);
 Route::post('/webhooks/stripe', [WebhookController::class, 'stripe']);
 Route::post('/webhooks/cryptomus', [WebhookController::class, 'cryptomus']);
 
+// Payment-proof image — admins only
+Route::get('/admin/invoice/{invoice}/proof', function (\App\Models\Invoice $invoice) {
+    abort_unless(auth()->user()?->is_admin && $invoice->proof_path, 403);
+
+    return response()->file(storage_path('app/private/' . $invoice->proof_path));
+})->middleware('auth')->name('admin.invoice.proof');
+
 // Legal pages (owner MUST review with counsel — these are starting drafts)
 Route::view('/legal/terms', 'legal.terms')->name('legal.terms');
 Route::view('/legal/privacy', 'legal.privacy')->name('legal.privacy');

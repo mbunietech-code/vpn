@@ -1,6 +1,8 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
 import '../models.dart';
@@ -423,7 +425,7 @@ class _PlanCard extends StatelessWidget {
       );
 }
 
-// ============================ CHECKOUT ================================
+// ============================ CHECKOUT (manual v1) ====================
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({
@@ -441,35 +443,77 @@ class CheckoutScreen extends StatefulWidget {
   State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
+enum _Step { pickMethod, pay, waiting }
+
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  String _provider = 'stripe';
+  _Step _step = _Step.pickMethod;
+  PayMethod? _method;
+  int? _invoiceId;
+  File? _proof;
+  final _note = TextEditingController();
   bool _busy = false;
-  bool _waiting = false;
   String? _error;
 
   bool get _devMode =>
       MvpnConfig.apiBase.contains('localhost') ||
       MvpnConfig.apiBase.contains('10.0.2.2');
 
-  Future<void> _pay() async {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadMethods());
+  }
+
+  Future<void> _loadMethods() async {
+    try {
+      await MvpnScope.read(context).loadPayMethods();
+    } catch (_) {}
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _createInvoice() async {
     final state = MvpnScope.read(context);
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final url = await state.startCheckout(
-          widget.plan.code, _provider, widget.currency);
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-      setState(() => _waiting = true);
+      _invoiceId = await state.startManualCheckout(
+          widget.plan.code, widget.currency, _method?.id);
+      setState(() => _step = _Step.pay);
+    } on ApiException catch (e) {
+      setState(() => _error = e.message);
+    } catch (_) {
+      setState(() => _error = 'Imeshindwa. Jaribu tena.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _pickProof() async {
+    final r = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: false,
+    );
+    final path = r?.files.single.path;
+    if (path != null) setState(() => _proof = File(path));
+  }
+
+  Future<void> _submit() async {
+    if (_proof == null || _invoiceId == null) return;
+    final state = MvpnScope.read(context);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await state.submitProof(_invoiceId!, _proof!, note: _note.text.trim());
+      setState(() => _step = _Step.waiting);
       _poll();
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Imeshindwa kuanzisha malipo.');
+      setState(() => _error = 'Imeshindwa kupakia. Jaribu tena.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -477,8 +521,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> _poll() async {
     final state = MvpnScope.read(context);
-    for (var i = 0; i < 80 && mounted && _waiting; i++) {
-      await Future<void>.delayed(const Duration(seconds: 3));
+    for (var i = 0; i < 200 && mounted && _step == _Step.waiting; i++) {
+      await Future<void>.delayed(const Duration(seconds: 5));
       try {
         await state.refreshSubscription();
         if (state.subStatus == 'active' && mounted) {
@@ -487,11 +531,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       } catch (_) {}
     }
-    if (mounted) setState(() => _waiting = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = MvpnScope.of(context);
     final c = context.mvpn;
 
     return Scaffold(
@@ -500,129 +544,204 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
           MvpnCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text('Muhtasari',
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                        color: c.textHint)),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${widget.plan.name} · siku ${widget.plan.days}',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: c.textPrimary),
-                      ),
-                    ),
-                    Text(widget.price,
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: c.textPrimary)),
-                  ],
+                Expanded(
+                  child: Text('${widget.plan.name} · siku ${widget.plan.days}',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: c.textPrimary)),
                 ),
+                Text(widget.price,
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: c.textPrimary)),
               ],
             ),
           ),
-          const SectionCaption('Njia ya malipo'),
-          for (final entry in MvpnConfig.providers.entries)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _ProviderTile(
-                selected: _provider == entry.key,
-                title: entry.key == 'stripe' ? 'Kadi / Alipay / WeChat' : 'Crypto (USDT)',
-                subtitle: entry.value,
-                icon: entry.key == 'stripe'
-                    ? Icons.credit_card_rounded
-                    : Icons.currency_bitcoin_rounded,
-                onTap: () => setState(() => _provider = entry.key),
-              ),
-            ),
           const SizedBox(height: 8),
-          if (_waiting)
-            MvpnCard(
-              child: Column(
-                children: [
-                  const SizedBox(
-                      width: 34,
-                      height: 34,
-                      child: CircularProgressIndicator(strokeWidth: 3)),
-                  const SizedBox(height: 14),
-                  Text('Inasubiri malipo yakamilike…',
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text('Kamilisha malipo kwenye ukurasa uliofunguka.\nApp itajiwasha yenyewe.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: c.textSecondary)),
-                ],
-              ),
-            )
-          else
-            ElevatedButton(
-              onPressed: _busy ? null : _pay,
-              child: _busy
-                  ? const BtnSpinner()
-                  : Text('Lipa ${widget.price}'),
-            ),
-          if (_devMode) ...[
-            const SizedBox(height: 8),
+          if (_step == _Step.pickMethod) ..._pickMethodStep(state, c),
+          if (_step == _Step.pay) ..._payStep(c),
+          if (_step == _Step.waiting) _waitingCard(c),
+          if (_error != null) ...[
+            const SizedBox(height: 14),
+            Text(_error!, style: TextStyle(color: c.danger, fontSize: 13)),
+          ],
+          if (_devMode && _step != _Step.waiting) ...[
+            const SizedBox(height: 10),
             OutlinedButton(
               onPressed: () async {
-                final state = MvpnScope.read(context);
-                await state
-                    .startCheckout(widget.plan.code, _provider, widget.currency)
-                    .catchError((_) => '');
                 await state.devCompletePayment();
                 if (context.mounted && state.subStatus == 'active') {
                   Navigator.of(context).popUntil((r) => r.isFirst);
                 }
               },
-              child: const Text('(dev) Kamilisha malipo sasa'),
+              child: const Text('(dev) Kamilisha sasa'),
             ),
           ],
-          if (_error != null) ...[
-            const SizedBox(height: 14),
-            Text(_error!, style: TextStyle(color: c.danger, fontSize: 13)),
-          ],
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.lock_rounded, size: 13, color: c.textHint),
-              const SizedBox(width: 5),
-              Text('Malipo yanachakatwa na mtoa-huduma. Hatuoni kadi yako.',
-                  style: TextStyle(fontSize: 11, color: c.textHint)),
-            ],
-          ),
         ],
       ),
     );
   }
+
+  List<Widget> _pickMethodStep(dynamic state, MvpnColors c) {
+    final methods = state.payMethods as List<PayMethod>;
+    return [
+      const SectionCaption('Chagua njia ya malipo'),
+      if (methods.isEmpty)
+        InlineNotice(
+          text: 'Njia za malipo hazijawekwa bado. Wasiliana na support.',
+          tone: NoticeTone.warning,
+        )
+      else
+        for (final m in methods)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _MethodTile(
+              method: m,
+              selected: _method?.id == m.id,
+              onTap: () => setState(() => _method = m),
+            ),
+          ),
+      const SizedBox(height: 8),
+      ElevatedButton(
+        onPressed: _busy || _method == null ? null : _createInvoice,
+        child: _busy ? const BtnSpinner() : const Text('Endelea'),
+      ),
+    ];
+  }
+
+  List<Widget> _payStep(MvpnColors c) {
+    final m = _method!;
+    return [
+      const SectionCaption('Lipa kiasi hiki'),
+      MvpnCard(
+        child: Column(
+          children: [
+            Text('Lipa kwa ${m.label}',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: c.textPrimary)),
+            const SizedBox(height: 4),
+            Text(widget.price,
+                style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    color: c.brand)),
+            if (m.qrUrl != null) ...[
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(m.qrUrl!,
+                    height: 220,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink()),
+              ),
+            ],
+            if (m.accountRef != null) ...[
+              const SizedBox(height: 12),
+              SelectableText(m.accountRef!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: c.textPrimary)),
+            ],
+            if (m.instructions != null) ...[
+              const SizedBox(height: 12),
+              Text(m.instructions!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 12.5, height: 1.4, color: c.textSecondary)),
+            ],
+          ],
+        ),
+      ),
+      const SectionCaption('Pakia uthibitisho wa malipo'),
+      MvpnCard(
+        child: Column(
+          children: [
+            if (_proof == null)
+              OutlinedButton.icon(
+                onPressed: _pickProof,
+                icon: const Icon(Icons.upload_rounded, size: 18),
+                label: const Text('Chagua picha ya risiti / screenshot'),
+              )
+            else
+              Column(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(_proof!, height: 160, fit: BoxFit.cover),
+                  ),
+                  TextButton(
+                      onPressed: _pickProof, child: const Text('Badilisha picha')),
+                ],
+              ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _note,
+              maxLength: 300,
+              decoration: const InputDecoration(
+                hintText: 'Kumbukumbu ya malipo (hiari)',
+                counterText: '',
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 10),
+      ElevatedButton(
+        onPressed: _busy || _proof == null ? null : _submit,
+        child: _busy ? const BtnSpinner() : const Text('Tuma kwa uthibitisho'),
+      ),
+    ];
+  }
+
+  Widget _waitingCard(MvpnColors c) => MvpnCard(
+        child: Column(
+          children: [
+            Icon(Icons.hourglass_top_rounded, size: 34, color: c.warning),
+            const SizedBox(height: 12),
+            Text('Inasubiri idhini ya admin',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: c.textPrimary)),
+            const SizedBox(height: 6),
+            Text(
+              'Tumepokea uthibitisho wako. Admin ataangalia na kuidhinisha '
+              'haraka iwezekanavyo. App itajiwasha yenyewe ukishaidhinishwa.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.5, height: 1.4, color: c.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            const SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(strokeWidth: 3)),
+          ],
+        ),
+      );
 }
 
-class _ProviderTile extends StatelessWidget {
-  const _ProviderTile({
-    required this.selected,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.onTap,
-  });
+class _MethodTile extends StatelessWidget {
+  const _MethodTile(
+      {required this.method, required this.selected, required this.onTap});
+  final PayMethod method;
   final bool selected;
-  final String title;
-  final String subtitle;
-  final IconData icon;
   final VoidCallback onTap;
+
+  IconData get _icon => switch (method.type) {
+        'alipay' => Icons.account_balance_wallet_rounded,
+        'wechat' => Icons.chat_rounded,
+        'bank' => Icons.account_balance_rounded,
+        'crypto' => Icons.currency_bitcoin_rounded,
+        _ => Icons.payments_rounded,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -636,26 +755,18 @@ class _ProviderTile extends StatelessWidget {
           color: selected ? c.brand.withValues(alpha: 0.06) : c.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: selected ? c.brand : c.border,
-              width: selected ? 1.6 : 1),
+              color: selected ? c.brand : c.border, width: selected ? 1.6 : 1),
         ),
         child: Row(
           children: [
-            Icon(icon, color: selected ? c.brand : c.textSecondary, size: 22),
+            Icon(_icon, color: selected ? c.brand : c.textSecondary, size: 22),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: c.textPrimary)),
-                  Text(subtitle,
-                      style: TextStyle(fontSize: 12, color: c.textSecondary)),
-                ],
-              ),
+              child: Text(method.label,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: c.textPrimary)),
             ),
             Icon(
               selected

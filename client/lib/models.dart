@@ -63,6 +63,37 @@ class Plan {
 }
 
 @immutable
+class PayMethod {
+  const PayMethod({
+    required this.id,
+    required this.type,
+    required this.label,
+    this.currency,
+    this.qrUrl,
+    this.accountRef,
+    this.instructions,
+  });
+
+  final int id;
+  final String type; // alipay | wechat | bank | crypto | other
+  final String label;
+  final String? currency;
+  final String? qrUrl;
+  final String? accountRef;
+  final String? instructions;
+
+  factory PayMethod.fromJson(Map<String, dynamic> j) => PayMethod(
+        id: j['id'] as int,
+        type: j['type'] as String,
+        label: j['label'] as String,
+        currency: j['currency'] as String?,
+        qrUrl: j['qr_url'] as String?,
+        accountRef: j['account_ref'] as String?,
+        instructions: j['instructions'] as String?,
+      );
+}
+
+@immutable
 class SessionStats {
   const SessionStats({
     required this.duration,

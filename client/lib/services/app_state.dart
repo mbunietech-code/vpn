@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -35,9 +37,11 @@ class AppState extends ChangeNotifier {
   String? planCode;
   DateTime? expiresAt;
   bool awaitingPayment = false;
+  Map<String, dynamic>? pendingInvoice; // {invoice_id, status, proof_uploaded, ...}
 
   List<Plan> plans = const [];
   List<String> currencies = const ['usd', 'cny'];
+  List<PayMethod> payMethods = const [];
 
   Future<void> bootstrap() async {
     await vpn.loadPrefs();
@@ -116,6 +120,30 @@ class AppState extends ChangeNotifier {
     return r['pay_url'] as String;
   }
 
+  // ---- v1 manual payment ---------------------------------------------
+
+  Future<void> loadPayMethods() async {
+    final r = await api.paymentMethods();
+    payMethods = (r['methods'] as List)
+        .map((m) => PayMethod.fromJson(m as Map<String, dynamic>))
+        .toList();
+    notifyListeners();
+  }
+
+  /// Creates a pending_review invoice; returns its id.
+  Future<int> startManualCheckout(String planCode, String currency, int? methodId) async {
+    final r = await api.manualCheckout(
+        plan: planCode, currency: currency, methodId: methodId);
+    awaitingPayment = true;
+    notifyListeners();
+    return r['invoice_id'] as int;
+  }
+
+  Future<void> submitProof(int invoiceId, File file, {String? note}) async {
+    await api.uploadProof(invoiceId: invoiceId, image: file, note: note);
+    await refreshSubscription();
+  }
+
   /// LOCAL demo shortcut.
   Future<void> devCompletePayment() async {
     await api.devPay();
@@ -130,6 +158,7 @@ class AppState extends ChangeNotifier {
       subStatus = r['status'] as String? ?? 'none';
       planCode = r['plan'] as String?;
       awaitingPayment = r['awaiting_payment'] == true;
+      pendingInvoice = r['pending_invoice'] as Map<String, dynamic>?;
       expiresAt = r['expires_at'] != null
           ? DateTime.tryParse(r['expires_at'] as String)
           : null;

@@ -13,6 +13,7 @@ class Invoice extends Model
         'meta' => 'array',
         'paid_at' => 'datetime',
         'expires_at' => 'datetime',
+        'reviewed_at' => 'datetime',
     ];
 
     /** @return BelongsTo<User, Invoice> */
