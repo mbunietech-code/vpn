@@ -34,13 +34,19 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['identifier' => 'Enter a valid phone number with country code, e.g. +8613800000000.']);
         }
 
-        $key = 'otp:' . $request->ip();
-        if (RateLimiter::tooManyAttempts($key, 5)) {
-            throw ValidationException::withMessages([
-                'identifier' => 'Too many requests. Try again shortly.',
-            ]);
+        // Per-identifier: 4 codes / 15 min. Per-IP: generous, since users in
+        // China share NAT addresses heavily.
+        foreach ([
+            ['otp:id:' . sha1($identifier), 4, 900],
+            ['otp:ip:' . $request->ip(), 40, 3600],
+        ] as [$rlKey, $max, $decay]) {
+            if (RateLimiter::tooManyAttempts($rlKey, $max)) {
+                throw ValidationException::withMessages([
+                    'identifier' => 'Umeomba nambari mara nyingi. Subiri kidoga.',
+                ]);
+            }
+            RateLimiter::hit($rlKey, $decay);
         }
-        RateLimiter::hit($key, 3600);
 
         [$otp, $code] = OtpCode::issue($identifier, $channel, $request->ip());
 
