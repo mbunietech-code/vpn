@@ -10,6 +10,10 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class OverviewStats extends StatsOverviewWidget
 {
+    protected static bool $isLazy = false;
+
+    protected static ?int $sort = 1;
+
     protected ?string $pollingInterval = '30s';
 
     protected function getStats(): array

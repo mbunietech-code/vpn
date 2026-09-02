@@ -14,6 +14,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class PendingApprovals extends TableWidget
 {
+    protected static bool $isLazy = false;
+
+    protected static ?int $sort = 2;
+
     protected static ?string $heading = 'Malipo yanayosubiri idhini';
 
     protected int|string|array $columnSpan = 'full';

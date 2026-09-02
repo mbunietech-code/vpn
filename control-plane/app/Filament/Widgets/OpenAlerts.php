@@ -11,6 +11,10 @@ use Filament\Widgets\TableWidget;
 
 class OpenAlerts extends TableWidget
 {
+    protected static bool $isLazy = false;
+
+    protected static ?int $sort = 3;
+
     protected static ?string $heading = 'Tahadhari (hazijashughulikiwa)';
 
     protected int|string|array $columnSpan = 'full';

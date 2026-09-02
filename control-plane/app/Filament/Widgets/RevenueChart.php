@@ -7,6 +7,10 @@ use Filament\Widgets\ChartWidget;
 
 class RevenueChart extends ChartWidget
 {
+    protected static bool $isLazy = false;
+
+    protected static ?int $sort = 4;
+
     protected ?string $heading = 'Mapato — siku 14 zilizopita (USD ~)';
 
     protected int|string|array $columnSpan = 'full';
