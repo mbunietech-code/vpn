@@ -32,11 +32,22 @@ class AdminPagesTest extends TestCase
             ['/admin'],
             ['/admin/settings'],
             ['/admin/payment-methods'],
+            ['/admin/payment-methods/create'],
             ['/admin/invoices'],
             ['/admin/nodes'],
             ['/admin/subscriptions'],
             ['/admin/users'],
             ['/admin/alerts'],
         ];
+    }
+
+    public function test_setting_edit_page_loads(): void
+    {
+        $admin = User::where('is_admin', true)->first();
+        $secret = \App\Models\Setting::where('is_secret', true)->first();
+        $plain = \App\Models\Setting::where('is_secret', false)->first();
+
+        $this->actingAs($admin)->get("/admin/settings/{$secret->id}/edit")->assertSuccessful();
+        $this->actingAs($admin)->get("/admin/settings/{$plain->id}/edit")->assertSuccessful();
     }
 }

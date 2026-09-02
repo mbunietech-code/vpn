@@ -14,8 +14,8 @@ class SettingForm
             TextInput::make('key')->disabled()->dehydrated(false),
             TextInput::make('value')
                 ->label('Value')
-                ->password(fn ($record) => (bool) ($record?->is_secret))
-                ->revealable()
+                ->password(fn ($record) => (bool) $record?->is_secret)
+                ->revealable(fn ($record) => (bool) $record?->is_secret)
                 ->autocomplete(false)
                 ->helperText('Huhifadhiwa encrypted. Wacha tupu kutumia thamani ya .env.'),
         ]);
