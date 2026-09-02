@@ -37,10 +37,10 @@ apt update && apt install -y php8.3-{cli,fpm,mbstring,xml,curl,mysql,redis,bcmat
 # clone repo, composer install --no-dev, .env (mysql + stripe + cryptomus + anthropic keys)
 php artisan migrate --force
 php artisan db:seed --class=MvpnSeeder --force
-# Caddy: reverse-proxy cp.mbunievpn.com -> 127.0.0.1:8000 (php artisan serve OR php-fpm)
+# Caddy: reverse-proxy vpn.mbuniehub.com -> 127.0.0.1:8000 (php artisan serve OR php-fpm)
 # systemd: mvpn-queue (queue:work), mvpn-scheduler (schedule:work)
 ```
-Log in at `https://cp.mbunievpn.com/admin`, **change the admin password**, set
+Log in at `https://vpn.mbuniehub.com/admin`, **change the admin password**, set
 CNY/USD prices on each plan.
 
 ## Step 4 — Node  (Vultr Tokyo)
@@ -53,7 +53,7 @@ git clone <repo> && cd <repo>/node/node-agent && CGO_ENABLED=0 go build -o mvpn-
 cd .. && sudo ./install.sh \
   --domain tk1.mbunievpn.com \
   --reality-dest www.apple.com:443 --reality-sni www.apple.com \
-  --control-plane https://cp.mbunievpn.com \
+  --control-plane https://vpn.mbuniehub.com \
   --node-token "$(openssl rand -hex 24)" \
   --hysteria-port-range 20000-30000
 ```
@@ -68,14 +68,14 @@ Within ~15 s the agent starts syncing peers.
 ## Step 6 — Payment webhooks
 
 - Stripe dashboard → Developers → Webhooks → add
-  `https://cp.mbunievpn.com/webhooks/stripe`
+  `https://vpn.mbuniehub.com/webhooks/stripe`
   (events: `checkout.session.completed`, `*.async_payment_succeeded`,
   `*.async_payment_failed`, `charge.refunded`). Copy the signing secret → `.env`.
-- Cryptomus → settings → callback URL `https://cp.mbunievpn.com/webhooks/cryptomus`.
+- Cryptomus → settings → callback URL `https://vpn.mbuniehub.com/webhooks/cryptomus`.
 
 ## Step 7 — First real end-to-end test  (from a normal, non-China network)
 
-1. Build the app: `flutter build apk --release --dart-define=MVPN_API=https://cp.mbunievpn.com`
+1. Build the app: `flutter build apk --release --dart-define=MVPN_API=https://vpn.mbuniehub.com`
 2. Install on a phone, register, buy the cheapest plan with a Stripe **test** card.
 3. Confirm the app auto-activates and connects; browse for a few minutes.
 4. Import the same `/sub/{token}` into stock **Hiddify** to double-check the node.
