@@ -15,18 +15,17 @@ class SettingsTable
             ->columns([
                 TextColumn::make('group')->badge()->sortable(),
                 TextColumn::make('label')->searchable()->wrap(),
-                TextColumn::make('key')->color('gray')->size('sm'),
+                TextColumn::make('key')->color('gray'),
                 IconColumn::make('configured')
                     ->label('Set')
-                    ->state(fn ($record) => filled($record->value))
-                    ->boolean(),
+                    ->boolean()
+                    ->getStateUsing(fn ($record) => filled($record->getRawOriginal('value'))),
                 TextColumn::make('updated_at')->since()->label('Updated')->toggleable(),
             ])
             ->defaultSort('sort')
-            ->defaultGroup('group')
             ->paginated(false)
             ->recordActions([
-                EditAction::class,
+                EditAction::make(),
             ]);
     }
 }
