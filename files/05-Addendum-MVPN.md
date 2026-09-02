@@ -12,6 +12,26 @@
 
 Docs 01–04 specify MVPN as a **personal, self-hosted** VPN with **manual, script-based** peer administration; "payment processing / self-service signup" is explicitly **out of scope (SRS §1.2)**.
 
+### A0.1 User reality (clarified 2026-09-02)
+
+**Every paying user is physically inside mainland China.** They are African
+nationals (Tanzanian, Kenyan, Ugandan — Swahili-speaking) living/working in
+China who need to reach the open internet from behind the GFW. Consequences:
+
+- **Node placement is a China-egress problem only.** Best real options:
+  Hong Kong (CN2 GIA / IPLC) > Tokyo > Seoul > Singapore. Chosen provider:
+  **Vultr, Tokyo** (`node/DEPLOY.md`).
+- **Payments: Alipay + WeChat Pay are PRIMARY**, crypto (USDT) is the backup.
+  African mobile money is **not** needed — users hold Chinese Alipay/WeChat.
+- **Prices display CNY first**, USD second.
+- **The control plane itself must be reachable from inside China** (users
+  register, pay and fetch their subscription *before* they are connected).
+  Mitigations: (1) control plane behind **Cloudflare**; (2) the app can reach
+  the control-plane API through any online node as an HTTP CONNECT fallback
+  (`FR-CN-09`); (3) ship at least one spare node domain.
+
+### A0.2 The scope change
+
 The product owner has changed the scope. MVPN v1.0 is now a **small commercial paid service**:
 
 1. **Automatic activation on payment** — a user pays and gains access with **no admin confirmation of the payment**.
@@ -175,6 +195,7 @@ The build includes payment **integration** (redirect to provider-hosted checkout
 | FR-CN-06 | The app SHALL fetch a fresh subscription (new node IPs / params) automatically when all known endpoints for a node fail (control plane can rotate a node's address). |
 | FR-CN-07 | No node SHALL expose any plaintext-identifiable VPN banner on any port; non-handshake traffic on 443 SHALL receive the camouflage website. |
 | FR-CN-08 | Admin SHALL be able to rotate a node's REALITY keypair / `dest` / IP and have the change reach clients via updated subscription **without users re-registering**. |
+| FR-CN-09 | If the app cannot reach the control-plane API directly (domain/IP blocked), it SHALL retry via a bootstrap path: an HTTP CONNECT proxy exposed by any reachable node, or a bundled list of backup control-plane domains. First-run onboarding SHALL still work from inside China. |
 
 **Operational notes for the owner (not code):** keep ≥1 spare node image ready (`install.sh` one-shot), keep a spare domain, and expect to rotate IPs during "sensitive periods". Field-test from inside China for 24–72 h before advertising (SDD §9).
 

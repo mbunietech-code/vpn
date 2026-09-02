@@ -3,15 +3,26 @@
 A **node** is one VPS running the obfuscated VPN endpoints + the MVPN agent.
 Nodes hold no customer data — only opaque peer credentials.
 
-## 0. Provision the VPS
+## 0. Provision the VPS  —  Vultr, Tokyo
 
-- Ubuntu 24.04 LTS, 1–2 vCPU, 2 GB RAM, 20 GB SSD.
-- **Region / line matters for China**: Hong Kong, Japan, or Singapore with a
-  China-optimised route (CN2 GIA, IPLC, or a "CN-optimised" plan). Avoid the
-  cheapest DigitalOcean / Vultr / OVH ranges — many are heavily blocked.
-- Point a DNS **A record** (`hk1.mbunievpn.com`) at the VPS IP.
-- Optional but recommended: put the domain behind **Cloudflare** (grey-cloud
-  the A record for now; the orange-cloud CDN front is FR-CN-03, added later).
+All users are inside mainland China, so the node must have a good China-egress
+route. Chosen: **Vultr High Frequency, Tokyo**.
+
+1. Vultr → **Deploy** → **Cloud Compute – High Frequency**.
+2. Location: **Tokyo**. (Seoul is a fine alternative; Singapore is weaker for CN.)
+3. OS: **Ubuntu 24.04 LTS x64**.
+4. Plan: **2 GB RAM / 1 vCPU** (~$12/mo). 1 GB works but is tight once several
+   users are on.
+5. Add your **SSH key** during creation (so password login is off from minute one).
+6. Enable **IPv6** (free). Auto-backups optional.
+7. Label: `mvpn-node-tokyo`. Deploy.
+
+After it boots, note the IPv4. Point a DNS **A record** `tk1.<yourdomain>` at it.
+Put the domain on **Cloudflare**; keep this record **grey-cloud (DNS only)** for
+now — the orange-cloud CDN front is added later (FR-CN-03).
+
+> If this specific IP turns out to be blocked from China, just **destroy +
+> redeploy** in Vultr — you get a fresh IP in a minute, then re-run steps 2–4.
 
 ## 1. Build the agent
 
@@ -37,13 +48,18 @@ Copy the `node/` folder to the VPS, then:
 
 ```bash
 sudo ./install.sh \
-  --domain hk1.mbunievpn.com \
-  --reality-dest www.microsoft.com:443 \
-  --reality-sni  www.microsoft.com \
+  --domain tk1.mbunievpn.com \
+  --reality-dest www.apple.com:443 \
+  --reality-sni  www.apple.com \
   --control-plane https://cp.mbunievpn.com \
   --node-token   "$(openssl rand -hex 24)" \
   --hysteria-port-range 20000-30000
 ```
+
+**REALITY `dest` / `sni`** must be a site that is (a) fully reachable inside
+China, (b) high-traffic, (c) TLS 1.3 + HTTP/2, (d) has a CDN presence in Japan.
+Good: `www.apple.com`, `www.microsoft.com`, `www.bing.com`, `swdist.apple.com`.
+**Never** use anything blocked in China (Google, YouTube, Wikipedia, etc.).
 
 Save the `--node-token` value and the REALITY public key / short id / SNI it
 prints at the end.
