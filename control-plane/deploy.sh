@@ -10,6 +10,9 @@ composer install --no-dev --optimize-autoloader --no-interaction
 echo "==> migrate"
 php artisan migrate --force
 
+echo "==> sync setting rows (idempotent)"
+php artisan db:seed --class=SettingsSeeder --force
+
 echo "==> caches"
 php artisan config:cache
 php artisan route:cache
