@@ -1,0 +1,52 @@
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- secrets ---
+*.env
+.env
+.env.*
+!.env.example
+node/**/agent.env
+*.pem
+*.key
+*.crt
+
+# --- Laravel control-plane ---
+control-plane/vendor/
+control-plane/node_modules/
+control-plane/public/build/
+control-plane/public/hot
+control-plane/storage/*.key
+control-plane/storage/framework/cache/*
+control-plane/storage/framework/sessions/*
+control-plane/storage/framework/views/*
+control-plane/storage/logs/*
+control-plane/database/*.sqlite
+control-plane/.phpunit.result.cache
+control-plane/bootstrap/cache/*.php
+
+# --- Flutter client ---
+client/.dart_tool/
+client/build/
+client/.flutter-plugins
+client/.flutter-plugins-dependencies
+client/**/Flutter/ephemeral/
+client/android/.gradle/
+client/android/local.properties
+client/ios/Pods/
+client/windows/flutter/ephemeral/
+client/linux/flutter/ephemeral/
+client/macos/Flutter/ephemeral/
+
+# --- Go node-agent ---
+node/node-agent/mvpn-agent
+node/node-agent/*.exe
+
+# --- misc working files ---
+files.zip
+sammple.jpeg
+*.output
