@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BinaryController;
 use App\Http\Controllers\SubscriptionLinkController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -12,6 +13,11 @@ Route::get('/', fn () => response()->json([
 // Opaque client subscription endpoint (FR-NEW-05)
 Route::get('/sub/{token}', SubscriptionLinkController::class)
     ->where('token', '[A-Za-z0-9]+');
+
+// sing-box engine binary for the desktop app (China can't rely on GitHub)
+Route::get('/bin/sing-box/{target}', [BinaryController::class, 'singbox'])
+    ->where('target', '[a-z0-9-]+');
+Route::get('/bin/sing-box-version', [BinaryController::class, 'version']);
 
 // Payment webhooks - no CSRF, signature-verified inside the processor
 Route::post('/webhooks/stripe', [WebhookController::class, 'stripe']);

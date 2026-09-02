@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Subscription;
 use App\Services\SubscriptionBuilder;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * GET /sub/{token} - opaque, unauthenticated (the token IS the credential).
- * Returns the base64 share-link bundle that Hiddify / sing-box import.
+ *
+ *   (default)          → base64 share-link bundle (Hiddify / v2rayN / sing-box import)
+ *   ?format=singbox    → full sing-box client config JSON (MVPN desktop engine)
+ *       &platform=windows|linux|macos
  */
 class SubscriptionLinkController extends Controller
 {
@@ -21,17 +24,27 @@ class SubscriptionLinkController extends Controller
 
         $sub->update(['last_synced_at' => now()]);
 
-        $body = $builder->build($sub);
+        $userinfo = sprintf(
+            'upload=0; download=%d; total=%d; expire=%d',
+            $sub->data_used_mb * 1048576,
+            ($sub->plan()->data_cap_mb ?? 0) * 1048576,
+            $sub->expires_at?->timestamp ?? 0,
+        );
 
-        return response($body, 200, [
+        if ($request->query('format') === 'singbox') {
+            $platform = in_array($request->query('platform'), ['windows', 'linux', 'macos'], true)
+                ? $request->query('platform') : 'windows';
+
+            return response()->json($builder->buildSingbox($sub, $platform), 200, [
+                'Profile-Update-Interval' => '12',
+                'Subscription-Userinfo' => $userinfo,
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        }
+
+        return response($builder->build($sub), 200, [
             'Content-Type' => 'text/plain; charset=utf-8',
             'Profile-Update-Interval' => '12',
-            'Subscription-Userinfo' => sprintf(
-                'upload=0; download=%d; total=%d; expire=%d',
-                $sub->data_used_mb * 1048576,
-                ($sub->plan()->data_cap_mb ?? 0) * 1048576,
-                $sub->expires_at?->timestamp ?? 0,
-            ),
+            'Subscription-Userinfo' => $userinfo,
         ]);
     }
 }
