@@ -59,7 +59,7 @@ class SingboxEngine implements TunnelEngine {
       ..createSync(recursive: true);
 
     final bin = await _ensureBinary(apiBase, dir);
-    final cfg = await _fetchConfig(subUrl, apiToken, dir);
+    final cfg = await _fetchConfig(subUrl, apiToken, dir, pref);
 
     _errBuf.clear();
     final proc = await Process.start(
@@ -152,14 +152,21 @@ class SingboxEngine implements TunnelEngine {
 
   // ---- config -------------------------------------------------------
 
-  Future<File> _fetchConfig(String subUrl, String token, Directory dir) async {
+  Future<File> _fetchConfig(
+      String subUrl, String token, Directory dir, ProtocolPref pref) async {
     final platform = Platform.isWindows
         ? 'windows'
         : Platform.isMacOS
             ? 'macos'
             : 'linux';
+    final protocol = switch (pref) {
+      ProtocolPref.vlessReality => 'reality',
+      ProtocolPref.hysteria2 => 'hysteria2',
+      ProtocolPref.auto => 'auto',
+    };
     final sep = subUrl.contains('?') ? '&' : '?';
-    final uri = Uri.parse('$subUrl${sep}format=singbox&platform=$platform');
+    final uri = Uri.parse(
+        '$subUrl${sep}format=singbox&platform=$platform&protocol=$protocol');
 
     final res = await _http.get(uri, headers: {'Authorization': 'Bearer $token'});
     if (res.statusCode != 200) {

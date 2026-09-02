@@ -40,6 +40,7 @@ class AppState extends ChangeNotifier {
   List<String> currencies = const ['usd', 'cny'];
 
   Future<void> bootstrap() async {
+    await vpn.loadPrefs();
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('mvpn_token');
     identifier = prefs.getString('mvpn_identifier');
@@ -142,6 +143,7 @@ class AppState extends ChangeNotifier {
         );
         await _loadNodesFrom(subUrl);
         gate = AuthGate.ready;
+        vpn.maybeAutoConnect();
       } else {
         gate = AuthGate.needsPlan;
       }

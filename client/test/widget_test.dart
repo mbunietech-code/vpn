@@ -11,6 +11,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mbunie VPN'), findsOneWidget);
-    expect(find.text('Tuma msimbo (OTP)'), findsOneWidget);
+    expect(find.text('Tuma msimbo'), findsOneWidget);
   });
 }

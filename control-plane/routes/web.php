@@ -23,6 +23,10 @@ Route::get('/bin/sing-box-version', [BinaryController::class, 'version']);
 Route::post('/webhooks/stripe', [WebhookController::class, 'stripe']);
 Route::post('/webhooks/cryptomus', [WebhookController::class, 'cryptomus']);
 
+// Legal pages (owner MUST review with counsel — these are starting drafts)
+Route::view('/legal/terms', 'legal.terms')->name('legal.terms');
+Route::view('/legal/privacy', 'legal.privacy')->name('legal.privacy');
+
 // Lightweight return page the hosted checkout redirects back to
 Route::get('/pay/return', function () {
     return response(

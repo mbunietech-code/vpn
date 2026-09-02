@@ -70,13 +70,21 @@ class SubscriptionBuilder
      *
      * @return array<string,mixed>
      */
-    public function buildSingbox(Subscription $sub, string $platform = 'windows'): array
+    public function buildSingbox(Subscription $sub, string $platform = 'windows', string $protocol = 'auto'): array
     {
         $proxyOutbounds = [];   // per-peer outbound tags
         $outbounds = [];
 
         foreach ($this->activePeers($sub) as $peer) {
             $node = $peer->node;
+
+            // Honour an explicit protocol preference from the client.
+            if ($protocol === 'reality' && $peer->protocol !== 'vless-reality') {
+                continue;
+            }
+            if ($protocol === 'hysteria2' && $peer->protocol !== 'hysteria2') {
+                continue;
+            }
 
             if ($peer->protocol === 'vless-reality') {
                 $tag = "{$node->name} · REALITY";

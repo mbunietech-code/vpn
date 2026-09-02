@@ -1,31 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../config.dart';
 import '../models.dart';
 import '../services/mvpn_scope.dart';
 import '../theme/mvpn_theme.dart';
 import '../widgets/common.dart';
+import 'onboarding.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final vpn = MvpnScope.of(context).vpn;
+    final state = MvpnScope.of(context);
+    final vpn = state.vpn;
     final c = context.mvpn;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: const Text('Mipangilio')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
         children: [
-          const SectionCaption('Connection'),
+          const SectionCaption('Akaunti'),
+          MvpnCard(
+            child: Column(
+              children: [
+                SettingRow(
+                  leading: _icon(c, Icons.person_rounded),
+                  title: state.identifier ?? 'Mtumiaji',
+                  subtitle: state.planCode != null
+                      ? 'Kifurushi: ${state.planCode} · ${_expiry(state)}'
+                      : 'Hakuna kifurushi hai',
+                ),
+                Divider(color: c.border, height: 1),
+                SettingRow(
+                  leading: _icon(c, Icons.workspace_premium_rounded),
+                  title: 'Kifurushi & malipo',
+                  trailing: Icon(Icons.chevron_right_rounded, color: c.textHint),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => const PlansScreen())),
+                ),
+                Divider(color: c.border, height: 1),
+                SettingRow(
+                  leading: _icon(c, Icons.logout_rounded, danger: true),
+                  title: 'Toka',
+                  onTap: () => _confirmLogout(context, state),
+                ),
+              ],
+            ),
+          ),
+          const SectionCaption('Muunganisho'),
           MvpnCard(
             child: Column(
               children: [
                 SettingRow(
                   title: 'Kill-switch',
-                  subtitle: 'Block internet traffic if VPN connection drops',
+                  subtitle: 'Zuia intaneti yote endapo VPN itakatika',
                   trailing: Switch(
                     value: vpn.killSwitch,
                     onChanged: (v) => vpn.update(() => vpn.killSwitch = v),
@@ -33,8 +65,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
-                  title: 'Auto-connect on launch',
-                  subtitle: 'Automatically connect to the last used server',
+                  title: 'Unganisha app ikianzishwa',
+                  subtitle: 'Jiunganishe kiotomatiki kwenye seva ya mwisho',
                   trailing: Switch(
                     value: vpn.autoConnect,
                     onChanged: (v) => vpn.update(() => vpn.autoConnect = v),
@@ -42,8 +74,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
-                  title: 'Auto-reconnect',
-                  subtitle: 'Reconnect on network change or drop',
+                  title: 'Unganisha upya kiotomatiki',
+                  subtitle: 'Baada ya kubadilika kwa mtandao au kukatika',
                   trailing: Switch(
                     value: vpn.autoReconnect,
                     onChanged: (v) => vpn.update(() => vpn.autoReconnect = v),
@@ -51,10 +83,16 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
-                  title: 'Protocol Preference',
+                  title: 'Protocol',
+                  subtitle: switch (vpn.protocol) {
+                    ProtocolPref.auto => 'Auto — huchagua ya haraka',
+                    ProtocolPref.vlessReality => 'Ficha kama HTTPS (TCP)',
+                    ProtocolPref.hysteria2 => 'Kasi ya juu (QUIC/UDP)',
+                  },
                   trailing: DropdownButton<ProtocolPref>(
                     value: vpn.protocol,
                     underline: const SizedBox.shrink(),
+                    borderRadius: BorderRadius.circular(12),
                     items: [
                       for (final p in ProtocolPref.values)
                         DropdownMenuItem(value: p, child: Text(p.label)),
@@ -66,82 +104,93 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SectionCaption('Account & Peer'),
+          const SectionCaption('Kuhusu'),
           MvpnCard(
             child: Column(
               children: [
                 SettingRow(
-                  title: 'Current Peer ID',
-                  subtitle: vpn.peerId,
-                  trailing: IconButton(
-                    icon: Icon(Icons.copy_rounded, size: 18, color: c.textSecondary),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: vpn.peerId));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Peer ID copied')),
-                      );
-                    },
-                  ),
+                  title: 'Toleo',
+                  trailing: Text(MvpnConfig.appVersion,
+                      style: TextStyle(fontSize: 13, color: c.textSecondary)),
                 ),
                 Divider(color: c.border, height: 1),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Import Configuration',
-                                style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: c.textPrimary)),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                OutlinedButton.icon(
-                                  onPressed: () {},
-                                  icon: const Icon(Icons.qr_code_scanner, size: 16),
-                                  label: const Text('Scan QR'),
-                                ),
-                                const SizedBox(width: 8),
-                                OutlinedButton.icon(
-                                  onPressed: () {},
-                                  icon: const Icon(Icons.link, size: 16),
-                                  label: const Text('Paste Link'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                SettingRow(
+                  title: 'Nakili Peer ID',
+                  subtitle: vpn.peerId,
+                  trailing: Icon(Icons.copy_rounded, size: 17, color: c.textHint),
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: vpn.peerId));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Peer ID imenakiliwa')),
+                    );
+                  },
+                ),
+                Divider(color: c.border, height: 1),
+                SettingRow(
+                  title: 'Masharti ya Huduma',
+                  trailing: Icon(Icons.open_in_new_rounded,
+                      size: 15, color: c.textHint),
+                  onTap: () => _open('${MvpnConfig.apiBase}/legal/terms'),
+                ),
+                Divider(color: c.border, height: 1),
+                SettingRow(
+                  title: 'Sera ya Faragha',
+                  trailing: Icon(Icons.open_in_new_rounded,
+                      size: 15, color: c.textHint),
+                  onTap: () => _open('${MvpnConfig.apiBase}/legal/privacy'),
                 ),
               ],
             ),
           ),
-          const SectionCaption('About'),
-          MvpnCard(
-            child: Column(
-              children: [
-                SettingRow(title: 'Version', trailing: Text(vpn.appVersion,
-                    style: TextStyle(fontSize: 13, color: c.textSecondary))),
-                Divider(color: c.border, height: 1),
-                SettingRow(
-                  title: 'Terms of Service',
-                  trailing: Icon(Icons.chevron_right, color: c.textHint),
-                  onTap: () {},
-                ),
-                Divider(color: c.border, height: 1),
-                SettingRow(
-                  title: 'Privacy Policy',
-                  trailing: Icon(Icons.chevron_right, color: c.textHint),
-                  onTap: () {},
-                ),
-              ],
-            ),
+          const SizedBox(height: 18),
+          Center(
+            child: Text('Mbunie Tech · Mbunie VPN',
+                style: TextStyle(fontSize: 11, color: c.textHint)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _icon(MvpnColors c, IconData i, {bool danger = false}) => Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: (danger ? c.danger : c.brand).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(i, size: 17, color: danger ? c.danger : c.brand),
+      );
+
+  String _expiry(dynamic state) {
+    final d = state.expiresAt as DateTime?;
+    if (d == null) return state.subStatus as String;
+    final days = d.difference(DateTime.now()).inDays;
+    return days >= 0 ? 'siku $days zimebaki' : 'imeisha';
+  }
+
+  Future<void> _open(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _confirmLogout(BuildContext context, dynamic state) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Toka?'),
+        content: const Text('Utahitaji kuingia tena kwa msimbo.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Ghairi')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              state.logout();
+            },
+            child: const Text('Toka'),
           ),
         ],
       ),

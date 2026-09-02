@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart';
 import 'tunnel/simulated_engine.dart';
@@ -62,6 +63,45 @@ class VpnController extends ChangeNotifier {
   ProtocolPref protocol = ProtocolPref.auto;
   bool get ipObfuscated => _status == VpnStatus.connected;
 
+  bool _userWantsConnected = false;
+  int _reconnectAttempts = 0;
+  Timer? _reconnectTimer;
+
+  /// Load persisted preferences. Call once at startup.
+  Future<void> loadPrefs() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      killSwitch = p.getBool('pref_killswitch') ?? killSwitch;
+      autoConnect = p.getBool('pref_autoconnect') ?? autoConnect;
+      autoReconnect = p.getBool('pref_autoreconnect') ?? autoReconnect;
+      pingOnOpen = p.getBool('pref_ping') ?? pingOnOpen;
+      final pr = p.getString('pref_protocol');
+      if (pr != null) {
+        protocol = ProtocolPref.values.firstWhere((e) => e.name == pr,
+            orElse: () => ProtocolPref.auto);
+      }
+      notifyListeners();
+    } catch (_) {/* defaults */}
+  }
+
+  Future<void> _persist() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setBool('pref_killswitch', killSwitch);
+      await p.setBool('pref_autoconnect', autoConnect);
+      await p.setBool('pref_autoreconnect', autoReconnect);
+      await p.setBool('pref_ping', pingOnOpen);
+      await p.setString('pref_protocol', protocol.name);
+    } catch (_) {}
+  }
+
+  /// Called by AppState when a subscription becomes active.
+  void maybeAutoConnect() {
+    if (autoConnect && _status == VpnStatus.disconnected) {
+      connect();
+    }
+  }
+
   final String peerId = 'mbunie';
   final String appVersion = 'v1.0.0';
 
@@ -78,6 +118,7 @@ class VpnController extends ChangeNotifier {
   void update(void Function() mutate) {
     mutate();
     notifyListeners();
+    _persist();
   }
 
   // ---- actions ------------------------------------------------------
@@ -93,6 +134,8 @@ class VpnController extends ChangeNotifier {
 
   Future<void> connect() async {
     if (_status == VpnStatus.connecting || _status == VpnStatus.connected) return;
+    _userWantsConnected = true;
+    _reconnectTimer?.cancel();
 
     if (_engine.isReal && (_subUrl == null || _apiToken == null)) {
       _error = 'Hakuna subscription hai. Lipia kifurushi kwanza.';
@@ -101,7 +144,7 @@ class VpnController extends ChangeNotifier {
     }
 
     _error = null;
-    _set(VpnStatus.connecting);
+    _set(_reconnectAttempts > 0 ? VpnStatus.reconnecting : VpnStatus.connecting);
     try {
       await _engine.start(
         subUrl: _subUrl ?? '',
@@ -112,17 +155,31 @@ class VpnController extends ChangeNotifier {
     } catch (e) {
       _error = e is StateError ? e.message : e.toString();
       _set(VpnStatus.error);
+      _scheduleReconnect();
     }
   }
 
   Future<void> disconnect() async {
+    _userWantsConnected = false;
+    _reconnectAttempts = 0;
+    _reconnectTimer?.cancel();
     await _engine.stop();
     _connectedAt = null;
     _stats = SessionStats.empty;
     _down.clear();
     _up.clear();
     _peakMbps = 0;
-    if (_status != VpnStatus.error) _set(VpnStatus.disconnected);
+    _set(VpnStatus.disconnected);
+  }
+
+  void _scheduleReconnect() {
+    if (!autoReconnect || !_userWantsConnected || _reconnectAttempts >= 5) return;
+    _reconnectAttempts++;
+    final delay = Duration(seconds: 2 * _reconnectAttempts);
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(delay, () {
+      if (_userWantsConnected) connect();
+    });
   }
 
   void setNodes(List<VpnNode> nodes) {
@@ -149,14 +206,21 @@ class VpnController extends ChangeNotifier {
         _set(VpnStatus.connecting);
       case EngineStatus.up:
         _connectedAt ??= DateTime.now();
+        _reconnectAttempts = 0;
         _set(VpnStatus.connected);
       case EngineStatus.down:
         _connectedAt = null;
         _stats = SessionStats.empty;
-        if (_status != VpnStatus.error) _set(VpnStatus.disconnected);
+        if (_userWantsConnected && autoReconnect) {
+          _set(VpnStatus.reconnecting);
+          _scheduleReconnect();
+        } else if (_status != VpnStatus.error) {
+          _set(VpnStatus.disconnected);
+        }
       case EngineStatus.error:
         _error = r.message ?? 'Muunganisho umeshindwa.';
         _set(VpnStatus.error);
+        _scheduleReconnect();
     }
   }
 
@@ -191,6 +255,7 @@ class VpnController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _reconnectTimer?.cancel();
     _repSub.cancel();
     _trafSub.cancel();
     _engine.dispose();
