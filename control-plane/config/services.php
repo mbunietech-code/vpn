@@ -63,6 +63,10 @@ return [
         'from' => env('TWILIO_FROM'),
     ],
 
+    'brevo' => [
+        'key' => env('BREVO_API_KEY'),
+    ],
+
     'mvpn' => [
         'currencies' => explode(',', (string) env('MVPN_CURRENCIES', 'usd,cny')),
         'default_currency' => env('MVPN_DEFAULT_CURRENCY', 'usd'),
