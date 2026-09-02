@@ -57,6 +57,12 @@ return [
         'chat_id' => env('MVPN_ALERT_TELEGRAM_CHAT_ID'),
     ],
 
+    'twilio' => [
+        'sid' => env('TWILIO_SID'),
+        'token' => env('TWILIO_TOKEN'),
+        'from' => env('TWILIO_FROM'),
+    ],
+
     'mvpn' => [
         'currencies' => explode(',', (string) env('MVPN_CURRENCIES', 'usd,cny')),
         'default_currency' => env('MVPN_DEFAULT_CURRENCY', 'usd'),

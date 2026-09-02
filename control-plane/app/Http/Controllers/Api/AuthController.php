@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\OtpCode;
 use App\Models\User;
+use App\Services\OtpDelivery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
@@ -16,7 +18,7 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthController extends Controller
 {
-    public function requestOtp(Request $request): JsonResponse
+    public function requestOtp(Request $request, OtpDelivery $delivery): JsonResponse
     {
         $data = $request->validate([
             'identifier' => ['required', 'string', 'max:120'],
@@ -24,6 +26,13 @@ class AuthController extends Controller
 
         $identifier = trim($data['identifier']);
         $channel = str_contains($identifier, '@') ? 'email' : 'sms';
+
+        if ($channel === 'email' && ! filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            throw ValidationException::withMessages(['identifier' => 'Invalid email address.']);
+        }
+        if ($channel === 'sms' && ! preg_match('/^\+?[1-9]\d{6,14}$/', $identifier)) {
+            throw ValidationException::withMessages(['identifier' => 'Enter a valid phone number with country code, e.g. +8613800000000.']);
+        }
 
         $key = 'otp:' . $request->ip();
         if (RateLimiter::tooManyAttempts($key, 5)) {
@@ -35,9 +44,14 @@ class AuthController extends Controller
 
         [$otp, $code] = OtpCode::issue($identifier, $channel, $request->ip());
 
-        // TODO wire real SMS (Africa's Talking / Twilio) + email.
-        // For now the code is logged and, in local env, returned.
-        logger()->info("MVPN OTP for {$identifier}: {$code}");
+        try {
+            $delivery->send($identifier, $channel, $code);
+        } catch (\Throwable $e) {
+            Log::error('OTP delivery failed for ' . $identifier . ': ' . $e->getMessage());
+            throw ValidationException::withMessages([
+                'identifier' => 'Could not send the code right now. Try again shortly.',
+            ]);
+        }
 
         return response()->json([
             'channel' => $channel,
