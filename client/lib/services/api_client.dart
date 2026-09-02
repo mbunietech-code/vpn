@@ -1,15 +1,27 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-/// Client for the MVPN control plane.
-class ApiClient {
-  ApiClient({required this.baseUrl, this.token, http.Client? httpClient})
-      : _http = httpClient ?? http.Client();
+import '../config.dart';
 
-  String baseUrl;
+/// Client for the MVPN control plane.
+///
+/// Holds an ordered list of base URLs (primary + China fallbacks). On a
+/// connection-level failure it advances to the next and retries once, so a
+/// blocked domain does not brick onboarding (FR-CN-09).
+class ApiClient {
+  ApiClient({String? baseUrl, this.token, http.Client? httpClient})
+      : _bases = baseUrl != null ? [baseUrl] : MvpnConfig.apiBases,
+        _http = httpClient ?? http.Client();
+
+  final List<String> _bases;
+  int _active = 0;
   String? token;
   final http.Client _http;
+
+  String get baseUrl => _bases[_active];
 
   Future<Map<String, dynamic>> requestOtp(String identifier) =>
       _post('/api/auth/otp/request', {'identifier': identifier});
@@ -67,18 +79,41 @@ class ApiClient {
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
-  Future<Map<String, dynamic>> _get(String path) async {
-    final res = await _http.get(Uri.parse('$baseUrl$path'), headers: _headers());
-    return _decode(res);
-  }
+  Future<Map<String, dynamic>> _get(String path) => _send(
+        (base) => _http
+            .get(Uri.parse('$base$path'), headers: _headers())
+            .timeout(const Duration(seconds: 12)),
+      );
 
-  Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body) async {
-    final res = await _http.post(
-      Uri.parse('$baseUrl$path'),
-      headers: _headers(),
-      body: jsonEncode(body),
-    );
-    return _decode(res);
+  Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body) => _send(
+        (base) => _http
+            .post(Uri.parse('$base$path'),
+                headers: _headers(), body: jsonEncode(body))
+            .timeout(const Duration(seconds: 15)),
+      );
+
+  /// Runs [attempt] against the active base URL; on a transport failure
+  /// (no route, DNS, TLS, timeout) advances to the next base and retries.
+  Future<Map<String, dynamic>> _send(
+      Future<http.Response> Function(String base) attempt) async {
+    Object? lastErr;
+    for (var i = 0; i < _bases.length; i++) {
+      try {
+        return _decode(await attempt(baseUrl));
+      } on ApiException {
+        rethrow; // a real HTTP response — don't fail over
+      } on SocketException catch (e) {
+        lastErr = e;
+      } on TimeoutException catch (e) {
+        lastErr = e;
+      } on http.ClientException catch (e) {
+        lastErr = e;
+      } on HandshakeException catch (e) {
+        lastErr = e;
+      }
+      _active = (_active + 1) % _bases.length;
+    }
+    throw ApiException(0, {'message': 'Server haipatikani. Angalia mtandao.', 'cause': '$lastErr'});
   }
 
   Map<String, dynamic> _decode(http.Response res) {

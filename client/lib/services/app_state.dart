@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../config.dart';
 import '../models.dart';
 import 'api_client.dart';
 import 'sub_parser.dart';
@@ -11,7 +10,7 @@ enum AuthGate { loading, needsAuth, needsPlan, ready }
 
 class AppState extends ChangeNotifier {
   AppState({ApiClient? api, VpnController? vpn})
-      : api = api ?? ApiClient(baseUrl: MvpnConfig.apiBase),
+      : api = api ?? ApiClient(),
         vpn = vpn ?? VpnController() {
     // Forward VPN state changes to app-wide listeners.
     this.vpn.addListener(notifyListeners);
