@@ -1,0 +1,56 @@
+# MVPN — Build Status & Next Steps
+
+**Updated:** 2026-09-02
+**Repo:** monorepo at project root (git initialised)
+
+---
+
+## Done in this session
+
+### Specs
+- **`05-Addendum-MVPN.md`** — authoritative commercial scope: auto-activation on payment, Stripe (Alipay/WeChat) + Cryptomus, dual CNY/USD pricing, Laravel control-plane + admin, AI anomaly alerting, China/GFW hardening, Flutter × 4 platforms.
+- **`06-Design-System-MVPN.md`** — colour tokens + component + screen spec from the Stitch mockups.
+
+### `control-plane/` (Laravel 13 + Filament 4) — **working, tested**
+- Full schema: users, otp_codes, plans, nodes, invoices, webhook_events, subscriptions, devices, peers, alerts, audit_logs.
+- **Auto-activation pipeline** (no admin confirmation):
+  `POST /api/checkout` → provider checkout → `POST /webhooks/{stripe|cryptomus}` (signature + amount + currency verified, idempotent) → `ProvisionSubscriptionJob` → subscription `active` + `vless-reality` & `hysteria2` peers on every eligible node → app polls `GET /api/subscription` → `GET /sub/{token}` bundle.
+- Payment driver layer: `PaymentGateway` interface + `StripeGateway` + `CryptomusGateway` (test keys — live keys pending merchant approval).
+- Passwordless auth: `POST /api/auth/otp/request|verify` (Sanctum tokens). OTP currently logged / returned in local; SMS+email senders are TODO.
+- Node-agent API: `GET /api/node/peers` (node pulls authoritative list by version), `POST /api/node/health`.
+- `mvpn:sweep-expired` (5-min schedule) — disables peers on lapse, re-enables on renewal.
+- `mvpn:scan-anomalies` (1-min schedule) — rule-based checks + optional Claude API severity/summary + Telegram push for critical.
+- Filament admin resources generated for all 8 models. Admin: `admin@mbunievpn.com` / `change-me-now` (change immediately).
+- Feature tests green: auto-activation, node peers endpoint, expiry sweep.
+- **Local dev DB = SQLite** (WAMP MySQL service needs admin rights to start). Production VPS: set `DB_CONNECTION=mysql`.
+
+### `node/` — drafted, needs a VPS to exercise
+- `install.sh` — idempotent bootstrap: SSH hardening, ufw, Xray-core (VLESS+REALITY:443), sing-box (Hysteria2), Caddy camouflage site, systemd units, agent env.
+- `node-agent/` (Go 1.23) — pulls peer list every 15s, patches Xray/sing-box client lists, hot-reloads, posts health every 60s. `go build` not yet run (no Go toolchain here) — build on the node or in CI.
+
+### `client/` (Flutter 3.44) — UI shell matching the mockups
+- Theme: light + dark from the design tokens.
+- Screens: Home (connect ring, status, current node, mini-stats), Servers (Ping toggle, Optimal card, region-grouped node list), Session Stats (duration, throughput chart, transfer totals), Settings (kill-switch, auto-connect, auto-reconnect, protocol preference, peer ID + copy, import config, about).
+- Runs on **simulated** connection state (`VpnController`). `ApiClient` stub ready for wiring.
+- **No real tunnel yet** — that is the Hiddify-Next fork work (Phase 5).
+
+---
+
+## Next steps (in order)
+
+### Owner — do now (blocks everything downstream)
+1. **VPS ×2**: one node (Hong Kong / Japan / Singapore, China-optimised line — CN2 GIA / IPLC), one control-plane (EU/US, reputable). Ubuntu 24.04.
+2. **Domain(s)** + Cloudflare account (for the CDN front, FR-CN-03).
+3. **Stripe** business onboarding (enable card + Alipay + WeChat Pay) and **Cryptomus** account. Both take days — start today.
+4. Change the seeded admin password; set real plan prices in the admin panel.
+
+### Engineering — continue
+5. Deploy control-plane to its VPS (MySQL, Redis, Horizon, `schedule:work`, `queue:work`, Caddy TLS).
+6. `go build` the node-agent; run `install.sh` on the node VPS; register the node in the admin panel (paste REALITY pubkey / short-id / SNI / per-node secret from install output).
+7. Wire real SMS (Africa's Talking or Twilio) + email OTP senders.
+8. End-to-end test: real checkout (test keys) → webhook → provisioning → import `/sub/{token}` into a stock sing-box/Hiddify client → connect through the node.
+9. Fork **Hiddify-Next**, rebrand from `06-Design-System`, replace profile onboarding with MVPN auth + plans + pay + poll, lock protocol templates, keep kill-switch / DNS guard / fallback. Build Android → Windows → macOS → Linux.
+10. Second node + CDN front + 24–72 h field test from inside China.
+
+### Soft-launch recommendation
+Crypto-only payment + Android-only, once step 8 + Android build are done and one node is field-tested. Add Stripe/Alipay + desktop as they clear.
