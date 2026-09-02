@@ -1,3 +1,3 @@
 module github.com/mbunie/mvpn-node-agent
 
-go 1.23
+go 1.22
