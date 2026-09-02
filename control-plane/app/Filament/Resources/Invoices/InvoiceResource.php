@@ -18,7 +18,23 @@ class InvoiceResource extends Resource
 {
     protected static ?string $model = Invoice::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Uendeshaji';
+
+    protected static ?int $navigationSort = 10;
+
+    public static function getNavigationBadge(): ?string
+    {
+        $n = \App\Models\Invoice::whereIn('status', ['pending', 'pending_review'])->count();
+
+        return $n > 0 ? (string) $n : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger';
+    }
 
     public static function form(Schema $schema): Schema
     {

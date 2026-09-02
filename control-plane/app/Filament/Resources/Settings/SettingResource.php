@@ -21,7 +21,9 @@ class SettingResource extends Resource
 
     protected static ?string $navigationLabel = 'Settings & Keys';
 
-    protected static ?int $navigationSort = 90;
+    protected static string|\UnitEnum|null $navigationGroup = 'Usanidi';
+
+    protected static ?int $navigationSort = 30;
 
     public static function form(Schema $schema): Schema
     {

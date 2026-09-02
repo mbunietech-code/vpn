@@ -18,7 +18,11 @@ class NodeResource extends Resource
 {
     protected static ?string $model = Node::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedServerStack;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Miundombinu';
+
+    protected static ?int $navigationSort = 10;
 
     public static function form(Schema $schema): Schema
     {

@@ -18,7 +18,24 @@ class AlertResource extends Resource
 {
     protected static ?string $model = Alert::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBellAlert;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Miundombinu';
+
+    protected static ?int $navigationSort = 30;
+
+    public static function getNavigationBadge(): ?string
+    {
+        $n = \App\Models\Alert::whereNull('acknowledged_at')->count();
+
+        return $n > 0 ? (string) $n : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return \App\Models\Alert::whereNull('acknowledged_at')->where('severity', 'critical')->exists()
+            ? 'danger' : 'warning';
+    }
 
     public static function form(Schema $schema): Schema
     {

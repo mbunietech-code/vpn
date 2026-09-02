@@ -2,8 +2,7 @@
 
 namespace App\Filament\Resources\Nodes\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
+use App\Models\Node;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -14,58 +13,27 @@ class NodesTable
     {
         return $table
             ->columns([
-                TextColumn::make('name')
-                    ->searchable(),
-                TextColumn::make('region')
-                    ->searchable(),
-                TextColumn::make('public_host')
-                    ->searchable(),
-                TextColumn::make('cdn_host')
-                    ->searchable(),
-                TextColumn::make('api_base')
-                    ->searchable(),
-                TextColumn::make('api_secret')
-                    ->searchable(),
-                TextColumn::make('reality_pubkey')
-                    ->searchable(),
-                TextColumn::make('reality_short_id')
-                    ->searchable(),
-                TextColumn::make('reality_sni')
-                    ->searchable(),
-                TextColumn::make('hysteria_port_range')
-                    ->searchable(),
-                TextColumn::make('hysteria_cert_sha256')
-                    ->searchable(),
-                TextColumn::make('capacity')
-                    ->numeric()
-                    ->sortable(),
+                TextColumn::make('name')->weight('bold')->searchable(),
+                TextColumn::make('region')->badge(),
+                TextColumn::make('public_host')->color('gray')->copyable(),
                 TextColumn::make('status')
-                    ->searchable(),
-                TextColumn::make('peer_version')
-                    ->numeric()
-                    ->sortable(),
+                    ->badge()
+                    ->color(fn ($s) => match ($s) {
+                        'online' => 'success',
+                        'degraded' => 'warning',
+                        'provisioning' => 'info',
+                        default => 'danger',
+                    }),
+                TextColumn::make('peers_count')
+                    ->label('Peers')
+                    ->counts('peers'),
+                TextColumn::make('peer_version')->label('v')->badge()->color('gray'),
                 TextColumn::make('last_health_at')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->label('Health')
+                    ->since()
+                    ->placeholder('kamwe')
+                    ->color(fn ($state) => $state && $state->gt(now()->subMinutes(5)) ? 'success' : 'danger'),
             ])
-            ->filters([
-                //
-            ])
-            ->recordActions([
-                EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->recordActions([EditAction::make()]);
     }
 }

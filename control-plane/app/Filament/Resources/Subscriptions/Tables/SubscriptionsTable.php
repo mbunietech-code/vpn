@@ -2,10 +2,10 @@
 
 namespace App\Filament\Resources\Subscriptions\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
+use App\Models\Subscription;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class SubscriptionsTable
@@ -13,47 +13,39 @@ class SubscriptionsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultSort('expires_at')
             ->columns([
-                TextColumn::make('user.name')
+                TextColumn::make('user.email')
+                    ->description(fn (Subscription $r) => $r->user?->phone)
                     ->searchable(),
-                TextColumn::make('plan_code')
-                    ->searchable(),
+                TextColumn::make('plan_code')->badge(),
                 TextColumn::make('status')
-                    ->searchable(),
-                TextColumn::make('max_devices')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('data_used_mb')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('started_at')
-                    ->dateTime()
-                    ->sortable(),
+                    ->badge()
+                    ->color(fn ($s) => match ($s) {
+                        'active' => 'success',
+                        'pending' => 'gray',
+                        'suspended' => 'danger',
+                        default => 'warning',
+                    }),
                 TextColumn::make('expires_at')
-                    ->dateTime()
+                    ->label('Inaisha')
+                    ->dateTime('d M Y')
+                    ->description(fn (Subscription $r) => $r->expires_at
+                        ? $r->expires_at->diffForHumans()
+                        : null)
+                    ->color(fn (Subscription $r) => $r->expires_at && $r->expires_at->isBefore(now()->addDays(3))
+                        ? 'warning' : null)
                     ->sortable(),
-                TextColumn::make('last_synced_at')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('devices_count')->label('Vifaa')->counts('devices'),
+                TextColumn::make('data_used_mb')->label('Data')
+                    ->formatStateUsing(fn ($s) => number_format($s) . ' MB'),
             ])
             ->filters([
-                //
-            ])
-            ->recordActions([
-                EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                SelectFilter::make('status')->options([
+                    'active' => 'Active', 'pending' => 'Pending',
+                    'expired' => 'Expired', 'suspended' => 'Suspended',
                 ]),
-            ]);
+            ])
+            ->recordActions([EditAction::make()]);
     }
 }

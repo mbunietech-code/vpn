@@ -2,10 +2,8 @@
 
 namespace App\Filament\Resources\Peers\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class PeersTable
@@ -14,40 +12,19 @@ class PeersTable
     {
         return $table
             ->columns([
-                TextColumn::make('subscription.id')
-                    ->searchable(),
-                TextColumn::make('node.name')
-                    ->searchable(),
-                TextColumn::make('protocol')
-                    ->searchable(),
-                TextColumn::make('remote_id')
-                    ->searchable(),
-                TextColumn::make('status')
-                    ->searchable(),
-                TextColumn::make('bytes_up')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('bytes_down')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('subscription.user.email')->label('Mtumiaji')->searchable(),
+                TextColumn::make('node.name')->label('Node')->badge(),
+                TextColumn::make('protocol')->badge()->color('gray'),
+                TextColumn::make('status')->badge()
+                    ->color(fn ($s) => $s === 'active' ? 'success' : 'gray'),
+                TextColumn::make('bytes_down')->label('Down')
+                    ->formatStateUsing(fn ($s) => number_format($s / 1048576, 1) . ' MB'),
+                TextColumn::make('updated_at')->since(),
             ])
             ->filters([
-                //
-            ])
-            ->recordActions([
-                EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                SelectFilter::make('status')->options(['active' => 'Active', 'disabled' => 'Disabled']),
+                SelectFilter::make('protocol')->options([
+                    'vless-reality' => 'VLESS-REALITY', 'hysteria2' => 'Hysteria2',
                 ]),
             ]);
     }

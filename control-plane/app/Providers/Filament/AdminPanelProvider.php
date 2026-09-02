@@ -2,16 +2,20 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\OpenAlerts;
+use App\Filament\Widgets\OverviewStats;
+use App\Filament\Widgets\PendingApprovals;
+use App\Filament\Widgets\RevenueChart;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -27,9 +31,17 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->brandName('Mbunie VPN')
             ->login()
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::hex('#2563EB'),
+            ])
+            ->font('Inter')
+            ->sidebarCollapsibleOnDesktop()
+            ->navigationGroups([
+                NavigationGroup::make('Uendeshaji'),
+                NavigationGroup::make('Miundombinu'),
+                NavigationGroup::make('Usanidi'),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
@@ -38,8 +50,11 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
+                OverviewStats::class,
+                PendingApprovals::class,
+                OpenAlerts::class,
+                RevenueChart::class,
                 AccountWidget::class,
-                FilamentInfoWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

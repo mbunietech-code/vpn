@@ -2,8 +2,7 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
+use App\Models\User;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -14,49 +13,17 @@ class UsersTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('name')
-                    ->searchable(),
-                TextColumn::make('email')
-                    ->label('Email address')
-                    ->searchable(),
-                TextColumn::make('phone')
-                    ->searchable(),
-                TextColumn::make('email_verified_at')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('phone_verified_at')
-                    ->dateTime()
-                    ->sortable(),
-                IconColumn::make('is_admin')
-                    ->boolean(),
-                TextColumn::make('status')
-                    ->searchable(),
-                TextColumn::make('locale')
-                    ->searchable(),
-                TextColumn::make('preferred_currency')
-                    ->searchable(),
-                TextColumn::make('signup_ip')
-                    ->searchable(),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('id')->label('#'),
+                TextColumn::make('email')->searchable()->placeholder('—'),
+                TextColumn::make('phone')->searchable()->placeholder('—'),
+                IconColumn::make('is_admin')->label('Admin')->boolean(),
+                TextColumn::make('status')->badge()
+                    ->color(fn ($s) => $s === 'active' ? 'success' : 'danger'),
+                TextColumn::make('subscriptions_count')->label('Subs')->counts('subscriptions'),
+                TextColumn::make('created_at')->since()->label('Alijiunga'),
             ])
-            ->filters([
-                //
-            ])
-            ->recordActions([
-                EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->recordActions([EditAction::make()]);
     }
 }

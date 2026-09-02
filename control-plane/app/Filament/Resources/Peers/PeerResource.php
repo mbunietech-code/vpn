@@ -18,7 +18,11 @@ class PeerResource extends Resource
 {
     protected static ?string $model = Peer::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Miundombinu';
+
+    protected static ?int $navigationSort = 20;
 
     public static function form(Schema $schema): Schema
     {
