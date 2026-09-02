@@ -59,7 +59,42 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           _ConnectButton(status: vpn.status, onTap: vpn.toggle),
-          const SizedBox(height: 32),
+          const SizedBox(height: 20),
+          if (vpn.status == VpnStatus.error && vpn.error != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: c.danger.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: c.danger.withValues(alpha: 0.3)),
+              ),
+              child: Text(vpn.error!,
+                  style: TextStyle(fontSize: 13, color: c.danger)),
+            ),
+          if (!vpn.isRealTunnel)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: c.warning.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: c.warning),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Demo mode — kwenye platform hii tunnel halisi bado. Tumia toleo la desktop.',
+                      style: TextStyle(fontSize: 12, color: c.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
           _CurrentNodeCard(node: vpn.currentNode),
           const SizedBox(height: 16),
           _MiniStats(),

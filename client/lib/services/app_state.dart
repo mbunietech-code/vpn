@@ -134,7 +134,13 @@ class AppState extends ChangeNotifier {
           : null;
 
       if (subStatus == 'active' && r['sub_url'] is String) {
-        await _loadNodesFrom(r['sub_url'] as String);
+        final subUrl = r['sub_url'] as String;
+        vpn.setConnection(
+          subUrl: subUrl,
+          apiToken: _token ?? '',
+          apiBase: api.baseUrl,
+        );
+        await _loadNodesFrom(subUrl);
         gate = AuthGate.ready;
       } else {
         gate = AuthGate.needsPlan;

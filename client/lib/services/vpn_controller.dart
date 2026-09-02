@@ -1,23 +1,53 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
 import '../models.dart';
+import 'tunnel/simulated_engine.dart';
+import 'tunnel/singbox_engine.dart';
+import 'tunnel/tunnel_engine.dart';
 
-/// Drives connection state + live stats.
+/// Connection state + live stats, backed by a [TunnelEngine].
 ///
-/// TODO: back this with the real sing-box `libbox` FFI engine (Hiddify-Next
-/// fork). For now it simulates so the UI is fully exercised.
+/// Desktop (Windows/Linux/macOS) uses the real [SingboxEngine]; everywhere
+/// else falls back to [SimulatedEngine] until the mobile FFI engine lands.
 class VpnController extends ChangeNotifier {
-  VpnController() {
+  VpnController({TunnelEngine? engine})
+      : _engine = engine ??
+            (SingboxEngine.supported ? SingboxEngine() : SimulatedEngine()) {
     _nodes = _seedNodes();
-    _currentNode = _nodes.firstWhere((n) => n.optimizedFor != null,
-        orElse: () => _nodes.first);
+    _currentNode = _nodes.first;
+    _repSub = _engine.reports.listen(_onReport);
+    _trafSub = _engine.traffic.listen(_onTraffic);
   }
 
+  final TunnelEngine _engine;
+  late final StreamSubscription<EngineReport> _repSub;
+  late final StreamSubscription<EngineTraffic> _trafSub;
+
+  bool get isRealTunnel => _engine.isReal;
+
+  // ---- connection target (set by AppState once subscription is active) ----
+  String? _subUrl;
+  String? _apiToken;
+  String? _apiBase;
+
+  void setConnection({
+    required String subUrl,
+    required String apiToken,
+    required String apiBase,
+  }) {
+    _subUrl = subUrl;
+    _apiToken = apiToken;
+    _apiBase = apiBase;
+  }
+
+  // ---- state ----------------------------------------------------------
   VpnStatus _status = VpnStatus.disconnected;
   VpnStatus get status => _status;
+
+  String? _error;
+  String? get error => _error;
 
   late List<VpnNode> _nodes;
   List<VpnNode> get nodes => List.unmodifiable(_nodes);
@@ -30,56 +60,71 @@ class VpnController extends ChangeNotifier {
   bool autoReconnect = true;
   bool pingOnOpen = true;
   ProtocolPref protocol = ProtocolPref.auto;
-  bool ipObfuscated = true;
+  bool get ipObfuscated => _status == VpnStatus.connected;
 
-  final String peerId = 'mbunie_peer_9d5f7a8b8c';
+  final String peerId = 'mbunie';
   final String appVersion = 'v1.0.0';
 
   SessionStats _stats = SessionStats.empty;
   SessionStats get stats => _stats;
 
-  Timer? _tick;
   DateTime? _connectedAt;
-  final _rng = Random();
   final List<double> _down = [];
   final List<double> _up = [];
   int _peakMbps = 0;
-  double _downBytes = 0, _upBytes = 0;
 
   bool get isConnected => _status == VpnStatus.connected;
 
-  /// Mutate a simple preference and rebuild listeners.
   void update(void Function() mutate) {
     mutate();
     notifyListeners();
   }
 
-  Future<void> toggle() =>
-      isConnected || _status == VpnStatus.connecting ? disconnect() : connect();
+  // ---- actions ------------------------------------------------------
+
+  Future<void> toggle() {
+    if (_status == VpnStatus.connected ||
+        _status == VpnStatus.connecting ||
+        _status == VpnStatus.reconnecting) {
+      return disconnect();
+    }
+    return connect();
+  }
 
   Future<void> connect() async {
     if (_status == VpnStatus.connecting || _status == VpnStatus.connected) return;
+
+    if (_engine.isReal && (_subUrl == null || _apiToken == null)) {
+      _error = 'Hakuna subscription hai. Lipia kifurushi kwanza.';
+      _set(VpnStatus.error);
+      return;
+    }
+
+    _error = null;
     _set(VpnStatus.connecting);
-    await Future<void>.delayed(const Duration(milliseconds: 1400));
-    _connectedAt = DateTime.now();
-    _down.clear();
-    _up.clear();
-    _peakMbps = 0;
-    _downBytes = 0;
-    _upBytes = 0;
-    _set(VpnStatus.connected);
-    _tick = Timer.periodic(const Duration(seconds: 1), (_) => _pump());
+    try {
+      await _engine.start(
+        subUrl: _subUrl ?? '',
+        apiToken: _apiToken ?? '',
+        apiBase: _apiBase ?? '',
+        pref: protocol,
+      );
+    } catch (e) {
+      _error = e is StateError ? e.message : e.toString();
+      _set(VpnStatus.error);
+    }
   }
 
   Future<void> disconnect() async {
-    _tick?.cancel();
-    _tick = null;
+    await _engine.stop();
     _connectedAt = null;
     _stats = SessionStats.empty;
-    _set(VpnStatus.disconnected);
+    _down.clear();
+    _up.clear();
+    _peakMbps = 0;
+    if (_status != VpnStatus.error) _set(VpnStatus.disconnected);
   }
 
-  /// Replace the node list from a freshly parsed subscription.
   void setNodes(List<VpnNode> nodes) {
     if (nodes.isEmpty) return;
     _nodes = nodes;
@@ -92,32 +137,47 @@ class VpnController extends ChangeNotifier {
   void selectNode(VpnNode node) {
     _currentNode = node;
     notifyListeners();
-    if (isConnected) {
-      // brief re-handshake
-      _set(VpnStatus.reconnecting);
-      Future<void>.delayed(const Duration(milliseconds: 900), () {
-        if (_connectedAt != null) _set(VpnStatus.connected);
-      });
+    // With one node + urltest auto-selection there is nothing to switch.
+    // Multi-node selector switching via the Clash API is a later addition.
+  }
+
+  // ---- engine event handling -------------------------------------
+
+  void _onReport(EngineReport r) {
+    switch (r.status) {
+      case EngineStatus.starting:
+        _set(VpnStatus.connecting);
+      case EngineStatus.up:
+        _connectedAt ??= DateTime.now();
+        _set(VpnStatus.connected);
+      case EngineStatus.down:
+        _connectedAt = null;
+        _stats = SessionStats.empty;
+        if (_status != VpnStatus.error) _set(VpnStatus.disconnected);
+      case EngineStatus.error:
+        _error = r.message ?? 'Muunganisho umeshindwa.';
+        _set(VpnStatus.error);
     }
   }
 
-  void _pump() {
-    final downMbps = 40 + _rng.nextDouble() * 380;
-    final upMbps = 10 + _rng.nextDouble() * 90;
-    _peakMbps = max(_peakMbps, downMbps.round());
+  void _onTraffic(EngineTraffic t) {
+    if (_connectedAt == null) return;
+    final downMbps = t.downBps * 8 / 1e6;
+    final upMbps = t.upBps * 8 / 1e6;
+    _peakMbps = downMbps.round() > _peakMbps ? downMbps.round() : _peakMbps;
     _down.add(downMbps);
     _up.add(upMbps);
     if (_down.length > 40) _down.removeAt(0);
     if (_up.length > 40) _up.removeAt(0);
-    _downBytes += downMbps * 1000000 / 8;
-    _upBytes += upMbps * 1000000 / 8;
 
     _stats = SessionStats(
       duration: DateTime.now().difference(_connectedAt!),
-      downloadedBytes: _downBytes.round(),
-      uploadedBytes: _upBytes.round(),
+      downloadedBytes: t.downBytes,
+      uploadedBytes: t.upBytes,
       peakMbps: _peakMbps,
-      protocol: protocol == ProtocolPref.auto ? 'VLESS-REALITY' : protocol.label,
+      protocol: _engine.isReal
+          ? (protocol == ProtocolPref.auto ? 'Auto' : protocol.label)
+          : 'Demo',
       downSeries: List.of(_down),
       upSeries: List.of(_up),
     );
@@ -131,17 +191,19 @@ class VpnController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _tick?.cancel();
+    _repSub.cancel();
+    _trafSub.cancel();
+    _engine.dispose();
     super.dispose();
   }
 
   List<VpnNode> _seedNodes() => const [
-        VpnNode(id: 'zrh', name: 'Zurich', code: 'CH-01', region: 'Europe', latencyMs: 38, optimizedFor: 'Privacy'),
-        VpnNode(id: 'nyc', name: 'New York', code: 'US-EAST-01', region: 'Americas', latencyMs: 24),
-        VpnNode(id: 'yyz', name: 'Toronto', code: 'CA-CEN-02', region: 'Americas', latencyMs: 45),
-        VpnNode(id: 'fra', name: 'Frankfurt', code: 'EU-CEN-01', region: 'Europe', latencyMs: 115),
-        VpnNode(id: 'lon', name: 'London', code: 'EU-WEST-03', region: 'Europe', latencyMs: 122),
-        VpnNode(id: 'hkg', name: 'Hong Kong', code: 'AP-HK-01', region: 'Asia-Pacific', latencyMs: 68, optimizedFor: 'China'),
-        VpnNode(id: 'sin', name: 'Singapore', code: 'AP-SEA-01', region: 'Asia-Pacific', latencyMs: 245),
+        VpnNode(
+            id: 'tk1',
+            name: 'Tokyo',
+            code: 'JP-TK-01',
+            region: 'Asia-Pacific',
+            latencyMs: 0,
+            optimizedFor: 'China'),
       ];
 }
