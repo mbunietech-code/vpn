@@ -137,10 +137,16 @@ class AppState extends ChangeNotifier {
 
   // ---- v1 manual payment ---------------------------------------------
 
+  /// Instant hosted-checkout providers: [{provider, label, currency}]
+  List<Map<String, dynamic>> instantProviders = const [];
+
   Future<void> loadPayMethods() async {
     final r = await api.paymentMethods();
     payMethods = (r['methods'] as List)
         .map((m) => PayMethod.fromJson(m as Map<String, dynamic>))
+        .toList();
+    instantProviders = ((r['instant'] as List?) ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
         .toList();
     notifyListeners();
   }

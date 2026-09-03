@@ -22,6 +22,7 @@ Route::get('/bin/sing-box-version', [BinaryController::class, 'version']);
 // Payment webhooks - no CSRF, signature-verified inside the processor
 Route::post('/webhooks/stripe', [WebhookController::class, 'stripe']);
 Route::post('/webhooks/cryptomus', [WebhookController::class, 'cryptomus']);
+Route::post('/webhooks/clickpesa', [WebhookController::class, 'clickpesa']);
 
 // Payment-proof image — admins only
 Route::get('/admin/invoice/{invoice}/proof', function (\App\Models\Invoice $invoice) {

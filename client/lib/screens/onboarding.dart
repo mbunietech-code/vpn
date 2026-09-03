@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
 import '../l10n/app_text.dart';
@@ -295,7 +296,11 @@ class _PlansScreenState extends State<PlansScreen> {
                             for (final cur in state.currencies)
                               ButtonSegment(
                                 value: cur,
-                                label: Text(cur == 'cny' ? '¥ Yuan' : '\$ USD'),
+                                label: Text(switch (cur) {
+                                  'cny' => '¥ Yuan',
+                                  'tzs' => 'TSh',
+                                  _ => '\$ USD',
+                                }),
                               ),
                           ],
                           selected: {_currency},
@@ -452,6 +457,7 @@ enum _Step { pickMethod, pay, waiting }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   _Step _step = _Step.pickMethod;
+  bool _instant = false;
   PayMethod? _method;
   int? _invoiceId;
   File? _proof;
@@ -524,6 +530,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  Future<void> _payInstant(String provider, String? forcedCurrency) async {
+    final state = MvpnScope.read(context);
+    setState(() {
+      _busy = true;
+      _instant = true;
+      _error = null;
+    });
+    try {
+      final url = await state.startCheckout(
+          widget.plan.code, provider, forcedCurrency ?? widget.currency);
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      setState(() => _step = _Step.waiting);
+      _poll();
+    } on ApiException catch (e) {
+      setState(() => _error = e.message);
+    } catch (_) {
+      setState(() => _error = 'checkout.failStart');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _poll() async {
     final state = MvpnScope.read(context);
     for (var i = 0; i < 200 && mounted && _step == _Step.waiting; i++) {
@@ -552,7 +583,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text('${widget.plan.name} · siku ${widget.plan.days}',
+                  child: Text('${widget.plan.name} · ${context.tr.p('plans.days', widget.plan.days)}',
                       style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -583,7 +614,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   Navigator.of(context).popUntil((r) => r.isFirst);
                 }
               },
-              child: const Text('(dev) Kamilisha sasa'),
+              child: const Text('(dev) complete now'),
             ),
           ],
         ],
@@ -593,28 +624,78 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   List<Widget> _pickMethodStep(dynamic state, MvpnColors c) {
     final methods = state.payMethods as List<PayMethod>;
+    final instant =
+        (state.instantProviders as List).cast<Map<String, dynamic>>();
+    final tr = context.tr;
+
     return [
-      SectionCaption(context.tr.t('checkout.pickMethod')),
-      if (methods.isEmpty)
-        InlineNotice(
-          text: context.tr.t('checkout.noMethods'),
-          tone: NoticeTone.warning,
-        )
-      else
-        for (final m in methods)
+      if (instant.isNotEmpty) ...[
+        SectionCaption(tr.t('checkout.instant')),
+        for (final p in instant)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _MethodTile(
-              method: m,
-              selected: _method?.id == m.id,
-              onTap: () => setState(() => _method = m),
+            child: InkWell(
+              onTap: _busy
+                  ? null
+                  : () => _payInstant(
+                      p['provider'] as String, p['currency'] as String?),
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: c.brand.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: c.brand.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.flash_on_rounded, color: c.brand, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(p['label'] as String,
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: c.textPrimary)),
+                          Text(tr.t('checkout.instantSub'),
+                              style: TextStyle(
+                                  fontSize: 12, color: c.textSecondary)),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: c.brand),
+                  ],
+                ),
+              ),
             ),
           ),
-      const SizedBox(height: 8),
-      ElevatedButton(
-        onPressed: _busy || _method == null ? null : _createInvoice,
-        child: _busy ? const BtnSpinner() : Text(context.tr.t('common.continue')),
-      ),
+        if (methods.isNotEmpty) SectionCaption(tr.t('checkout.manualSection')),
+      ],
+      if (instant.isEmpty) SectionCaption(tr.t('checkout.pickMethod')),
+      if (methods.isEmpty && instant.isEmpty)
+        InlineNotice(
+          text: tr.t('checkout.noMethods'),
+          tone: NoticeTone.warning,
+        ),
+      for (final m in methods)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _MethodTile(
+            method: m,
+            selected: _method?.id == m.id,
+            onTap: () => setState(() => _method = m),
+          ),
+        ),
+      if (methods.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        ElevatedButton(
+          onPressed: _busy || _method == null ? null : _createInvoice,
+          child: _busy ? const BtnSpinner() : Text(tr.t('common.continue')),
+        ),
+      ],
     ];
   }
 
@@ -711,14 +792,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           children: [
             Icon(Icons.hourglass_top_rounded, size: 34, color: c.warning),
             const SizedBox(height: 12),
-            Text(context.tr.t('checkout.waitingTitle'),
+            Text(
+                context.tr
+                    .t(_instant ? 'checkout.waitingAuto' : 'checkout.waitingTitle'),
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: c.textPrimary)),
             const SizedBox(height: 6),
             Text(
-              context.tr.t('checkout.waitingBody'),
+              context.tr.t(
+                  _instant ? 'checkout.waitingAutoBody' : 'checkout.waitingBody'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12.5, height: 1.4, color: c.textSecondary),
             ),

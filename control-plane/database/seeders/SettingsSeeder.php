@@ -25,6 +25,9 @@ class SettingsSeeder extends Seeder
             ['payments', 'stripe_webhook_secret', 'Stripe webhook signing secret', true],
             ['payments', 'cryptomus_merchant_id', 'Cryptomus merchant ID', false],
             ['payments', 'cryptomus_payment_key', 'Cryptomus payment key', true],
+            ['payments', 'clickpesa_client_id', 'ClickPesa client-id', false],
+            ['payments', 'clickpesa_api_key', 'ClickPesa api-key', true],
+            ['payments', 'clickpesa_checksum_secret', 'ClickPesa checksum secret (optional)', true],
 
             ['sms', 'twilio_sid', 'Twilio Account SID', false],
             ['sms', 'twilio_token', 'Twilio Auth Token', true],

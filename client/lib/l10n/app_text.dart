@@ -128,6 +128,24 @@ const _map = <String, Map<String, String>>{
   // ---- checkout ----
   'checkout.title': {'en': 'Payment', 'sw': 'Malipo', 'zh': '付款'},
   'checkout.pickMethod': {'en': 'Choose a payment method', 'sw': 'Chagua njia ya malipo', 'zh': '选择支付方式'},
+  'checkout.instant': {'en': 'Instant payment', 'sw': 'Malipo ya papo hapo', 'zh': '即时支付'},
+  'checkout.instantSub': {
+    'en': 'Pay and get access automatically',
+    'sw': 'Lipa na upate access moja kwa moja',
+    'zh': '付款后自动开通'
+  },
+  'checkout.manualSection': {'en': 'Or pay manually', 'sw': 'Au lipa kwa mkono', 'zh': '或手动付款'},
+  'checkout.openingPay': {'en': 'Opening payment page…', 'sw': 'Inafungua ukurasa wa malipo…', 'zh': '正在打开支付页面…'},
+  'checkout.waitingAuto': {
+    'en': 'Waiting for payment…',
+    'sw': 'Inasubiri malipo yakamilike…',
+    'zh': '等待付款完成…'
+  },
+  'checkout.waitingAutoBody': {
+    'en': 'Finish the payment in the page that opened. The app unlocks automatically.',
+    'sw': 'Kamilisha malipo kwenye ukurasa uliofunguka. App itajiwasha yenyewe.',
+    'zh': '在打开的页面中完成付款。应用将自动解锁。'
+  },
   'checkout.noMethods': {
     'en': 'No payment methods are set up yet. Contact support.',
     'sw': 'Njia za malipo hazijawekwa bado. Wasiliana na support.',

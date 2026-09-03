@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\PaymentMethod;
 use App\Models\Plan;
+use App\Payments\PaymentManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -19,7 +20,7 @@ use Illuminate\Support\Str;
  */
 class PaymentController extends Controller
 {
-    public function methods(Request $request): JsonResponse
+    public function methods(Request $request, PaymentManager $payments): JsonResponse
     {
         $methods = PaymentMethod::where('is_active', true)
             ->orderBy('sort')
@@ -34,7 +35,22 @@ class PaymentController extends Controller
                 'instructions' => $m->instructions,
             ]);
 
-        return response()->json(['methods' => $methods]);
+        // Instant (hosted-checkout) providers that have credentials set.
+        $labels = [
+            'clickpesa' => 'M-Pesa · Tigo · Airtel · Bank (TZS)',
+            'stripe' => 'Card · Alipay · WeChat',
+            'cryptomus' => 'Crypto (USDT)',
+        ];
+        $instant = collect($payments->available())->map(fn ($p) => [
+            'provider' => $p,
+            'label' => $labels[$p] ?? $p,
+            'currency' => PaymentManager::CURRENCY[$p], // null = user picks usd/cny
+        ])->values();
+
+        return response()->json([
+            'methods' => $methods,
+            'instant' => $instant,
+        ]);
     }
 
     public function createManualInvoice(Request $request): JsonResponse

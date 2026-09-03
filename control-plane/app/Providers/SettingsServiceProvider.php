@@ -29,6 +29,9 @@ class SettingsServiceProvider extends ServiceProvider
         'stripe_webhook_secret' => 'services.stripe.webhook_secret',
         'cryptomus_merchant_id' => 'services.cryptomus.merchant_id',
         'cryptomus_payment_key' => 'services.cryptomus.payment_key',
+        'clickpesa_client_id' => 'services.clickpesa.client_id',
+        'clickpesa_api_key' => 'services.clickpesa.api_key',
+        'clickpesa_checksum_secret' => 'services.clickpesa.checksum_secret',
         // --- sms ---
         'twilio_sid' => 'services.twilio.sid',
         'twilio_token' => 'services.twilio.token',

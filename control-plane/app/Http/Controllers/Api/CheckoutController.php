@@ -18,19 +18,31 @@ class CheckoutController extends Controller
     {
         $data = $request->validate([
             'plan' => ['required', 'string', 'exists:plans,code'],
-            'provider' => ['required', 'string', 'in:stripe,cryptomus'],
-            'currency' => ['required', 'string', 'in:usd,cny'],
+            'provider' => ['required', 'string', 'in:stripe,cryptomus,clickpesa'],
+            'currency' => ['required', 'string', 'in:usd,cny,tzs'],
         ]);
+
+        // Some providers only settle in one currency.
+        $forced = PaymentManager::CURRENCY[$data['provider']] ?? null;
+        $currency = $forced ?? $data['currency'];
 
         $plan = Plan::where('code', $data['plan'])->where('is_active', true)->firstOrFail();
         $user = $request->user();
+
+        $amount = $plan->priceCents($currency);
+        if ($amount <= 0) {
+            return response()->json([
+                'error' => 'currency_unavailable',
+                'message' => "This plan has no {$currency} price.",
+            ], 422);
+        }
 
         $invoice = Invoice::create([
             'user_id' => $user->id,
             'plan_code' => $plan->code,
             'provider' => $data['provider'],
-            'currency' => $data['currency'],
-            'amount_cents' => $plan->priceCents($data['currency']),
+            'currency' => $currency,
+            'amount_cents' => $amount,
             'status' => 'pending',
             'idempotency_key' => (string) Str::uuid(),
             'expires_at' => now()->addMinutes(30),

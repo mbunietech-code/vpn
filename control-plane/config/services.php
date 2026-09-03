@@ -47,6 +47,12 @@ return [
         'webhook_key' => env('CRYPTOMUS_WEBHOOK_KEY'),
     ],
 
+    'clickpesa' => [
+        'client_id' => env('CLICKPESA_CLIENT_ID'),
+        'api_key' => env('CLICKPESA_API_KEY'),
+        'checksum_secret' => env('CLICKPESA_CHECKSUM_SECRET'),
+    ],
+
     'anthropic' => [
         'key' => env('ANTHROPIC_API_KEY'),
         'alert_model' => env('MVPN_ALERT_MODEL', 'claude-sonnet-5'),

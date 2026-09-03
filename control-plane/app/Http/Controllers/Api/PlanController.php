@@ -10,23 +10,31 @@ class PlanController extends Controller
 {
     public function index(): JsonResponse
     {
-        $plans = Plan::where('is_active', true)->orderBy('sort')->get()->map(fn (Plan $p) => [
-            'code' => $p->code,
-            'name' => $p->name,
-            'days' => $p->days,
-            'max_devices' => $p->max_devices,
-            'data_cap_mb' => $p->data_cap_mb,
-            'price' => [
-                'usd_cents' => $p->price_usd_cents,
-                'cny_cents' => $p->price_cny_cents,
-                'display' => $p->display(), // { "usd": "$3.99", "cny": "¥28" }
-            ],
-        ]);
+        $plans = Plan::where('is_active', true)->orderBy('sort')->get();
+
+        $hasTzs = $plans->contains(fn (Plan $p) => $p->price_tzs_cents > 0);
+
+        $currencies = array_values(array_filter([
+            ...config('services.mvpn.currencies'),
+            $hasTzs ? 'tzs' : null,
+        ]));
 
         return response()->json([
-            'currencies' => config('services.mvpn.currencies'),
+            'currencies' => $currencies,
             'default_currency' => config('services.mvpn.default_currency'),
-            'plans' => $plans,
+            'plans' => $plans->map(fn (Plan $p) => [
+                'code' => $p->code,
+                'name' => $p->name,
+                'days' => $p->days,
+                'max_devices' => $p->max_devices,
+                'data_cap_mb' => $p->data_cap_mb,
+                'price' => [
+                    'usd_cents' => $p->price_usd_cents,
+                    'cny_cents' => $p->price_cny_cents,
+                    'tzs_cents' => $p->price_tzs_cents,
+                    'display' => $p->display(),
+                ],
+            ]),
         ]);
     }
 }

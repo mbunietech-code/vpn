@@ -23,4 +23,11 @@ class WebhookController extends Controller
 
         return response()->json($r['body'], $r['status']);
     }
+
+    public function clickpesa(Request $request): JsonResponse
+    {
+        $r = $this->processor->handle('clickpesa', $request);
+
+        return response()->json($r['body'], $r['status']);
+    }
 }
