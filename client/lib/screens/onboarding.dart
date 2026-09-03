@@ -46,6 +46,12 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _verify(dynamic state, String code) => _run(() async {
+        await state.verifyOtp(code);
+        // Close the OS autofill session so its overlay doesn't linger.
+        TextInput.finishAutofillContext();
+      });
+
   Future<void> _send0() => _run(() async {
         final hint = await MvpnScope.read(context).requestOtpReturningDebug(_id.text);
         setState(() {
@@ -105,9 +111,11 @@ class _AuthScreenState extends State<AuthScreen> {
                         fontSize: 13.5, height: 1.4, color: c.textSecondary),
                   ),
                   const SizedBox(height: 30),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: _sent ? _verifyStep(state, c) : _idStep(c),
+                  AutofillGroup(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: _sent ? _verifyStep(state, c) : _idStep(c),
+                    ),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 16),
@@ -139,6 +147,10 @@ class _AuthScreenState extends State<AuthScreen> {
           controller: _id,
           keyboardType: TextInputType.emailAddress,
           autofocus: true,
+          autofillHints: const [
+            AutofillHints.email,
+            AutofillHints.telephoneNumber,
+          ],
           onChanged: (_) => setState(() {}),
           onSubmitted: (_) =>
               _id.text.trim().isNotEmpty && !_busy ? _send0() : null,
@@ -167,11 +179,14 @@ class _AuthScreenState extends State<AuthScreen> {
           maxLength: 6,
           autofocus: true,
           textAlign: TextAlign.center,
+          autofillHints: const [AutofillHints.oneTimeCode],
           style: const TextStyle(
               fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 10),
           onChanged: (v) {
             setState(() {});
-            if (v.length == 6 && !_busy) _run(() => state.verifyOtp(v));
+            if (v.length == 6 && !_busy) {
+              _verify(state, v);
+            }
           },
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: const InputDecoration(counterText: '', hintText: '******'),
@@ -187,7 +202,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ElevatedButton(
           onPressed: _busy || _code.text.length != 6
               ? null
-              : () => _run(() => state.verifyOtp(_code.text)),
+              : () => _verify(state, _code.text),
           child: _busy ? const BtnSpinner() : Text(context.tr.t('auth.verify')),
         ),
         TextButton(
