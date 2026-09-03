@@ -49,12 +49,16 @@ class MvpnConfig {
   static String get engineAndroidDownloadUrl => '$_prod/download/android';
 
   /// `mvpn://import?url=<subUrl>&name=Mbunie VPN` — parsed by the engine's
-  /// `LinkParser.deep()` (host `import` triggers auto add-profile).
+  /// `LinkParser.deep()` (host `import` triggers auto add-profile + connect).
   static Uri engineImportLink(String subUrl) => Uri(
         scheme: 'mvpn',
         host: 'import',
         queryParameters: {'url': subUrl, 'name': 'Mbunie VPN'},
       );
+
+  /// `mvpn://connect` — reconnect an engine that already has the profile,
+  /// skipping the subscription re-fetch. Used after the first handoff.
+  static Uri get engineConnectLink => Uri(scheme: 'mvpn', host: 'connect');
 
   /// Payment providers surfaced in the app (control plane also enforces).
   static const providers = <String, String>{
