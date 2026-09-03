@@ -41,6 +41,8 @@ class SettingsServiceProvider extends ServiceProvider
         'anthropic_api_key' => 'services.anthropic.key',
         'telegram_bot_token' => 'services.telegram.bot_token',
         'telegram_chat_id' => 'services.telegram.chat_id',
+        // --- app ---
+        'android_download_url' => 'services.mvpn.android_download_url',
     ];
 
     public function boot(): void

@@ -31,6 +31,28 @@ Route::get('/admin/invoice/{invoice}/proof', function (\App\Models\Invoice $invo
     return response()->file(storage_path('app/private/' . $invoice->proof_path));
 })->middleware('auth')->name('admin.invoice.proof');
 
+// Android tunnel engine ("Mbunie VPN Engine") download.
+//  - if an APK is staged at storage/app/public/downloads/mbunie-vpn-engine.apk it is served
+//  - else redirect to the release URL from settings (mvpn.android_download_url)
+Route::get('/download/android', function () {
+    $apk = storage_path('app/public/downloads/mbunie-vpn-engine.apk');
+    if (is_file($apk)) {
+        return response()->download($apk, 'mbunie-vpn-engine.apk');
+    }
+    $url = config('services.mvpn.android_download_url');
+    if ($url) {
+        return redirect()->away($url);
+    }
+
+    return response(
+        '<!doctype html><meta charset="utf-8"><title>Mbunie VPN Engine</title>'
+        . '<body style="font:16px system-ui;text-align:center;padding:16vh 24px">'
+        . '<h2>Mbunie VPN Engine</h2><p>The Android engine build is not published yet. '
+        . 'Please check back shortly.</p>',
+        503
+    );
+})->name('download.android');
+
 // Legal pages (owner MUST review with counsel — these are starting drafts)
 Route::view('/legal/terms', 'legal.terms')->name('legal.terms');
 Route::view('/legal/privacy', 'legal.privacy')->name('legal.privacy');

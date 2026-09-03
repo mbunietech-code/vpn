@@ -41,6 +41,21 @@ class MvpnConfig {
 
   static const appVersion = 'v1.0.0';
 
+  // --- Android real-tunnel companion ("Mbunie VPN Engine") ---------------
+  // A separate install (the Hiddify light fork) actually carries traffic on
+  // Android. The account app hands it the subscription bundle over a deep
+  // link; if it is missing we send the user to the download page.
+  static const engineAndroidPackage = 'com.mbunie.mvpn.engine';
+  static String get engineAndroidDownloadUrl => '$_prod/download/android';
+
+  /// `mvpn://import?url=<subUrl>&name=Mbunie VPN` — parsed by the engine's
+  /// `LinkParser.deep()` (host `import` triggers auto add-profile).
+  static Uri engineImportLink(String subUrl) => Uri(
+        scheme: 'mvpn',
+        host: 'import',
+        queryParameters: {'url': subUrl, 'name': 'Mbunie VPN'},
+      );
+
   /// Payment providers surfaced in the app (control plane also enforces).
   static const providers = <String, String>{
     'stripe': 'Alipay · WeChat · Card',

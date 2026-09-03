@@ -43,6 +43,10 @@ class VpnController extends ChangeNotifier {
     _apiBase = apiBase;
   }
 
+  /// The active subscription bundle URL, once a subscription is live.
+  /// Used on Android to hand off to the Mbunie VPN Engine app.
+  String? get subUrl => _subUrl;
+
   // ---- state ----------------------------------------------------------
   VpnStatus _status = VpnStatus.disconnected;
   VpnStatus get status => _status;

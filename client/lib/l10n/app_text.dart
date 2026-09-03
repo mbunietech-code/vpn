@@ -315,6 +315,37 @@ const _map = <String, Map<String, String>>{
   'nav.servers': {'en': 'Servers', 'sw': 'Seva', 'zh': '服务器'},
   'nav.settings': {'en': 'Settings', 'sw': 'Mipangilio', 'zh': '设置'},
 
+  // ---- android engine handoff ----
+  'handoff.androidNote': {
+    'en': 'On Android, tap Connect to open the Mbunie VPN Engine and start the tunnel there.',
+    'sw': 'Kwenye Android, gusa Unganisha kufungua Mbunie VPN Engine na kuanzisha tunnel hapo.',
+    'zh': '在 Android 上，点击"连接"打开 Mbunie VPN 引擎并在那里启动隧道。'
+  },
+  'handoff.connect': {'en': 'Open Mbunie VPN Engine', 'sw': 'Fungua Mbunie VPN Engine', 'zh': '打开 Mbunie VPN 引擎'},
+  'handoff.noSub': {
+    'en': 'Buy a plan first, then connect.',
+    'sw': 'Lipia kifurushi kwanza, kisha unganisha.',
+    'zh': '请先购买套餐，然后连接。'
+  },
+  'handoff.needEngineTitle': {
+    'en': 'Install the VPN engine',
+    'sw': 'Sakinisha injini ya VPN',
+    'zh': '安装 VPN 引擎'
+  },
+  'handoff.needEngineBody': {
+    'en':
+        'Android needs the separate "Mbunie VPN Engine" app to carry traffic. Install it once, then come back and tap Connect.',
+    'sw':
+        'Android inahitaji app tofauti ya "Mbunie VPN Engine" kubeba trafiki. Sakinisha mara moja, kisha rudi ugonge Unganisha.',
+    'zh': 'Android 需要单独的"Mbunie VPN 引擎"应用来传输流量。安装一次后返回并点击"连接"。'
+  },
+  'handoff.getEngine': {'en': 'Download', 'sw': 'Pakua', 'zh': '下载'},
+  'handoff.opened': {
+    'en': 'Opened Mbunie VPN Engine — approve the connection there.',
+    'sw': 'Mbunie VPN Engine imefunguliwa — idhinisha muunganisho hapo.',
+    'zh': '已打开 Mbunie VPN 引擎 — 请在那里批准连接。'
+  },
+
   // ---- vpn controller messages ----
   'vpn.noSub': {
     'en': 'No active subscription. Buy a plan first.',

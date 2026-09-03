@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_text.dart';
 import '../models.dart';
+import '../services/app_state.dart';
+import '../services/mobile_handoff.dart';
 import '../services/mvpn_scope.dart';
 import '../theme/mvpn_theme.dart';
 import '../widgets/common.dart';
@@ -29,6 +32,11 @@ class HomeScreen extends StatelessWidget {
     };
 
     final daysLeft = state.expiresAt?.difference(DateTime.now()).inDays;
+
+    // On Android the tunnel runs in the separate Mbunie VPN Engine app; the
+    // orb hands the subscription over instead of driving a local tunnel.
+    final androidHandoff =
+        defaultTargetPlatform == TargetPlatform.android && !vpn.isRealTunnel;
 
     return Scaffold(
       appBar: AppBar(
@@ -98,7 +106,15 @@ class HomeScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 14),
               child: InlineNotice(text: tr.t(vpn.error!), tone: NoticeTone.danger),
             ),
-          if (!vpn.isRealTunnel)
+          if (androidHandoff)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: InlineNotice(
+                text: tr.t('handoff.androidNote'),
+                tone: NoticeTone.info,
+              ),
+            )
+          else if (!vpn.isRealTunnel)
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: InlineNotice(
@@ -107,7 +123,14 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 8),
-          Center(child: ConnectOrb(status: vpn.status, onTap: vpn.toggle)),
+          Center(
+            child: ConnectOrb(
+              status: vpn.status,
+              onTap: androidHandoff
+                  ? () => _handoffConnect(context, state)
+                  : vpn.toggle,
+            ),
+          ),
           const SizedBox(height: 22),
           Center(
             child: Column(
@@ -137,12 +160,31 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (androidHandoff) ...[
+            const SizedBox(height: 20),
+            Center(
+              child: FilledButton.icon(
+                onPressed: () => _handoffConnect(context, state),
+                icon: const Icon(Icons.bolt_rounded, size: 18),
+                label: Text(tr.t('handoff.connect')),
+              ),
+            ),
+          ],
           const SizedBox(height: 26),
           _NodeCard(node: vpn.currentNode),
           const SizedBox(height: 12),
           _LiveCard(),
         ],
       ),
+    );
+  }
+}
+
+Future<void> _handoffConnect(BuildContext context, AppState state) async {
+  final ok = await MobileHandoff.connect(context, state.vpn.subUrl);
+  if (ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.tr.t('handoff.opened'))),
     );
   }
 }

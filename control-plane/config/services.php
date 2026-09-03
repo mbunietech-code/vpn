@@ -78,6 +78,7 @@ return [
         'currencies' => explode(',', (string) env('MVPN_CURRENCIES', 'usd,cny')),
         'default_currency' => env('MVPN_DEFAULT_CURRENCY', 'usd'),
         'provision_timeout' => (int) env('MVPN_PROVISION_TIMEOUT', 60),
+        'android_download_url' => env('MVPN_ANDROID_DOWNLOAD_URL'),
     ],
 
 ];
