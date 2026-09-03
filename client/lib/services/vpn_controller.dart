@@ -138,7 +138,7 @@ class VpnController extends ChangeNotifier {
     _reconnectTimer?.cancel();
 
     if (_engine.isReal && (_subUrl == null || _apiToken == null)) {
-      _error = 'Hakuna subscription hai. Lipia kifurushi kwanza.';
+      _error = 'vpn.noSub';
       _set(VpnStatus.error);
       return;
     }
@@ -218,7 +218,7 @@ class VpnController extends ChangeNotifier {
           _set(VpnStatus.disconnected);
         }
       case EngineStatus.error:
-        _error = r.message ?? 'Muunganisho umeshindwa.';
+        _error = r.message ?? 'vpn.failed';
         _set(VpnStatus.error);
         _scheduleReconnect();
     }

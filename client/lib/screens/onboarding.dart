@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../config.dart';
+import '../l10n/app_text.dart';
 import '../models.dart';
 import '../services/api_client.dart';
 import '../services/mvpn_scope.dart';
@@ -38,7 +39,7 @@ class _AuthScreenState extends State<AuthScreen> {
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Tatizo la mtandao. Angalia muunganisho.');
+      setState(() => _error = 'auth.netError');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -96,8 +97,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 6),
                   Text(
                     _sent
-                        ? 'Tumetuma msimbo wa tarakimu 6 kwenda\n${_id.text.trim()}'
-                        : 'Intaneti bila mipaka. Ingia kwa simu au email.',
+                        ? context.tr.p('auth.sentTo', _id.text.trim())
+                        : context.tr.t('auth.tagline'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 13.5, height: 1.4, color: c.textSecondary),
@@ -109,13 +110,13 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 16),
-                    Text(_error!,
+                    Text(context.tr.t(_error!),
                         textAlign: TextAlign.center,
                         style: TextStyle(color: c.danger, fontSize: 13)),
                   ],
                   const SizedBox(height: 24),
                   Text(
-                    'Kwa kuendelea unakubali Masharti ya Huduma\nna Sera ya Faragha.',
+                    context.tr.t('auth.legal'),
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 11, height: 1.5, color: c.textHint),
                   ),
@@ -141,14 +142,14 @@ class _AuthScreenState extends State<AuthScreen> {
           onSubmitted: (_) =>
               _id.text.trim().isNotEmpty && !_busy ? _send0() : null,
           decoration: const InputDecoration(
-            hintText: '+8613… au barua@pepe.com',
+            hintText: '+8613… you@email.com',
             prefixIcon: Icon(Icons.alternate_email_rounded),
           ),
         ),
         const SizedBox(height: 14),
         ElevatedButton(
           onPressed: _busy || _id.text.trim().isEmpty ? null : _send0,
-          child: _busy ? const BtnSpinner() : const Text('Tuma msimbo'),
+          child: _busy ? const BtnSpinner() : Text(context.tr.t('auth.sendCode')),
         ),
       ],
     );
@@ -172,12 +173,12 @@ class _AuthScreenState extends State<AuthScreen> {
             if (v.length == 6 && !_busy) _run(() => state.verifyOtp(v));
           },
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(counterText: '', hintText: '••••••'),
+          decoration: const InputDecoration(counterText: '', hintText: '******'),
         ),
         if (_debugHint != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text('Msimbo wa majaribio: $_debugHint',
+            child: Text(context.tr.p('auth.debugCode', _debugHint!),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: c.textHint)),
           ),
@@ -186,7 +187,7 @@ class _AuthScreenState extends State<AuthScreen> {
           onPressed: _busy || _code.text.length != 6
               ? null
               : () => _run(() => state.verifyOtp(_code.text)),
-          child: _busy ? const BtnSpinner() : const Text('Thibitisha na uingie'),
+          child: _busy ? const BtnSpinner() : Text(context.tr.t('auth.verify')),
         ),
         TextButton(
           onPressed: _busy
@@ -196,7 +197,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     _code.clear();
                     _error = null;
                   }),
-          child: const Text('Badilisha namba / email'),
+          child: Text(context.tr.t('auth.changeId')),
         ),
       ],
     );
@@ -237,7 +238,7 @@ class _PlansScreenState extends State<PlansScreen> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error = 'Imeshindwa kupakia mipango. Jaribu tena.';
+          _error = 'plans.loadError';
           _loading = false;
         });
       }
@@ -253,10 +254,10 @@ class _PlansScreenState extends State<PlansScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: canPop,
-        title: const Text('Chagua kifurushi'),
+        title: Text(context.tr.t('plans.title')),
         actions: [
           if (!canPop)
-            TextButton(onPressed: state.logout, child: const Text('Toka')),
+            TextButton(onPressed: state.logout, child: Text(context.tr.t('plans.logout'))),
         ],
       ),
       body: _loading
@@ -266,13 +267,13 @@ class _PlansScreenState extends State<PlansScreen> {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                   children: [
-                    Text('Fungua intaneti nzima',
+                    Text(context.tr.t('plans.headline'),
                         style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             color: c.textPrimary)),
                     const SizedBox(height: 4),
-                    Text('Kasi ya juu · seva Tokyo · vifaa vingi',
+                    Text(context.tr.t('plans.sub'),
                         style:
                             TextStyle(fontSize: 13, color: c.textSecondary)),
                     const SizedBox(height: 18),
@@ -280,9 +281,9 @@ class _PlansScreenState extends State<PlansScreen> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 14),
                         child: InlineNotice(
-                          text: 'Malipo yako yanashughulikiwa…',
+                          text: context.tr.t('plans.processing'),
                           tone: NoticeTone.warning,
-                          action: 'Angalia',
+                          action: context.tr.t('common.check'),
                           onAction: state.refreshSubscription,
                         ),
                       ),
@@ -325,7 +326,7 @@ class _PlansScreenState extends State<PlansScreen> {
                     const SizedBox(height: 8),
                     Center(
                       child: Text(
-                        'Malipo salama kupitia Alipay · WeChat · Kadi · Crypto',
+                        context.tr.t('plans.payFooter'),
                         style: TextStyle(fontSize: 11.5, color: c.textHint),
                       ),
                     ),
@@ -347,18 +348,21 @@ class _PlanCard extends StatelessWidget {
   final VoidCallback onChoose;
   final bool highlight;
 
-  String get _perMonth {
+  String _perMonth(BuildContext context) {
     final price = plan.priceDisplay[currency] ?? '';
     final n = double.tryParse(price.replaceAll(RegExp(r'[^0-9.]'), ''));
     if (n == null || plan.days < 28) return '';
     final months = plan.days / 30.0;
     final sym = price.replaceAll(RegExp(r'[0-9.,]'), '').trim();
-    return '$sym${(n / months).toStringAsFixed(n / months >= 10 ? 0 : 2)} / mwezi';
+    final v = '$sym${(n / months).toStringAsFixed(n / months >= 10 ? 0 : 2)}';
+    return context.tr.p('plans.perMonth', v);
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.mvpn;
+    final tr = context.tr;
+    final pm = _perMonth(context);
     return MvpnCard(
       onTap: onChoose,
       borderColor: highlight ? c.brand : null,
@@ -374,7 +378,8 @@ class _PlanCard extends StatelessWidget {
                       color: c.textPrimary)),
               const SizedBox(width: 8),
               if (highlight)
-                MvpnBadge('Maarufu', color: c.brand, icon: Icons.star_rounded),
+                MvpnBadge(tr.t('plans.popular'),
+                    color: c.brand, icon: Icons.star_rounded),
             ],
           ),
           const SizedBox(height: 12),
@@ -388,16 +393,16 @@ class _PlanCard extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                       color: c.textPrimary)),
               const SizedBox(width: 8),
-              if (_perMonth.isNotEmpty)
-                Text(_perMonth,
+              if (pm.isNotEmpty)
+                Text(pm,
                     style: TextStyle(fontSize: 12.5, color: c.textSecondary)),
             ],
           ),
           const SizedBox(height: 14),
-          _feature(c, Icons.event_available_rounded, 'Siku ${plan.days}'),
-          _feature(c, Icons.devices_rounded, 'Vifaa ${plan.maxDevices} kwa wakati mmoja'),
-          _feature(c, Icons.all_inclusive_rounded, 'Data bila kikomo'),
-          _feature(c, Icons.bolt_rounded, 'VLESS-REALITY + Hysteria2'),
+          _feature(c, Icons.event_available_rounded, tr.p('plans.days', plan.days)),
+          _feature(c, Icons.devices_rounded, tr.p('plans.devices', plan.maxDevices)),
+          _feature(c, Icons.all_inclusive_rounded, tr.t('plans.unlimited')),
+          _feature(c, Icons.bolt_rounded, tr.t('plans.protocols')),
           const SizedBox(height: 14),
           ElevatedButton(
             onPressed: onChoose,
@@ -406,7 +411,7 @@ class _PlanCard extends StatelessWidget {
                 : ElevatedButton.styleFrom(
                     backgroundColor: c.surfaceAlt,
                     foregroundColor: c.textPrimary),
-            child: const Text('Chagua kifurushi'),
+            child: Text(context.tr.t('plans.choose')),
           ),
         ],
       ),
@@ -484,7 +489,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Imeshindwa. Jaribu tena.');
+      setState(() => _error = 'checkout.failStart');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -513,7 +518,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Imeshindwa kupakia. Jaribu tena.');
+      setState(() => _error = 'checkout.failUpload');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -539,7 +544,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final c = context.mvpn;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Malipo')),
+      appBar: AppBar(title: Text(context.tr.t('checkout.title'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
@@ -567,7 +572,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           if (_step == _Step.waiting) _waitingCard(c),
           if (_error != null) ...[
             const SizedBox(height: 14),
-            Text(_error!, style: TextStyle(color: c.danger, fontSize: 13)),
+            Text(context.tr.t(_error!), style: TextStyle(color: c.danger, fontSize: 13)),
           ],
           if (_devMode && _step != _Step.waiting) ...[
             const SizedBox(height: 10),
@@ -589,10 +594,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<Widget> _pickMethodStep(dynamic state, MvpnColors c) {
     final methods = state.payMethods as List<PayMethod>;
     return [
-      const SectionCaption('Chagua njia ya malipo'),
+      SectionCaption(context.tr.t('checkout.pickMethod')),
       if (methods.isEmpty)
         InlineNotice(
-          text: 'Njia za malipo hazijawekwa bado. Wasiliana na support.',
+          text: context.tr.t('checkout.noMethods'),
           tone: NoticeTone.warning,
         )
       else
@@ -608,7 +613,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       const SizedBox(height: 8),
       ElevatedButton(
         onPressed: _busy || _method == null ? null : _createInvoice,
-        child: _busy ? const BtnSpinner() : const Text('Endelea'),
+        child: _busy ? const BtnSpinner() : Text(context.tr.t('common.continue')),
       ),
     ];
   }
@@ -616,11 +621,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<Widget> _payStep(MvpnColors c) {
     final m = _method!;
     return [
-      const SectionCaption('Lipa kiasi hiki'),
+      SectionCaption(context.tr.t('checkout.payAmount')),
       MvpnCard(
         child: Column(
           children: [
-            Text('Lipa kwa ${m.label}',
+            Text(context.tr.p('checkout.payWith', m.label),
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -660,7 +665,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ],
         ),
       ),
-      const SectionCaption('Pakia uthibitisho wa malipo'),
+      SectionCaption(context.tr.t('checkout.uploadProof')),
       MvpnCard(
         child: Column(
           children: [
@@ -668,7 +673,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               OutlinedButton.icon(
                 onPressed: _pickProof,
                 icon: const Icon(Icons.upload_rounded, size: 18),
-                label: const Text('Chagua picha ya risiti / screenshot'),
+                label: Text(context.tr.t('checkout.pickImage')),
               )
             else
               Column(
@@ -678,15 +683,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     child: Image.file(_proof!, height: 160, fit: BoxFit.cover),
                   ),
                   TextButton(
-                      onPressed: _pickProof, child: const Text('Badilisha picha')),
+                      onPressed: _pickProof, child: Text(context.tr.t('checkout.changeImage'))),
                 ],
               ),
             const SizedBox(height: 8),
             TextField(
               controller: _note,
               maxLength: 300,
-              decoration: const InputDecoration(
-                hintText: 'Kumbukumbu ya malipo (hiari)',
+              decoration: InputDecoration(
+                hintText: context.tr.t('checkout.noteHint'),
                 counterText: '',
               ),
             ),
@@ -696,7 +701,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       const SizedBox(height: 10),
       ElevatedButton(
         onPressed: _busy || _proof == null ? null : _submit,
-        child: _busy ? const BtnSpinner() : const Text('Tuma kwa uthibitisho'),
+        child: _busy ? const BtnSpinner() : Text(context.tr.t('checkout.submit')),
       ),
     ];
   }
@@ -706,15 +711,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           children: [
             Icon(Icons.hourglass_top_rounded, size: 34, color: c.warning),
             const SizedBox(height: 12),
-            Text('Inasubiri idhini ya admin',
+            Text(context.tr.t('checkout.waitingTitle'),
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: c.textPrimary)),
             const SizedBox(height: 6),
             Text(
-              'Tumepokea uthibitisho wako. Admin ataangalia na kuidhinisha '
-              'haraka iwezekanavyo. App itajiwasha yenyewe ukishaidhinishwa.',
+              context.tr.t('checkout.waitingBody'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12.5, height: 1.4, color: c.textSecondary),
             ),
@@ -802,7 +806,7 @@ class _ErrorBox extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: c.textSecondary)),
             const SizedBox(height: 16),
-            OutlinedButton(onPressed: onRetry, child: const Text('Jaribu tena')),
+            OutlinedButton(onPressed: onRetry, child: Text(context.tr.t('common.retry'))),
           ],
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_text.dart';
 import '../models.dart';
 import '../services/mvpn_scope.dart';
 import '../theme/mvpn_theme.dart';
@@ -17,13 +18,14 @@ class HomeScreen extends StatelessWidget {
     final state = MvpnScope.of(context);
     final vpn = state.vpn;
     final c = context.mvpn;
+    final tr = context.tr;
 
     final (title, subtitle, tone) = switch (vpn.status) {
-      VpnStatus.connected => ('Umeunganishwa', 'Trafiki yako imefichwa na imesimbwa', c.success),
-      VpnStatus.connecting => ('Inaunganisha…', 'Tunaanzisha njia salama', c.brand),
-      VpnStatus.reconnecting => ('Inaunganisha upya…', 'Muunganisho ulikatika kidogo', c.warning),
-      VpnStatus.error => ('Imeshindwa', vpn.error ?? 'Jaribu tena', c.danger),
-      VpnStatus.disconnected => ('Hujaunganishwa', 'Trafiki yako iko wazi', c.stateIdle),
+      VpnStatus.connected => (tr.t('home.connected'), tr.t('home.subConnected'), c.success),
+      VpnStatus.connecting => (tr.t('home.connecting'), tr.t('home.subConnecting'), c.brand),
+      VpnStatus.reconnecting => (tr.t('home.reconnecting'), tr.t('home.subReconnecting'), c.warning),
+      VpnStatus.error => (tr.t('home.failed'), tr.t(vpn.error ?? 'home.subFailed'), c.danger),
+      VpnStatus.disconnected => (tr.t('home.disconnected'), tr.t('home.subIdle'), c.stateIdle),
     };
 
     final daysLeft = state.expiresAt?.difference(DateTime.now()).inDays;
@@ -53,7 +55,7 @@ class HomeScreen extends StatelessWidget {
               child: Center(
                 child: MvpnBadge(
                   daysLeft != null && daysLeft >= 0
-                      ? 'Siku $daysLeft'
+                      ? tr.p('home.daysLeft', daysLeft)
                       : state.subStatus,
                   color: (daysLeft ?? 1) <= 3 ? c.warning : c.brand,
                   icon: Icons.workspace_premium_outlined,
@@ -70,10 +72,10 @@ class HomeScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 14),
               child: InlineNotice(
                 text: state.pendingInvoice!['proof_uploaded'] == true
-                    ? 'Malipo yako yanasubiri idhini ya admin. Utapata access ukishaidhinishwa.'
-                    : 'Una malipo ambayo hayajakamilika. Fungua "Kifurushi & malipo" kumalizia.',
+                    ? tr.t('home.pendingProof')
+                    : tr.t('home.pendingNoProof'),
                 tone: NoticeTone.warning,
-                action: 'Angalia',
+                action: tr.t('common.check'),
                 onAction: () => state.refreshSubscription(),
               ),
             ),
@@ -82,10 +84,10 @@ class HomeScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 14),
               child: InlineNotice(
                 text: state.subStatus == 'expired'
-                    ? 'Kifurushi chako kimeisha. Renew ili kuendelea.'
-                    : 'Akaunti imesimamishwa. Wasiliana na support.',
+                    ? tr.t('home.subExpired')
+                    : tr.t('home.subSuspended'),
                 tone: NoticeTone.warning,
-                action: 'Renew',
+                action: tr.t('home.renew'),
                 onAction: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: (_) => const PlansScreen()),
                 ),
@@ -94,14 +96,13 @@ class HomeScreen extends StatelessWidget {
           if (vpn.status == VpnStatus.error && vpn.error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
-              child: InlineNotice(text: vpn.error!, tone: NoticeTone.danger),
+              child: InlineNotice(text: tr.t(vpn.error!), tone: NoticeTone.danger),
             ),
           if (!vpn.isRealTunnel)
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: InlineNotice(
-                text:
-                    'Toleo la simu bado halijaunganisha tunnel halisi. Tumia toleo la kompyuta kwa sasa.',
+                text: tr.t('home.demoNote'),
                 tone: NoticeTone.info,
               ),
             ),
@@ -137,7 +138,7 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 26),
-          _NodeCard(node: vpn.currentNode, connected: vpn.isConnected),
+          _NodeCard(node: vpn.currentNode),
           const SizedBox(height: 12),
           _LiveCard(),
         ],
@@ -147,13 +148,13 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _NodeCard extends StatelessWidget {
-  const _NodeCard({required this.node, required this.connected});
+  const _NodeCard({required this.node});
   final VpnNode node;
-  final bool connected;
 
   @override
   Widget build(BuildContext context) {
     final c = context.mvpn;
+    final tr = context.tr;
     return MvpnCard(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const ServersScreen()),
@@ -174,7 +175,7 @@ class _NodeCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Seva ya sasa',
+                Text(tr.t('home.currentServer'),
                     style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
@@ -187,7 +188,7 @@ class _NodeCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: c.textPrimary)),
                 if (node.optimizedFor != null)
-                  Text('Imeboreshwa kwa ${node.optimizedFor}',
+                  Text(tr.p('home.optimizedFor', node.optimizedFor!),
                       style: TextStyle(fontSize: 12, color: c.textSecondary)),
               ],
             ),
@@ -195,7 +196,7 @@ class _NodeCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('Badilisha',
+              Text(tr.t('common.change'),
                   style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
@@ -215,6 +216,7 @@ class _LiveCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final vpn = MvpnScope.of(context).vpn;
     final c = context.mvpn;
+    final tr = context.tr;
     final s = vpn.stats;
     final on = vpn.isConnected;
 
@@ -227,7 +229,7 @@ class _LiveCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Kikao',
+              Text(tr.t('home.session'),
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -249,7 +251,7 @@ class _LiveCard extends StatelessWidget {
             children: [
               Expanded(
                 child: StatTile(
-                  label: 'Pakua',
+                  label: tr.t('home.download'),
                   icon: Icons.south_rounded,
                   accent: c.brandAccent,
                   value: on ? formatBytes(s.downloadedBytes) : '—',
@@ -257,7 +259,7 @@ class _LiveCard extends StatelessWidget {
               ),
               Expanded(
                 child: StatTile(
-                  label: 'Pakia',
+                  label: tr.t('home.upload'),
                   icon: Icons.north_rounded,
                   accent: c.success,
                   value: on ? formatBytes(s.uploadedBytes) : '—',
@@ -265,7 +267,7 @@ class _LiveCard extends StatelessWidget {
               ),
               Expanded(
                 child: StatTile(
-                  label: 'Protocol',
+                  label: tr.t('home.protocol'),
                   value: on ? s.protocol : '—',
                 ),
               ),

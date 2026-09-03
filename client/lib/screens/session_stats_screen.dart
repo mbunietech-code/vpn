@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_text.dart';
 import '../services/mvpn_scope.dart';
 import '../theme/mvpn_theme.dart';
 import '../widgets/common.dart';
@@ -13,6 +14,7 @@ class SessionStatsScreen extends StatelessWidget {
     final vpn = MvpnScope.of(context).vpn;
     final c = context.mvpn;
     final s = vpn.stats;
+    final tr = context.tr;
 
     final downBps = s.downSeries.isNotEmpty
         ? (s.downSeries.last * 1e6 / 8).round()
@@ -21,7 +23,7 @@ class SessionStatsScreen extends StatelessWidget {
         s.upSeries.isNotEmpty ? (s.upSeries.last * 1e6 / 8).round() : 0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Takwimu za kikao')),
+      appBar: AppBar(title: Text(tr.t('stats.title'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
@@ -35,7 +37,7 @@ class SessionStatsScreen extends StatelessWidget {
                   children: [
                     Icon(Icons.lock_rounded, size: 14, color: c.onBrand),
                     const SizedBox(width: 6),
-                    Text('Muunganisho salama',
+                    Text(tr.t('stats.secure'),
                         style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w600,
@@ -43,7 +45,7 @@ class SessionStatsScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Text('MUDA',
+                Text(tr.t('stats.duration'),
                     style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
@@ -72,7 +74,7 @@ class SessionStatsScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text('Mwendokasi',
+                    Text(tr.t('stats.throughput'),
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -94,13 +96,13 @@ class SessionStatsScreen extends StatelessWidget {
               children: [
                 Expanded(
                     child: StatTile(
-                        label: 'Imepakuliwa',
+                        label: tr.t('stats.downloaded'),
                         icon: Icons.south_rounded,
                         accent: c.brandAccent,
                         value: formatBytes(s.downloadedBytes))),
                 Expanded(
                     child: StatTile(
-                        label: 'Imepakiwa',
+                        label: tr.t('stats.uploaded'),
                         icon: Icons.north_rounded,
                         accent: c.success,
                         value: formatBytes(s.uploadedBytes))),
@@ -113,10 +115,10 @@ class SessionStatsScreen extends StatelessWidget {
               children: [
                 Expanded(
                     child: StatTile(
-                        label: 'Kilele',
+                        label: tr.t('stats.peak'),
                         value: '${s.peakMbps} Mbps')),
                 Expanded(
-                    child: StatTile(label: 'Protocol', value: s.protocol)),
+                    child: StatTile(label: tr.t('home.protocol'), value: s.protocol)),
               ],
             ),
           ),

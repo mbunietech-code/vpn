@@ -32,6 +32,20 @@ class AppState extends ChangeNotifier {
   String? identifier;
   String? _token;
 
+  /// Manual language override ('en' | 'sw' | 'zh'); null = follow device.
+  String? localeOverride;
+
+  Future<void> setLocale(String? code) async {
+    localeOverride = code;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    if (code == null) {
+      await prefs.remove('mvpn_locale');
+    } else {
+      await prefs.setString('mvpn_locale', code);
+    }
+  }
+
   // subscription
   String subStatus = 'none'; // none | pending | active | expired | suspended
   String? planCode;
@@ -46,6 +60,7 @@ class AppState extends ChangeNotifier {
   Future<void> bootstrap() async {
     await vpn.loadPrefs();
     final prefs = await SharedPreferences.getInstance();
+    localeOverride = prefs.getString('mvpn_locale');
     _token = prefs.getString('mvpn_token');
     identifier = prefs.getString('mvpn_identifier');
     api.token = _token;

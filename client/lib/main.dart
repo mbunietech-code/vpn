@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'l10n/app_text.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding.dart';
 import 'screens/servers_screen.dart';
@@ -34,15 +36,33 @@ class _MvpnAppState extends State<MvpnApp> {
 
   @override
   Widget build(BuildContext context) {
+    final device = WidgetsBinding.instance.platformDispatcher.locale;
+
     return MvpnScope(
       state: _state,
-      child: MaterialApp(
-        title: 'Mbunie VPN',
-        debugShowCheckedModeBanner: false,
-        theme: MvpnTheme.light,
-        darkTheme: MvpnTheme.dark,
-        themeMode: ThemeMode.system,
-        home: const _Gate(),
+      child: ListenableBuilder(
+        listenable: _state,
+        builder: (context, _) {
+          final code = AppText.resolve(_state.localeOverride, device);
+          return AppTextScope(
+            code: code,
+            child: MaterialApp(
+              title: 'Mbunie VPN',
+              debugShowCheckedModeBanner: false,
+              theme: MvpnTheme.light,
+              darkTheme: MvpnTheme.dark,
+              themeMode: ThemeMode.system,
+              locale: Locale(code),
+              supportedLocales: const [Locale('en'), Locale('sw'), Locale('zh')],
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              home: const _Gate(),
+            ),
+          );
+        },
       ),
     );
   }
@@ -74,8 +94,16 @@ class _Splash extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.shield_rounded, color: c.brand, size: 48),
-            const SizedBox(height: 16),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                gradient: c.brandGradient,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(Icons.shield_rounded, color: c.onBrand, size: 32),
+            ),
+            const SizedBox(height: 20),
             const CircularProgressIndicator(),
           ],
         ),
@@ -106,19 +134,19 @@ class _RootShellState extends State<RootShell> {
         child: NavigationBar(
           selectedIndex: _index,
           onDestinationSelected: (i) => setState(() => _index = i),
-          destinations: const [
+          destinations: [
             NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: 'Home'),
+                icon: const Icon(Icons.home_outlined),
+                selectedIcon: const Icon(Icons.home_rounded),
+                label: context.tt('nav.home')),
             NavigationDestination(
-                icon: Icon(Icons.dns_outlined),
-                selectedIcon: Icon(Icons.dns_rounded),
-                label: 'Servers'),
+                icon: const Icon(Icons.dns_outlined),
+                selectedIcon: const Icon(Icons.dns_rounded),
+                label: context.tt('nav.servers')),
             NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings_rounded),
-                label: 'Settings'),
+                icon: const Icon(Icons.settings_outlined),
+                selectedIcon: const Icon(Icons.settings_rounded),
+                label: context.tt('nav.settings')),
           ],
         ),
       ),

@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
+import '../l10n/app_text.dart';
 import '../models.dart';
+import '../services/app_state.dart';
 import '../services/mvpn_scope.dart';
 import '../theme/mvpn_theme.dart';
 import '../widgets/common.dart';
@@ -17,47 +19,60 @@ class SettingsScreen extends StatelessWidget {
     final state = MvpnScope.of(context);
     final vpn = state.vpn;
     final c = context.mvpn;
+    final tr = context.tr;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mipangilio')),
+      appBar: AppBar(title: Text(tr.t('settings.title'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
         children: [
-          const SectionCaption('Akaunti'),
+          SectionCaption(tr.t('settings.account')),
           MvpnCard(
             child: Column(
               children: [
                 SettingRow(
                   leading: _icon(c, Icons.person_rounded),
-                  title: state.identifier ?? 'Mtumiaji',
+                  title: state.identifier ?? tr.t('settings.user'),
                   subtitle: state.planCode != null
-                      ? 'Kifurushi: ${state.planCode} · ${_expiry(state)}'
-                      : 'Hakuna kifurushi hai',
+                      ? '${state.planCode} · ${_expiry(state, tr)}'
+                      : tr.t('settings.noPlan'),
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
                   leading: _icon(c, Icons.workspace_premium_rounded),
-                  title: 'Kifurushi & malipo',
+                  title: tr.t('settings.planAndPay'),
                   trailing: Icon(Icons.chevron_right_rounded, color: c.textHint),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
                       builder: (_) => const PlansScreen())),
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
+                  leading: _icon(c, Icons.translate_rounded),
+                  title: tr.t('settings.language'),
+                  trailing: Text(
+                    state.localeOverride == null
+                        ? '${AppText.names[tr.code]} (auto)'
+                        : AppText.names[tr.code]!,
+                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                  ),
+                  onTap: () => _pickLanguage(context, state),
+                ),
+                Divider(color: c.border, height: 1),
+                SettingRow(
                   leading: _icon(c, Icons.logout_rounded, danger: true),
-                  title: 'Toka',
-                  onTap: () => _confirmLogout(context, state),
+                  title: tr.t('settings.logout'),
+                  onTap: () => _confirmLogout(context, state, tr),
                 ),
               ],
             ),
           ),
-          const SectionCaption('Muunganisho'),
+          SectionCaption(tr.t('settings.connection')),
           MvpnCard(
             child: Column(
               children: [
                 SettingRow(
-                  title: 'Kill-switch',
-                  subtitle: 'Zuia intaneti yote endapo VPN itakatika',
+                  title: tr.t('settings.killSwitch'),
+                  subtitle: tr.t('settings.killSwitchSub'),
                   trailing: Switch(
                     value: vpn.killSwitch,
                     onChanged: (v) => vpn.update(() => vpn.killSwitch = v),
@@ -65,8 +80,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
-                  title: 'Unganisha app ikianzishwa',
-                  subtitle: 'Jiunganishe kiotomatiki kwenye seva ya mwisho',
+                  title: tr.t('settings.autoConnect'),
+                  subtitle: tr.t('settings.autoConnectSub'),
                   trailing: Switch(
                     value: vpn.autoConnect,
                     onChanged: (v) => vpn.update(() => vpn.autoConnect = v),
@@ -74,8 +89,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
-                  title: 'Unganisha upya kiotomatiki',
-                  subtitle: 'Baada ya kubadilika kwa mtandao au kukatika',
+                  title: tr.t('settings.autoReconnect'),
+                  subtitle: tr.t('settings.autoReconnectSub'),
                   trailing: Switch(
                     value: vpn.autoReconnect,
                     onChanged: (v) => vpn.update(() => vpn.autoReconnect = v),
@@ -83,11 +98,11 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
-                  title: 'Protocol',
+                  title: tr.t('settings.protocol'),
                   subtitle: switch (vpn.protocol) {
-                    ProtocolPref.auto => 'Auto — huchagua ya haraka',
-                    ProtocolPref.vlessReality => 'Ficha kama HTTPS (TCP)',
-                    ProtocolPref.hysteria2 => 'Kasi ya juu (QUIC/UDP)',
+                    ProtocolPref.auto => tr.t('settings.protoAuto'),
+                    ProtocolPref.vlessReality => tr.t('settings.protoReality'),
+                    ProtocolPref.hysteria2 => tr.t('settings.protoHy2'),
                   },
                   trailing: DropdownButton<ProtocolPref>(
                     value: vpn.protocol,
@@ -104,37 +119,37 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SectionCaption('Kuhusu'),
+          SectionCaption(tr.t('settings.about')),
           MvpnCard(
             child: Column(
               children: [
                 SettingRow(
-                  title: 'Toleo',
+                  title: tr.t('settings.version'),
                   trailing: Text(MvpnConfig.appVersion,
                       style: TextStyle(fontSize: 13, color: c.textSecondary)),
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
-                  title: 'Nakili Peer ID',
+                  title: tr.t('settings.copyPeer'),
                   subtitle: vpn.peerId,
                   trailing: Icon(Icons.copy_rounded, size: 17, color: c.textHint),
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: vpn.peerId));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Peer ID imenakiliwa')),
+                      SnackBar(content: Text(tr.t('settings.peerCopied'))),
                     );
                   },
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
-                  title: 'Masharti ya Huduma',
+                  title: tr.t('settings.tos'),
                   trailing: Icon(Icons.open_in_new_rounded,
                       size: 15, color: c.textHint),
                   onTap: () => _open('${MvpnConfig.apiBase}/legal/terms'),
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
-                  title: 'Sera ya Faragha',
+                  title: tr.t('settings.privacy'),
                   trailing: Icon(Icons.open_in_new_rounded,
                       size: 15, color: c.textHint),
                   onTap: () => _open('${MvpnConfig.apiBase}/legal/privacy'),
@@ -162,11 +177,11 @@ class SettingsScreen extends StatelessWidget {
         child: Icon(i, size: 17, color: danger ? c.danger : c.brand),
       );
 
-  String _expiry(dynamic state) {
-    final d = state.expiresAt as DateTime?;
-    if (d == null) return state.subStatus as String;
+  String _expiry(AppState state, AppText tr) {
+    final d = state.expiresAt;
+    if (d == null) return state.subStatus;
     final days = d.difference(DateTime.now()).inDays;
-    return days >= 0 ? 'siku $days zimebaki' : 'imeisha';
+    return days >= 0 ? tr.p('settings.daysRemain', days) : tr.t('settings.expired');
   }
 
   Future<void> _open(String url) async {
@@ -176,21 +191,58 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
-  void _confirmLogout(BuildContext context, dynamic state) {
+  void _pickLanguage(BuildContext context, AppState state) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.smartphone_rounded),
+              title: Text('${ctx.tt('settings.language')} — auto'),
+              trailing: state.localeOverride == null
+                  ? const Icon(Icons.check_rounded)
+                  : null,
+              onTap: () {
+                state.setLocale(null);
+                Navigator.pop(ctx);
+              },
+            ),
+            for (final code in AppText.supported)
+              ListTile(
+                title: Text(AppText.names[code]!),
+                trailing: state.localeOverride == code
+                    ? const Icon(Icons.check_rounded)
+                    : null,
+                onTap: () {
+                  state.setLocale(code);
+                  Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmLogout(BuildContext context, AppState state, AppText tr) {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Toka?'),
-        content: const Text('Utahitaji kuingia tena kwa msimbo.'),
+        title: Text(tr.t('settings.logout')),
+        content: Text(tr.t('settings.logoutConfirm')),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Ghairi')),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(tr.t('common.cancel'))),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               state.logout();
             },
-            child: const Text('Toka'),
+            child: Text(tr.t('settings.logout')),
           ),
         ],
       ),

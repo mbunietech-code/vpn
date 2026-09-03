@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_text.dart';
 import '../models.dart';
 import '../services/mvpn_scope.dart';
 import '../theme/mvpn_theme.dart';
@@ -23,7 +24,7 @@ class ServersScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chagua seva'),
+        title: Text(context.tt('servers.title')),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -62,12 +63,12 @@ class ServersScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Seva bora kiotomatiki',
+                      Text(context.tt('servers.optimalTitle'),
                           style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                               color: c.onBrand)),
-                      Text('Unganisha kwenye seva ya haraka zaidi',
+                      Text(context.tt('servers.optimalSub'),
                           style: TextStyle(
                               fontSize: 12,
                               color: c.onBrand.withValues(alpha: 0.85))),

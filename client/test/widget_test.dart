@@ -11,6 +11,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mbunie VPN'), findsOneWidget);
-    expect(find.text('Tuma msimbo'), findsOneWidget);
+    // default locale in the test env is 'en'
+    expect(find.text('Send code'), findsOneWidget);
   });
 }
