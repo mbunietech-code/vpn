@@ -50,3 +50,6 @@ node/node-agent/*.exe
 files.zip
 sammple.jpeg
 *.output
+
+# Hiddify-app fork (large; will move to its own repo mbunietech-code/mvpn-android)
+android-app/

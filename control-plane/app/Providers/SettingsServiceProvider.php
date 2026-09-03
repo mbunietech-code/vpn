@@ -31,6 +31,7 @@ class SettingsServiceProvider extends ServiceProvider
         'cryptomus_payment_key' => 'services.cryptomus.payment_key',
         'clickpesa_client_id' => 'services.clickpesa.client_id',
         'clickpesa_api_key' => 'services.clickpesa.api_key',
+        'clickpesa_merchant_id' => 'services.clickpesa.merchant_id',
         'clickpesa_checksum_secret' => 'services.clickpesa.checksum_secret',
         // --- sms ---
         'twilio_sid' => 'services.twilio.sid',

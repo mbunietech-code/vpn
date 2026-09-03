@@ -15,7 +15,8 @@ use RuntimeException;
  *
  * Docs: https://docs.clickpesa.com
  *  - token:    POST /third-parties/generate-token   (headers: client-id, api-key)
- *  - checkout: POST /third-parties/generate-checkout-url  (Bearer token)
+ *  - checkout: POST /webshop/generate-checkout-url   (Bearer token; needs merchantId,
+ *              returns the hosted-checkout URL as a bare string)
  *  - confirm:  GET  /third-parties/payments/{orderReference}
  *
  * Webhooks can be spoofed, so we re-query the payment status on ClickPesa's
@@ -28,18 +29,20 @@ class ClickPesaGateway implements PaymentGateway
 
     private string $clientId;
     private string $apiKey;
+    private string $merchantId;
     private string $checksumSecret;
 
     public function __construct()
     {
         $this->clientId = (string) config('services.clickpesa.client_id');
         $this->apiKey = (string) config('services.clickpesa.api_key');
+        $this->merchantId = (string) config('services.clickpesa.merchant_id');
         $this->checksumSecret = (string) config('services.clickpesa.checksum_secret');
     }
 
     public function key(): string
     {
-        return $this->clientId;
+        return $this->clientId !== '' && $this->apiKey !== '' ? $this->clientId : '';
     }
 
     private function token(): string
@@ -59,30 +62,82 @@ class ClickPesaGateway implements PaymentGateway
         });
     }
 
+    /** Merchant ID from config, or decoded from the JWT `id` claim as a fallback. */
+    private function merchantId(): string
+    {
+        if ($this->merchantId !== '') {
+            return $this->merchantId;
+        }
+
+        $jwt = trim(str_ireplace('Bearer ', '', $this->token()));
+        $parts = explode('.', $jwt);
+        if (count($parts) === 3) {
+            $payload = json_decode((string) base64_decode(strtr($parts[1], '-_', '+/'), true), true);
+            if (is_array($payload) && ! empty($payload['id'])) {
+                return (string) $payload['id'];
+            }
+        }
+
+        throw new RuntimeException('ClickPesa merchant ID not configured and not derivable from token.');
+    }
+
     public function createCheckout(Invoice $invoice): array
     {
-        // ClickPesa amounts are whole TZS (not cents).
-        $amount = (int) round($invoice->amount_cents / 100);
+        // ClickPesa amounts are whole currency units (not cents), passed as strings.
+        $amount = (string) (int) round($invoice->amount_cents / 100);
         $ref = 'MVPN' . $invoice->id;
 
         $body = [
             'totalPrice' => $amount,
             'orderReference' => $ref,
             'orderCurrency' => strtoupper($invoice->currency), // TZS
+            'merchantId' => $this->merchantId(),
         ];
-        if ($this->checksumSecret) {
-            $body['checksum'] = $this->checksum($body);
-        }
 
         $resp = Http::withHeaders(['Authorization' => $this->token()])
-            ->post(self::BASE . '/third-parties/generate-checkout-url', $body);
+            ->asJson()
+            ->post(self::BASE . '/webshop/generate-checkout-url', $body);
 
-        $link = $resp->json('checkoutLink') ?? $resp->json('checkout_url');
-        if (! $link) {
+        $link = $this->extractUrl($resp->json(), $resp->body());
+        if (! $link || ! str_starts_with($link, 'http')) {
             throw new RuntimeException('ClickPesa checkout failed: ' . $resp->body());
         }
 
         return ['pay_url' => $link, 'provider_ref' => $ref];
+    }
+
+    /**
+     * The webshop endpoint serialises the URL string as a char-indexed object
+     * ({"0":"h","1":"t",...}) alongside a "depricatedMessage" key. Reassemble it.
+     */
+    private function extractUrl(mixed $json, string $raw): ?string
+    {
+        if (is_string($json) && $json !== '') {
+            return $json;
+        }
+
+        if (is_array($json)) {
+            foreach (['checkoutLink', 'checkout_url', 'url'] as $k) {
+                if (! empty($json[$k]) && is_string($json[$k])) {
+                    return $json[$k];
+                }
+            }
+
+            $chars = [];
+            foreach ($json as $k => $v) {
+                if (is_numeric($k) && is_string($v)) {
+                    $chars[(int) $k] = $v;
+                }
+            }
+            if ($chars) {
+                ksort($chars);
+                return implode('', $chars);
+            }
+        }
+
+        $trimmed = trim($raw, "\" \n\r\t");
+
+        return str_starts_with($trimmed, 'http') ? $trimmed : null;
     }
 
     public function verifySignature(Request $request): bool
@@ -136,11 +191,5 @@ class ClickPesaGateway implements PaymentGateway
         return $r->input('orderReference')
             ?? $r->input('data.orderReference')
             ?? $r->input('order_reference');
-    }
-
-    private function checksum(array $params): string
-    {
-        ksort($params);
-        return hash_hmac('sha256', implode('', array_map('strval', $params)), $this->checksumSecret);
     }
 }

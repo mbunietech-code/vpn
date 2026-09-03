@@ -50,6 +50,7 @@ return [
     'clickpesa' => [
         'client_id' => env('CLICKPESA_CLIENT_ID'),
         'api_key' => env('CLICKPESA_API_KEY'),
+        'merchant_id' => env('CLICKPESA_MERCHANT_ID'),
         'checksum_secret' => env('CLICKPESA_CHECKSUM_SECRET'),
     ],
 
