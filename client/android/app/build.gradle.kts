@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.mbunie.mvpn"
-    compileSdk = flutter.compileSdkVersion
+    // Some plugins (flutter_plugin_android_lifecycle) require compileSdk 36+.
+    compileSdk = maxOf(flutter.compileSdkVersion, 36)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
