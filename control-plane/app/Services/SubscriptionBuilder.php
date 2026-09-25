@@ -47,7 +47,7 @@ class SubscriptionBuilder
                     'flow' => 'xtls-rprx-vision',
                     'encryption' => 'none',
                 ]);
-                $links[] = "vless://{$peer->remote_id}@{$host}:443?{$query}#{$tag}";
+                $links[] = "vless://{$peer->remote_id}@{$host}:{$node->reality_port}?{$query}#{$tag}";
             }
 
             if ($peer->protocol === 'hysteria2') {
@@ -57,7 +57,7 @@ class SubscriptionBuilder
                     'pinSHA256' => $node->hysteria_cert_sha256,
                     'mport' => $node->hysteria_port_range,
                 ]);
-                $links[] = "hysteria2://{$peer->secret}@{$node->public_host}:443?{$query}#{$tag}";
+                $links[] = "hysteria2://{$peer->secret}@{$node->public_host}:{$node->hysteria_port}?{$query}#{$tag}";
             }
         }
 
@@ -93,7 +93,7 @@ class SubscriptionBuilder
                     'type' => 'vless',
                     'tag' => $tag,
                     'server' => $node->cdn_host ?: $node->public_host,
-                    'server_port' => 443,
+                    'server_port' => (int) $node->reality_port,
                     'uuid' => $peer->remote_id,
                     'flow' => 'xtls-rprx-vision',
                     'packet_encoding' => 'xudp',
@@ -117,7 +117,7 @@ class SubscriptionBuilder
                     'type' => 'hysteria2',
                     'tag' => $tag,
                     'server' => $node->public_host,
-                    'server_port' => 443,
+                    'server_port' => (int) $node->hysteria_port,
                     'password' => $peer->secret,
                     'tls' => [
                         'enabled' => true,

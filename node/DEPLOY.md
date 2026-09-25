@@ -3,103 +3,85 @@
 A **node** is one VPS running the obfuscated VPN endpoints + the MVPN agent.
 Nodes hold no customer data — only opaque peer credentials.
 
-## 0. Provision the VPS  —  Vultr, Tokyo
+| Protocol | Port | Engine |
+|---|---|---|
+| VLESS + REALITY (Vision) | tcp/443 | Xray (`mvpn-xray`) |
+| Hysteria2 | udp/443 + hopping range (default udp/20000-30000 → 443) | sing-box (`mvpn-singbox`) |
 
-All users are inside mainland China, so the node must have a good China-egress
-route. Chosen: **Vultr High Frequency, Tokyo**.
+## 0. The VPS
 
-1. Vultr → **Deploy** → **Cloud Compute – High Frequency**.
-2. Location: **Tokyo**. (Seoul is a fine alternative; Singapore is weaker for CN.)
-3. OS: **Ubuntu 24.04 LTS x64**.
-4. Plan: **2 GB RAM / 1 vCPU** (~$12/mo). 1 GB works but is tight once several
-   users are on.
-5. Add your **SSH key** during creation (so password login is off from minute one).
-6. Enable **IPv6** (free). Auto-backups optional.
-7. Label: `mvpn-node-tokyo`. Deploy.
+Any Ubuntu 22.04+ KVM VPS with a decent route to mainland China
+(Tokyo / Hong Kong / Seoul / Kuala Lumpur / Singapore). 1 vCPU + 2 GB is plenty
+for the first few hundred users.
 
-After it boots, note the IPv4. Point a DNS **A record** `tk1.<yourdomain>` at it.
-Put the domain on **Cloudflare**; keep this record **grey-cloud (DNS only)** for
-now — the orange-cloud CDN front is added later (FR-CN-03).
+- Put **your SSH key** on it first (`/root/.ssh/authorized_keys`).
+  `install.sh` only switches SSH to key-only when a key is present.
+- If the provider has its own firewall panel (Hostinger/Vultr), open
+  **tcp/22, tcp/443, udp/443, udp/20000-30000** there as well.
+- DNS: `A n1.mbuniehub.com → <VPS IP>` in Cloudflare, **DNS only (grey)**.
 
-> If this specific IP turns out to be blocked from China, just **destroy +
-> redeploy** in Vultr — you get a fresh IP in a minute, then re-run steps 2–4.
+> IP blocked from China later? Rebuild the VPS (fresh IP), re-run steps 1–2,
+> set the old node to `disabled`.
 
-## 1. Build the agent
+## 1. Create the node in the admin panel
 
-No Go toolchain on the dev machine — build on the VPS or in CI:
+Admin → **Nodes → New**: name, region, `public_host` (`n1.mbuniehub.com`).
+A **node token** is generated for you — copy it. Leave status `provisioning`.
 
-```bash
-# on the VPS (after apt-get install -y golang), from a checkout of this repo:
-cd node/node-agent
-CGO_ENABLED=0 go build -o mvpn-agent .
-cp mvpn-agent ../   # so install.sh can pick it up at ./node-agent/mvpn-agent
-```
-
-or cross-compile anywhere:
+## 2. Run the bootstrap on the VPS
 
 ```bash
-cd node/node-agent && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o mvpn-agent .
-scp mvpn-agent root@hk1.mbunievpn.com:/root/node/node-agent/
-```
-
-## 2. Run the bootstrap
-
-Copy the `node/` folder to the VPS, then:
-
-```bash
+ssh root@<vps-ip>
+apt-get update && apt-get install -y git
+git clone https://github.com/mbunietech-code/vpn.git /opt/mvpn   # or scp the node/ folder
+cd /opt/mvpn/node
 sudo ./install.sh \
-  --domain tk1.mbunievpn.com \
-  --reality-dest www.apple.com:443 \
-  --reality-sni  www.apple.com \
-  --control-plane https://cp.mbunievpn.com \
-  --node-token   "$(openssl rand -hex 24)" \
+  --domain n1.mbuniehub.com \
+  --reality-dest www.microsoft.com:443 \
+  --reality-sni  www.microsoft.com \
+  --control-plane https://vpn.mbuniehub.com \
+  --node-token   <TOKEN FROM STEP 1> \
   --hysteria-port-range 20000-30000
 ```
 
+The script builds the agent from source if no binary is present
+(`golang-go` from apt), installs Xray + sing-box (pinned, see
+`--xray-version` / `--singbox-version`), tunes the kernel (BBR), sets ufw +
+the nftables port-hopping redirect, renders and **validates** both engine
+configs, and starts `mvpn-porthop`, `mvpn-xray`, `mvpn-singbox`, `mvpn-agent`.
+
 **REALITY `dest` / `sni`** must be a site that is (a) fully reachable inside
-China, (b) high-traffic, (c) TLS 1.3 + HTTP/2, (d) has a CDN presence in Japan.
-Good: `www.apple.com`, `www.microsoft.com`, `www.bing.com`, `swdist.apple.com`.
-**Never** use anything blocked in China (Google, YouTube, Wikipedia, etc.).
+China, (b) high-traffic, (c) TLS 1.3 + HTTP/2. Good: `www.microsoft.com`,
+`www.apple.com`, `swdist.apple.com`, `www.bing.com`.
+**Never** use anything blocked in China (Google, YouTube, Wikipedia, …).
 
-Save the `--node-token` value and the REALITY public key / short id / SNI it
-prints at the end.
+## 3. Nothing to copy back
 
-## 3. Register the node in the control plane
+On its first health report the agent sends `/etc/mvpn/config/node-info.json`
+(REALITY public key + short id + SNI, Hysteria2 port range + certificate).
+The control plane stores them, flips the node `online`, and **provisions peers
+for every already-active subscription**. Within ~15 s the agent applies them.
 
-Admin panel → **Nodes → New**, or:
-
-```bash
-php artisan tinker --execute="\App\Models\Node::create([
-  'name' => 'Hong Kong 1', 'region' => 'hk',
-  'public_host' => 'hk1.mbunievpn.com',
-  'api_base' => 'https://hk1.mbunievpn.com',
-  'api_secret' => 'THE_NODE_TOKEN_FROM_STEP_2',
-  'reality_pubkey' => '...', 'reality_short_id' => '...',
-  'reality_sni' => 'www.microsoft.com',
-  'hysteria_port_range' => '20000-30000',
-  'hysteria_cert_sha256' => '...:...',
-  'status' => 'online',
-]);"
-```
-
-The agent polls `GET /api/node/peers` every 15 s and applies the peer list;
-health is posted every 60 s. New paid subscriptions appear within ~15 s.
+If you ever need to force it: `php artisan mvpn:sync-peers` on the control plane.
 
 ## 4. Verify
 
 ```bash
-systemctl status mvpn-xray mvpn-singbox mvpn-agent
-curl -sk https://hk1.mbunievpn.com:8080        # camouflage site
-journalctl -u mvpn-agent -f                    # watch peer syncs
+systemctl status mvpn-porthop mvpn-xray mvpn-singbox mvpn-agent
+journalctl -u mvpn-agent -f               # "applied peer list version N (M active peers)"
+nft list table inet mvpn_hop              # port hopping rule
+ss -tulpn | grep ':443'
 ```
 
-Then import a real `/sub/{token}` into a stock sing-box / Hiddify client on an
-unrestricted network and confirm traffic flows; repeat from inside China for
-the 24–72 h field test (SDD §9).
+Then import a real `/sub/{token}` into stock Hiddify on an unrestricted
+network, then repeat from inside China for the 24–72 h field test.
 
-## Rotation / incident response
+## Operations
 
-- Rotate REALITY keys: `sudo ./install.sh --rotate ...` then update the node
-  row; clients pick up the change on their next subscription refresh.
-- IP blocked: stand up a fresh VPS, run `install.sh`, register, set the old
-  node `status = draining` then `offline`.
+- **Re-run is safe:** keys, short id, Hysteria2 cert and current users are kept.
+- **Rotate keys:** `sudo ./install.sh --rotate …` — the agent reports the new
+  values; clients pick them up on their next subscription refresh.
+- **Maintenance:** set the node to `draining` or `disabled` — it drops out of
+  every subscription and agent health won't flip it back to `online`.
+- **Agent can't apply a config:** it keeps the last good one and raises a
+  `node.sync` alert with the engine's error text.

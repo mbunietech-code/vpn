@@ -104,6 +104,25 @@ class ProvisioningService
             });
     }
 
+    /**
+     * Re-sync peers for every live subscription - run when a node comes online
+     * so existing customers get credentials on it.
+     *
+     * @return int number of subscriptions synced
+     */
+    public function syncAllActive(): int
+    {
+        $count = 0;
+        Subscription::where('status', 'active')
+            ->where('expires_at', '>', now())
+            ->each(function (Subscription $sub) use (&$count) {
+                $this->syncPeers($sub);
+                $count++;
+            });
+
+        return $count;
+    }
+
     /** Suspend a subscription and disable all its peers immediately. */
     public function suspend(Subscription $sub, string $reason = ''): void
     {

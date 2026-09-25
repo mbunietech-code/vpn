@@ -26,7 +26,8 @@ class AlertAnalyzer
     private function checkNode(Node $node): void
     {
         // Node silent for > 5 min
-        if ($node->last_health_at && $node->last_health_at->lt(now()->subMinutes(5)) && $node->status !== 'offline') {
+        if ($node->last_health_at && $node->last_health_at->lt(now()->subMinutes(5))
+            && ! in_array($node->status, ['offline', ...Node::ADMIN_STATUSES], true)) {
             $node->update(['status' => 'offline']);
             $this->raise('critical', 'node.health', "Node {$node->name} stopped reporting",
                 "No health report since {$node->last_health_at->diffForHumans()}.", $node);
