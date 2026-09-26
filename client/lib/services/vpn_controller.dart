@@ -1,21 +1,27 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart';
+import 'tunnel/android_hiddify_engine.dart';
 import 'tunnel/simulated_engine.dart';
 import 'tunnel/singbox_engine.dart';
 import 'tunnel/tunnel_engine.dart';
 
 /// Connection state + live stats, backed by a [TunnelEngine].
 ///
-/// Desktop (Windows/Linux/macOS) uses the real [SingboxEngine]; everywhere
-/// else falls back to [SimulatedEngine] until the mobile FFI engine lands.
+/// Android uses the embedded Hiddify mobile core; desktop uses the
+/// standalone sing-box process; unsupported platforms fall back to demo mode.
 class VpnController extends ChangeNotifier {
   VpnController({TunnelEngine? engine})
       : _engine = engine ??
-            (SingboxEngine.supported ? SingboxEngine() : SimulatedEngine()) {
+            (Platform.isAndroid
+                ? AndroidHiddifyEngine()
+                : SingboxEngine.supported
+                    ? SingboxEngine()
+                    : SimulatedEngine()) {
     _nodes = _seedNodes();
     _currentNode = _nodes.first;
     _repSub = _engine.reports.listen(_onReport);
@@ -44,7 +50,6 @@ class VpnController extends ChangeNotifier {
   }
 
   /// The active subscription bundle URL, once a subscription is live.
-  /// Used on Android to hand off to the Mbunie VPN Engine app.
   String? get subUrl => _subUrl;
 
   // ---- state ----------------------------------------------------------

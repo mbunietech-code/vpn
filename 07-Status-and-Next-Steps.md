@@ -16,13 +16,12 @@
 | Payments (v2) — Stripe/Cryptomus auto | ⚪ built, behind `/api/checkout`, needs merchant KYC |
 | **Flutter app** | 🟢 premium redesign, all screens; `dart analyze` clean, tests green |
 | Desktop VPN engine (Win/Linux/mac) | 🟡 built (sing-box subprocess) — **untested, needs a node** |
-| Android real tunnel | 🟡 Hiddify **light fork** in `android-app/` (`com.mbunie.mvpn.engine`) — rebrand + `mvpn://` deep-link consumer in progress; account app hands off the subscription, engine imports + connects one-tap |
+| Android real tunnel | 🟡 Embedded Hiddify core inside `client` (`com.mbunie.mvpn`) — one app starts Android `VpnService` directly |
 | ClickPesa (TZS: M-Pesa/Tigo/Airtel/bank) | 🟡 gateway on real `/webshop/generate-checkout-url` endpoint, verified live — owner must enter creds in admin + set webhook + TZS plan prices |
 | **Node (Vultr Tokyo)** | 🔴 not deployed — owner funding Vultr |
 
-### Android two-app model
-The account app (`com.mbunie.mvpn`) does auth, plans, payment, subscription. On Android it does **not** tunnel — the **Mbunie VPN Engine** (`com.mbunie.mvpn.engine`, the Hiddify light fork) does. Home's Connect button launches `mvpn://import?url=<subUrl>&name=Mbunie VPN` into the engine (then bare `mvpn://connect` on later taps); if the engine isn't installed the app opens `https://vpn.mbuniehub.com/download/android`.
-Owner: stage the engine APK at `storage/app/public/downloads/mbunie-vpn-engine.apk` **or** set the `android_download_url` key in *Settings & Keys*.
+### Android one-app model
+The client app (`com.mbunie.mvpn`) does auth, plans, payment, subscription, and Android tunneling. Home's Connect button now starts the embedded Hiddify-backed Android `VpnService` directly; there is no separate engine APK or `mvpn://` handoff app.
 
 ---
 
@@ -39,12 +38,12 @@ Owner: stage the engine APK at `storage/app/public/downloads/mbunie-vpn-engine.a
 ### Engineering (after node exists)
 6. SSH node → `bash node/install.sh …` → register node in admin.
 7. `bash control-plane/scripts/fetch-singbox.sh 1.11.15` on the control plane.
-8. End-to-end test: register → manual pay → admin approve → connect (desktop engine + stock Hiddify).
+8. End-to-end test: register → manual pay → admin approve → connect (desktop engine + embedded Android tunnel).
 9. Verify kill-switch + DNS-leak on desktop.
 10. Field test 24–72 h from inside China.
 
 ### Then
-11. Android: fork Hiddify-Next, rebrand, wire the MVPN `AppState` flow.
+11. Android: validate embedded Hiddify tunnel on an `arm64-v8a` device, then prepare release signing.
 12. Windows installer + icon; macOS notarize; Linux .deb/AppImage.
 13. Localization (SW/EN/ZH), device-limit screen, auto-update.
 14. Legal review (VPN sale; China; TCRA Tanzania).
