@@ -61,5 +61,11 @@ class NodeFormCreateTest extends TestCase
 
         $this->get("/admin/subscriptions/{$sub->id}/edit")->assertOk()->assertSee('otp@example.com');
         $this->get("/admin/invoices/{$invoice->id}/edit")->assertOk();
+
+        // Admin can pull up the user's /sub link (text + QR) for support/testing.
+        Livewire::test(\App\Filament\Resources\Subscriptions\Pages\ListSubscriptions::class)
+            ->mountTableAction('link', $sub)
+            ->assertMountedActionModalSeeHtml(e(url("/sub/{$sub->sub_token}")))
+            ->assertMountedActionModalSeeHtml('data:image/svg+xml;base64');
     }
 }
