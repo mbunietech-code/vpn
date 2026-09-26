@@ -1,12 +1,12 @@
 // MVPN Node Agent
 //
 // A small daemon that runs on every VPN node. It:
-//   1. Heartbeats with the control plane, sending the node's public protocol
-//      parameters (node-info.json) so the admin never copies keys by hand.
-//   2. Polls the control plane for the authoritative peer list.
-//   3. Renders the Xray (VLESS+REALITY) and sing-box (Hysteria2) client
-//      lists into their config files, validates them, and reloads the engines.
-//   4. Reports node health back.
+//  1. Heartbeats with the control plane, sending the node's public protocol
+//     parameters (node-info.json) so the admin never copies keys by hand.
+//  2. Polls the control plane for the authoritative peer list.
+//  3. Renders the Xray (VLESS+REALITY) and sing-box (Hysteria2) client
+//     lists into their config files, validates them, and reloads the engines.
+//  4. Reports node health back.
 //
 // It holds NO business data - only opaque peer IDs + protocol credentials.
 // See 05-Addendum-MVPN.md §A1, §A2.
@@ -22,12 +22,13 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 )
 
-const version = "0.2.0"
+const version = "0.2.1"
 
 type config struct {
 	ControlPlane  string
@@ -101,6 +102,7 @@ func main() {
 	appliedVersion := -1
 	activePeers := 0
 	lastError := ""
+	var bo backoff
 
 	syncTicker := time.NewTicker(15 * time.Second)
 	healthTicker := time.NewTicker(60 * time.Second)
@@ -108,11 +110,15 @@ func main() {
 	defer healthTicker.Stop()
 
 	sync := func() {
-		list, err := fetchPeers(ctx, cfg)
-		if err != nil {
-			log.Printf("fetchPeers: %v", err)
+		if bo.paused() {
 			return
 		}
+		list, err := fetchPeers(ctx, cfg)
+		if err != nil {
+			log.Printf("fetchPeers: %v (retry in %s)", err, bo.fail(err))
+			return
+		}
+		bo.ok()
 		if list.Version == appliedVersion {
 			return
 		}
@@ -130,6 +136,9 @@ func main() {
 	}
 
 	health := func() {
+		if bo.paused() {
+			return
+		}
 		rep := healthReport{
 			AgentVersion: version,
 			Version:      appliedVersion,
@@ -144,8 +153,10 @@ func main() {
 			NodeInfo:  readNodeInfo(cfg.NodeInfo),
 		}
 		if err := postHealth(ctx, cfg, rep); err != nil {
-			log.Printf("postHealth: %v", err)
+			log.Printf("postHealth: %v (retry in %s)", err, bo.fail(err))
+			return
 		}
+		bo.ok()
 	}
 
 	// Health first: on a brand-new node it registers the protocol params and
@@ -163,6 +174,50 @@ func main() {
 			health()
 		}
 	}
+}
+
+// backoff keeps a failing agent from hammering the control plane. Shared
+// hosting / Cloudflare treat a steady stream of 401s as brute force and then
+// rate-limit the whole site, so every error doubles the pause (15s → 10min)
+// and a Retry-After header is honoured.
+type backoff struct {
+	failures int
+	until    time.Time
+}
+
+func (b *backoff) paused() bool { return time.Now().Before(b.until) }
+
+func (b *backoff) ok() { b.failures, b.until = 0, time.Time{} }
+
+func (b *backoff) fail(err error) time.Duration {
+	b.failures++
+	d := 15 * time.Second << min(b.failures, 6) // 30s, 1m, 2m, 4m, 8m, 16m…
+	if d > 10*time.Minute {
+		d = 10 * time.Minute
+	}
+	if se, ok := err.(*statusError); ok && se.retryAfter > d {
+		d = se.retryAfter
+	}
+	b.until = time.Now().Add(d)
+	return d
+}
+
+type statusError struct {
+	code       int
+	retryAfter time.Duration
+}
+
+func (e *statusError) Error() string { return fmt.Sprintf("status %d", e.code) }
+
+func checkStatus(resp *http.Response) error {
+	if resp.StatusCode == http.StatusOK {
+		return nil
+	}
+	se := &statusError{code: resp.StatusCode}
+	if secs, err := strconv.Atoi(resp.Header.Get("Retry-After")); err == nil && secs > 0 {
+		se.retryAfter = time.Duration(secs) * time.Second
+	}
+	return se
 }
 
 func httpClient() *http.Client { return &http.Client{Timeout: 20 * time.Second} }
@@ -184,8 +239,8 @@ func fetchPeers(ctx context.Context, cfg config) (*peerListResp, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("status %d", resp.StatusCode)
+	if err := checkStatus(resp); err != nil {
+		return nil, err
 	}
 	var out peerListResp
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
@@ -201,8 +256,8 @@ func postHealth(ctx context.Context, cfg config, rep healthReport) error {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("status %d", resp.StatusCode)
+	if err := checkStatus(resp); err != nil {
+		return err
 	}
 	return nil
 }
