@@ -13,8 +13,8 @@
 #  Usage:
 #    sudo ./install.sh \
 #      --domain n1.mbuniehub.com \
-#      --reality-dest www.microsoft.com:443 \
-#      --reality-sni  www.microsoft.com \
+#      --reality-dest www.apple.com:443 \
+#      --reality-sni  www.apple.com \
 #      --control-plane https://vpn.mbuniehub.com \
 #      --node-token   <PER_NODE_SECRET> \
 #      --hysteria-port-range 20000-30000 \
@@ -29,8 +29,8 @@ set -euo pipefail
 
 # ---------- defaults ----------------------------------------------------------
 DOMAIN=""
-REALITY_DEST="www.microsoft.com:443"
-REALITY_SNI="www.microsoft.com"
+REALITY_DEST="www.apple.com:443"
+REALITY_SNI="www.apple.com"
 CONTROL_PLANE=""
 NODE_TOKEN=""
 HYSTERIA_RANGE="20000-30000"

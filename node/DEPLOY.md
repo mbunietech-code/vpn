@@ -37,8 +37,8 @@ git clone https://github.com/mbunietech-code/vpn.git /opt/mvpn   # or scp the no
 cd /opt/mvpn/node
 sudo ./install.sh \
   --domain n1.mbuniehub.com \
-  --reality-dest www.microsoft.com:443 \
-  --reality-sni  www.microsoft.com \
+  --reality-dest www.apple.com:443 \
+  --reality-sni  www.apple.com \
   --control-plane https://vpn.mbuniehub.com \
   --node-token   <TOKEN FROM STEP 1> \
   --hysteria-port-range 20000-30000
@@ -51,8 +51,10 @@ the nftables port-hopping redirect, renders and **validates** both engine
 configs, and starts `mvpn-porthop`, `mvpn-xray`, `mvpn-singbox`, `mvpn-agent`.
 
 **REALITY `dest` / `sni`** must be a site that is (a) fully reachable inside
-China, (b) high-traffic, (c) TLS 1.3 + HTTP/2. Good: `www.microsoft.com`,
-`www.apple.com`, `swdist.apple.com`, `www.bing.com`.
+China, (b) high-traffic, (c) TLS 1.3 + HTTP/2. Verified with Xray 26:
+`www.apple.com`, `swdist.apple.com`, `www.bing.com`. **Not `www.microsoft.com`**
+— with Xray 26 every REALITY handshake against it fails ("handshake did not
+complete successfully"). Check a candidate first: `xray tls ping <host>`.
 **Never** use anything blocked in China (Google, YouTube, Wikipedia, …).
 
 ## 3. Nothing to copy back
