@@ -31,7 +31,11 @@ class NodeForm
                         TextInput::make('cdn_host')->placeholder('(hiari)'),
                         TextInput::make('api_secret')
                             ->label('Node token')
-                            ->required()
+                            // The token is $hidden on the model, so the edit form
+                            // starts empty: blank = keep the current token.
+                            ->required(fn (string $operation) => $operation === 'create')
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->helperText(fn (string $operation) => $operation === 'edit' ? 'Acha tupu kubaki na token ya sasa.' : null)
                             ->password()
                             ->revealable()
                             ->copyable()

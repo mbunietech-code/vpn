@@ -14,7 +14,11 @@ class SubscriptionForm
         return $schema
             ->components([
                 Select::make('user_id')
-                    ->relationship('user', 'name')
+                    // OTP users have no name - label them by email/phone instead
+                    // (a null title attribute makes Filament throw a 500).
+                    ->relationship('user', 'email')
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->email ?? $record->phone ?? "#{$record->id}")
+                    ->searchable(['email', 'phone'])
                     ->required(),
                 TextInput::make('plan_code')
                     ->required(),
