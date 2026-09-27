@@ -122,13 +122,10 @@ class ServiceNotification(private val status: MutableLiveData<Status>, private v
 
 
     suspend fun start() {
-        if (Settings.dynamicNotification && checkPermission()) {
-//            commandClient.connect()
-            startListenSystemInfo()
-            withContext(Dispatchers.Main) {
-                registerReceiver()
-            }
-        }
+        // The release build can strip Kotlin metadata needed by Wire's dynamic
+        // gRPC client. Keep the foreground notification static so the VPN
+        // process does not crash after connecting.
+        return
     }
 
     private fun registerReceiver() {
@@ -181,9 +178,8 @@ class ServiceNotification(private val status: MutableLiveData<Status>, private v
         streamingJob = streamingCoroutineScope.launch(Dispatchers.IO) {
             Log.d("notification", "startListenSystemInfo-launch")
 
-            val coreClient = GrpcClientProvider.grpcClient.create(CoreClient::class)
-
             try {
+                val coreClient = GrpcClientProvider.grpcClient.create(CoreClient::class)
                 var previous = coreClient.GetSystemInfo().executeBlocking(Empty())
 
                 while (isActive) {
