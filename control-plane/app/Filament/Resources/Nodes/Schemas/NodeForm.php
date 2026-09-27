@@ -53,6 +53,11 @@ class NodeForm
                             ->options(array_combine(Node::STATUSES, Node::STATUSES))
                             ->helperText('draining/disabled: agent haitabadilisha. Nyingine zinasasishwa na health.'),
                         TextInput::make('capacity')->required()->numeric()->default(500),
+                        TextInput::make('priority')
+                            ->required()
+                            ->numeric()
+                            ->default(100)
+                            ->helperText('Namba ndogo hupewa nafasi ya kwanza kwenye app. Mfano 10 = primary, 100 = backup.'),
                     ]),
 
                 Section::make('Protocol (inajazwa na agent)')

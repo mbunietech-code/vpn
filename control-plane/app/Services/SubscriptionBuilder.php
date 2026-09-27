@@ -24,6 +24,11 @@ class SubscriptionBuilder
             ->with('node')
             ->get()
             ->filter(fn ($p) => $p->node && $p->node->isUsable())
+            ->sortBy([
+                fn ($a, $b) => ($a->node->priority ?? 100) <=> ($b->node->priority ?? 100),
+                fn ($a, $b) => strcmp($a->node->region, $b->node->region),
+                fn ($a, $b) => strcmp($a->node->name, $b->node->name),
+            ])
             ->values();
     }
 

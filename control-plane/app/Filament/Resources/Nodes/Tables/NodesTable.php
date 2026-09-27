@@ -27,6 +27,11 @@ class NodesTable
                 TextColumn::make('peers_count')
                     ->label('Peers')
                     ->counts('peers'),
+                TextColumn::make('priority')
+                    ->label('Priority')
+                    ->sortable()
+                    ->badge()
+                    ->color('gray'),
                 TextColumn::make('peer_version')->label('v')->badge()->color('gray'),
                 TextColumn::make('last_health_at')
                     ->label('Health')

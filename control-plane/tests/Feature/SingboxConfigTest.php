@@ -94,6 +94,34 @@ class SingboxConfigTest extends TestCase
         $this->assertContains('com.android.shell', $tun['exclude_package']);
     }
 
+    public function test_node_priority_controls_fallback_order(): void
+    {
+        $sub = $this->activeSub();
+        $primary = $sub->peers()->with('node')->first()->node;
+        $primary->update(['priority' => 10]);
+
+        Node::create([
+            'name' => 'Backup 1', 'region' => 'sg',
+            'public_host' => 'n2.mbuniehub.com', 'api_base' => 'https://n2',
+            'api_secret' => Str::random(40),
+            'reality_pubkey' => 'PBKEY2', 'reality_short_id' => 'cd34',
+            'reality_sni' => 'www.apple.com',
+            'hysteria_port_range' => '21000-31000',
+            'hysteria_cert_sha256' => 'CC:DD', 'status' => 'online',
+            'priority' => 100,
+        ]);
+
+        app(ProvisioningService::class)->syncAllActive();
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android")->assertOk()->json();
+        $auto = collect($cfg['outbounds'])->firstWhere('tag', 'auto');
+
+        $this->assertStringStartsWith('Tokyo 1', $auto['outbounds'][0]);
+        $this->assertStringStartsWith('Tokyo 1', $auto['outbounds'][1]);
+        $this->assertStringStartsWith('Backup 1', $auto['outbounds'][2]);
+        $this->assertStringStartsWith('Backup 1', $auto['outbounds'][3]);
+    }
+
     public function test_default_format_still_returns_share_links(): void
     {
         $sub = $this->activeSub();
