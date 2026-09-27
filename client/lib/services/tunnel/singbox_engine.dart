@@ -62,11 +62,14 @@ class SingboxEngine implements TunnelEngine {
     final cfg = await _fetchConfig(subUrl, apiToken, dir, pref);
 
     _errBuf.clear();
-    final proc = await Process.start(
-      bin.path,
-      ['run', '-c', cfg.path, '-D', dir.path, '--disable-color'],
-      workingDirectory: dir.path,
-    );
+    final proc = await Process.start(bin.path, [
+      'run',
+      '-c',
+      cfg.path,
+      '-D',
+      dir.path,
+      '--disable-color',
+    ], workingDirectory: dir.path);
     _proc = proc;
 
     proc.stdout
@@ -78,14 +81,18 @@ class SingboxEngine implements TunnelEngine {
         .transform(const LineSplitter())
         .listen(_onLog);
 
-    unawaited(proc.exitCode.then((code) {
-      _stopPolling();
-      if (code == 0) {
-        _reports.add(const EngineReport(EngineStatus.down));
-      } else {
-        _reports.add(EngineReport(EngineStatus.error, message: _diagnose(code)));
-      }
-    }));
+    unawaited(
+      proc.exitCode.then((code) {
+        _stopPolling();
+        if (code == 0) {
+          _reports.add(const EngineReport(EngineStatus.down));
+        } else {
+          _reports.add(
+            EngineReport(EngineStatus.error, message: _diagnose(code)),
+          );
+        }
+      }),
+    );
 
     await _waitUntilUp();
     _reports.add(const EngineReport(EngineStatus.up));
@@ -153,22 +160,31 @@ class SingboxEngine implements TunnelEngine {
   // ---- config -------------------------------------------------------
 
   Future<File> _fetchConfig(
-      String subUrl, String token, Directory dir, ProtocolPref pref) async {
+    String subUrl,
+    String token,
+    Directory dir,
+    ProtocolPref pref,
+  ) async {
     final platform = Platform.isWindows
         ? 'windows'
         : Platform.isMacOS
-            ? 'macos'
-            : 'linux';
+        ? 'macos'
+        : 'linux';
     final protocol = switch (pref) {
       ProtocolPref.vlessReality => 'reality',
       ProtocolPref.hysteria2 => 'hysteria2',
+      ProtocolPref.openVpn => 'openvpn',
       ProtocolPref.auto => 'auto',
     };
     final sep = subUrl.contains('?') ? '&' : '?';
     final uri = Uri.parse(
-        '$subUrl${sep}format=singbox&platform=$platform&protocol=$protocol');
+      '$subUrl${sep}format=singbox&platform=$platform&protocol=$protocol',
+    );
 
-    final res = await _http.get(uri, headers: {'Authorization': 'Bearer $token'});
+    final res = await _http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
     if (res.statusCode != 200) {
       throw StateError('Config haijapatikana (${res.statusCode})');
     }
@@ -206,7 +222,9 @@ class SingboxEngine implements TunnelEngine {
             .get(Uri.parse('$_clashApi/version'))
             .timeout(const Duration(seconds: 2));
         if (r.statusCode == 200) return;
-      } catch (_) {/* not ready yet */}
+      } catch (_) {
+        /* not ready yet */
+      }
       await Future<void>.delayed(const Duration(milliseconds: 600));
     }
     await stop();
@@ -239,20 +257,28 @@ class SingboxEngine implements TunnelEngine {
 
       final now = DateTime.now();
       final dt = now.difference(_lastPoll).inMilliseconds / 1000.0;
-      final upBps = dt > 0 ? ((up - _lastUp) / dt).round().clamp(0, 1 << 34) : 0;
-      final downBps = dt > 0 ? ((down - _lastDown) / dt).round().clamp(0, 1 << 34) : 0;
+      final upBps = dt > 0
+          ? ((up - _lastUp) / dt).round().clamp(0, 1 << 34)
+          : 0;
+      final downBps = dt > 0
+          ? ((down - _lastDown) / dt).round().clamp(0, 1 << 34)
+          : 0;
 
       _lastUp = up;
       _lastDown = down;
       _lastPoll = now;
 
-      _traffic.add(EngineTraffic(
-        upBytes: up,
-        downBytes: down,
-        upBps: upBps,
-        downBps: downBps,
-      ));
-    } catch (_) {/* transient */}
+      _traffic.add(
+        EngineTraffic(
+          upBytes: up,
+          downBytes: down,
+          upBps: upBps,
+          downBps: downBps,
+        ),
+      );
+    } catch (_) {
+      /* transient */
+    }
   }
 
   // ---- diagnostics --------------------------------------------

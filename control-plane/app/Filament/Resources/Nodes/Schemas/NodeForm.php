@@ -74,6 +74,24 @@ class NodeForm
                         Textarea::make('hysteria_cert_pem')->rows(4)->columnSpanFull(),
                     ]),
 
+                Section::make('OpenVPN fallback')
+                    ->description('Hiari: bandika .ovpn profile hapa ili China Stable/OpenVPN itumike kama fallback.')
+                    ->columns(2)
+                    ->collapsed(fn (?Node $record) => blank($record?->openvpn_config))
+                    ->schema([
+                        Textarea::make('openvpn_config')
+                            ->label('.ovpn profile')
+                            ->rows(10)
+                            ->columnSpanFull()
+                            ->helperText('Inasaidia remote/proto pamoja na inline <ca>, <cert>, <key>, <tls-auth>, au <tls-crypt>.'),
+                        TextInput::make('openvpn_username')->label('Username')->password()->revealable(),
+                        TextInput::make('openvpn_password')->label('Password')->password()->revealable(),
+                        TextInput::make('openvpn_server_name')
+                            ->label('TLS/SNI name')
+                            ->placeholder('asia8.libaivps.pw')
+                            ->helperText('Acha tupu kutumia public_host.'),
+                    ]),
+
                 Section::make('Hali')
                     ->columns(3)
                     ->visibleOn('edit')

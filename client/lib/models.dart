@@ -2,14 +2,15 @@ import 'package:flutter/foundation.dart';
 
 enum VpnStatus { disconnected, connecting, connected, reconnecting, error }
 
-enum ProtocolPref { auto, vlessReality, hysteria2 }
+enum ProtocolPref { auto, vlessReality, hysteria2, openVpn }
 
 extension ProtocolPrefLabel on ProtocolPref {
   String get label => switch (this) {
-        ProtocolPref.auto => 'Auto',
-        ProtocolPref.vlessReality => 'VLESS-REALITY',
-        ProtocolPref.hysteria2 => 'Hysteria2',
-      };
+    ProtocolPref.auto => 'Auto',
+    ProtocolPref.vlessReality => 'VLESS-REALITY',
+    ProtocolPref.hysteria2 => 'Hysteria2',
+    ProtocolPref.openVpn => 'OpenVPN',
+  };
 }
 
 @immutable
@@ -36,13 +37,13 @@ class VpnNode {
 
   /// 0..4 signal bars from latency (0 = unknown → no bars)
   int get bars => switch (latencyMs) {
-        <= 0 => 0,
-        <= 60 => 4,
-        <= 120 => 3,
-        <= 200 => 2,
-        <= 350 => 1,
-        _ => 0,
-      };
+    <= 0 => 0,
+    <= 60 => 4,
+    <= 120 => 3,
+    <= 200 => 2,
+    <= 350 => 1,
+    _ => 0,
+  };
 }
 
 @immutable
@@ -83,14 +84,14 @@ class PayMethod {
   final String? instructions;
 
   factory PayMethod.fromJson(Map<String, dynamic> j) => PayMethod(
-        id: j['id'] as int,
-        type: j['type'] as String,
-        label: j['label'] as String,
-        currency: j['currency'] as String?,
-        qrUrl: j['qr_url'] as String?,
-        accountRef: j['account_ref'] as String?,
-        instructions: j['instructions'] as String?,
-      );
+    id: j['id'] as int,
+    type: j['type'] as String,
+    label: j['label'] as String,
+    currency: j['currency'] as String?,
+    qrUrl: j['qr_url'] as String?,
+    accountRef: j['account_ref'] as String?,
+    instructions: j['instructions'] as String?,
+  );
 }
 
 @immutable

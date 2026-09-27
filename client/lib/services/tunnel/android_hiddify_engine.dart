@@ -107,6 +107,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
     final protocol = switch (pref) {
       ProtocolPref.vlessReality => 'reality',
       ProtocolPref.hysteria2 => 'hysteria2',
+      ProtocolPref.openVpn => 'openvpn',
       ProtocolPref.auto => 'reality',
     };
     final sep = subUrl.contains('?') ? '&' : '?';

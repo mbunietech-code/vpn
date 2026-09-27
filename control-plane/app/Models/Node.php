@@ -19,9 +19,12 @@ class Node extends Model
         'health' => 'array',
         'last_health_at' => 'datetime',
         'api_secret' => 'encrypted',
+        'openvpn_config' => 'encrypted',
+        'openvpn_username' => 'encrypted',
+        'openvpn_password' => 'encrypted',
     ];
 
-    protected $hidden = ['api_secret'];
+    protected $hidden = ['api_secret', 'openvpn_config', 'openvpn_username', 'openvpn_password'];
 
     protected static function booted(): void
     {

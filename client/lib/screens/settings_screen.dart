@@ -41,9 +41,15 @@ class SettingsScreen extends StatelessWidget {
                 SettingRow(
                   leading: _icon(c, Icons.workspace_premium_rounded),
                   title: tr.t('settings.planAndPay'),
-                  trailing: Icon(Icons.chevron_right_rounded, color: c.textHint),
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => const PlansScreen())),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: c.textHint,
+                  ),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const PlansScreen(),
+                    ),
+                  ),
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
@@ -103,6 +109,7 @@ class SettingsScreen extends StatelessWidget {
                     ProtocolPref.auto => tr.t('settings.protoAuto'),
                     ProtocolPref.vlessReality => tr.t('settings.protoReality'),
                     ProtocolPref.hysteria2 => tr.t('settings.protoHy2'),
+                    ProtocolPref.openVpn => tr.t('settings.protoOpenVpn'),
                   },
                   trailing: DropdownButton<ProtocolPref>(
                     value: vpn.protocol,
@@ -125,14 +132,20 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 SettingRow(
                   title: tr.t('settings.version'),
-                  trailing: Text(MvpnConfig.appVersion,
-                      style: TextStyle(fontSize: 13, color: c.textSecondary)),
+                  trailing: Text(
+                    MvpnConfig.appVersion,
+                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                  ),
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
                   title: tr.t('settings.copyPeer'),
                   subtitle: vpn.peerId,
-                  trailing: Icon(Icons.copy_rounded, size: 17, color: c.textHint),
+                  trailing: Icon(
+                    Icons.copy_rounded,
+                    size: 17,
+                    color: c.textHint,
+                  ),
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: vpn.peerId));
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -143,15 +156,21 @@ class SettingsScreen extends StatelessWidget {
                 Divider(color: c.border, height: 1),
                 SettingRow(
                   title: tr.t('settings.tos'),
-                  trailing: Icon(Icons.open_in_new_rounded,
-                      size: 15, color: c.textHint),
+                  trailing: Icon(
+                    Icons.open_in_new_rounded,
+                    size: 15,
+                    color: c.textHint,
+                  ),
                   onTap: () => _open('${MvpnConfig.apiBase}/legal/terms'),
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
                   title: tr.t('settings.privacy'),
-                  trailing: Icon(Icons.open_in_new_rounded,
-                      size: 15, color: c.textHint),
+                  trailing: Icon(
+                    Icons.open_in_new_rounded,
+                    size: 15,
+                    color: c.textHint,
+                  ),
                   onTap: () => _open('${MvpnConfig.apiBase}/legal/privacy'),
                 ),
               ],
@@ -159,8 +178,10 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Center(
-            child: Text('Mbunie Tech · Mbunie VPN',
-                style: TextStyle(fontSize: 11, color: c.textHint)),
+            child: Text(
+              'Mbunie Tech · Mbunie VPN',
+              style: TextStyle(fontSize: 11, color: c.textHint),
+            ),
           ),
         ],
       ),
@@ -168,20 +189,22 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _icon(MvpnColors c, IconData i, {bool danger = false}) => Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: (danger ? c.danger : c.brand).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(i, size: 17, color: danger ? c.danger : c.brand),
-      );
+    width: 34,
+    height: 34,
+    decoration: BoxDecoration(
+      color: (danger ? c.danger : c.brand).withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Icon(i, size: 17, color: danger ? c.danger : c.brand),
+  );
 
   String _expiry(AppState state, AppText tr) {
     final d = state.expiresAt;
     if (d == null) return state.subStatus;
     final days = d.difference(DateTime.now()).inDays;
-    return days >= 0 ? tr.p('settings.daysRemain', days) : tr.t('settings.expired');
+    return days >= 0
+        ? tr.p('settings.daysRemain', days)
+        : tr.t('settings.expired');
   }
 
   Future<void> _open(String url) async {
@@ -235,8 +258,9 @@ class SettingsScreen extends StatelessWidget {
         content: Text(tr.t('settings.logoutConfirm')),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(tr.t('common.cancel'))),
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(tr.t('common.cancel')),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);

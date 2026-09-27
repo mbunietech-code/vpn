@@ -97,6 +97,43 @@ class SingboxConfigTest extends TestCase
         $this->assertContains('com.android.shell', $tun['exclude_package']);
     }
 
+    public function test_openvpn_protocol_returns_endpoint_config(): void
+    {
+        $sub = $this->activeSub();
+        $node = $sub->peers()->with('node')->first()->node;
+        $node->update([
+            'openvpn_config' => implode("\n", [
+                'client',
+                'dev tun',
+                'proto tcp-client',
+                'remote asia8.libaivps.pw 443',
+                'remote-cert-tls server',
+                'cipher AES-256-GCM',
+                'auth SHA256',
+                '<ca>',
+                '-----BEGIN CERTIFICATE-----',
+                'MIIB',
+                '-----END CERTIFICATE-----',
+                '</ca>',
+            ]),
+            'openvpn_username' => 'user1',
+            'openvpn_password' => 'pass1',
+            'openvpn_server_name' => 'asia8.libaivps.pw',
+        ]);
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android&protocol=openvpn")
+            ->assertOk()
+            ->json();
+
+        $this->assertSame('openvpn-client', $cfg['endpoints'][0]['type']);
+        $this->assertSame('asia8.libaivps.pw', $cfg['endpoints'][0]['server']);
+        $this->assertSame(443, $cfg['endpoints'][0]['server_port']);
+        $this->assertSame('tcp', $cfg['endpoints'][0]['network']);
+        $this->assertSame('user1', $cfg['endpoints'][0]['username']);
+        $this->assertSame('ovpn-dns', $cfg['dns']['final']);
+        $this->assertSame('direct', $cfg['route']['final']);
+    }
+
     public function test_node_priority_controls_fallback_order(): void
     {
         $sub = $this->activeSub();

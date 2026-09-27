@@ -34,7 +34,7 @@ class SubscriptionLinkController extends Controller
         if ($request->query('format') === 'singbox') {
             $platform = in_array($request->query('platform'), ['windows', 'linux', 'macos', 'android'], true)
                 ? $request->query('platform') : 'windows';
-            $protocol = in_array($request->query('protocol'), ['reality', 'hysteria2', 'auto'], true)
+            $protocol = in_array($request->query('protocol'), ['reality', 'hysteria2', 'openvpn', 'auto'], true)
                 ? $request->query('protocol') : 'auto';
 
             return response()->json($builder->buildSingbox($sub, $platform, $protocol), 200, [
