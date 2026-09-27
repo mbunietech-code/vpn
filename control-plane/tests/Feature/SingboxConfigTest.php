@@ -76,6 +76,20 @@ class SingboxConfigTest extends TestCase
         $this->assertSame('127.0.0.1:9095', $cfg['experimental']['clash_api']['external_controller']);
     }
 
+    public function test_android_tun_excludes_debug_and_system_packages(): void
+    {
+        $sub = $this->activeSub();
+
+        $resp = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android")->assertOk();
+
+        $tun = $resp->json('inbounds.0');
+
+        $this->assertArrayNotHasKey('interface_name', $tun);
+        $this->assertArrayNotHasKey('strict_route', $tun);
+        $this->assertContains('com.mbunie.mvpn', $tun['exclude_package']);
+        $this->assertContains('com.android.shell', $tun['exclude_package']);
+    }
+
     public function test_default_format_still_returns_share_links(): void
     {
         $sub = $this->activeSub();

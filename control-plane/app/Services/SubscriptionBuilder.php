@@ -162,6 +162,13 @@ class SubscriptionBuilder
         if ($platform !== 'android') {
             $tunInbound['interface_name'] = 'mvpn0';
             $tunInbound['strict_route'] = true;
+        } else {
+            $tunInbound['exclude_package'] = [
+                'com.mbunie.mvpn',
+                'com.android.shell',
+                'com.android.settings',
+                'com.google.android.gms',
+            ];
         }
 
         $config = [

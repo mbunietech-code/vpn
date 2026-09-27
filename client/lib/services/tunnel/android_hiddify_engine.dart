@@ -165,6 +165,13 @@ class AndroidHiddifyEngine implements TunnelEngine {
             'fe80::/10',
             'ff00::/8',
           ]);
+      inbound['exclude_package'] =
+          _mergeStringList(inbound['exclude_package'], const [
+            'com.mbunie.mvpn',
+            'com.android.shell',
+            'com.android.settings',
+            'com.google.android.gms',
+          ]);
     }
   }
 
