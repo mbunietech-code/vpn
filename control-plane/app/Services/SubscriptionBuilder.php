@@ -74,6 +74,7 @@ class SubscriptionBuilder
     {
         $proxyOutbounds = [];   // per-peer outbound tags
         $outbounds = [];
+        $nodeHosts = [];
 
         foreach ($this->activePeers($sub) as $peer) {
             $node = $peer->node;
@@ -87,6 +88,7 @@ class SubscriptionBuilder
             }
 
             if ($peer->protocol === 'vless-reality') {
+                $nodeHosts[] = $node->cdn_host ?: $node->public_host;
                 $tag = "{$node->name} · REALITY";
                 $proxyOutbounds[] = $tag;
                 $outbounds[] = [
@@ -111,6 +113,7 @@ class SubscriptionBuilder
             }
 
             if ($peer->protocol === 'hysteria2') {
+                $nodeHosts[] = $node->public_host;
                 $tag = "{$node->name} · Hysteria2";
                 $proxyOutbounds[] = $tag;
                 $hy = [
@@ -134,6 +137,13 @@ class SubscriptionBuilder
                 $outbounds[] = $hy;
             }
         }
+        $nodeHosts = array_values(array_unique(array_filter($nodeHosts)));
+        $bootstrapDnsRules = $nodeHosts
+            ? [['domain' => $nodeHosts, 'server' => 'direct-dns']]
+            : [];
+        $bootstrapRouteRules = $nodeHosts
+            ? [['domain' => $nodeHosts, 'outbound' => 'direct']]
+            : [];
 
         // Selector + auto (urltest) sit in front of the peers.
         $selectorMembers = array_merge(['auto'], $proxyOutbounds);
@@ -189,9 +199,9 @@ class SubscriptionBuilder
                         'path' => '/dns-query',
                     ],
                 ],
-                'rules' => [
+                'rules' => array_merge($bootstrapDnsRules, [
                     ['domain_suffix' => ['.cn'], 'server' => 'direct-dns'],
-                ],
+                ]),
                 'final' => 'proxy-dns',
                 'strategy' => 'prefer_ipv4',
             ],
@@ -215,12 +225,13 @@ class SubscriptionBuilder
                 ['type' => 'direct', 'tag' => 'direct'],
             ]),
             'route' => [
-                'rules' => [
+                'rules' => array_merge([
                     ['action' => 'sniff'],
                     ['protocol' => 'dns', 'action' => 'hijack-dns'],
+                ], $bootstrapRouteRules, [
                     ['ip_is_private' => true, 'outbound' => 'direct'],
                     ['domain_suffix' => ['.cn'], 'outbound' => 'direct'],
-                ],
+                ]),
                 'final' => 'proxy',
                 'auto_detect_interface' => true,
             ],

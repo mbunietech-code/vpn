@@ -74,6 +74,10 @@ class SingboxConfigTest extends TestCase
 
         $this->assertSame('proxy', $cfg['route']['final']);
         $this->assertSame('127.0.0.1:9095', $cfg['experimental']['clash_api']['external_controller']);
+
+        $this->assertSame('direct-dns', $cfg['dns']['rules'][0]['server']);
+        $this->assertContains('n1.mbuniehub.com', $cfg['dns']['rules'][0]['domain']);
+        $this->assertContains('n1.mbuniehub.com', $cfg['route']['rules'][2]['domain']);
     }
 
     public function test_android_tun_excludes_debug_and_system_packages(): void

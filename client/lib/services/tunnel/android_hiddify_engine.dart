@@ -130,6 +130,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
     }
     _normalizeAndroidTunConfig(decoded);
     _normalizeDnsConfig(decoded);
+    _normalizeBootstrapDnsRules(decoded);
     final file = File('${dirs.configs.path}/mbunie-singbox.json');
     await file.writeAsString(
       const JsonEncoder.withIndent('  ').convert(decoded),
@@ -173,6 +174,52 @@ class AndroidHiddifyEngine implements TunnelEngine {
             'com.google.android.gms',
           ]);
     }
+  }
+
+  void _normalizeBootstrapDnsRules(Map<String, dynamic> config) {
+    final hosts = _proxyServerHosts(config);
+    if (hosts.isEmpty) return;
+
+    final dns = config['dns'];
+    if (dns is Map) {
+      final rules = dns['rules'] is List ? dns['rules'] as List : <dynamic>[];
+      rules.insert(0, {'domain': hosts, 'server': 'direct-dns'});
+      dns['rules'] = rules;
+    }
+
+    final route = config['route'];
+    if (route is Map) {
+      final rules = route['rules'] is List
+          ? route['rules'] as List
+          : <dynamic>[];
+      final insertAt = rules.indexWhere(
+        (rule) => rule is Map && rule['protocol'] == 'dns',
+      );
+      rules.insert(insertAt >= 0 ? insertAt + 1 : 0, {
+        'domain': hosts,
+        'outbound': 'direct',
+      });
+      route['rules'] = rules;
+    }
+  }
+
+  List<String> _proxyServerHosts(Map<String, dynamic> config) {
+    final outbounds = config['outbounds'];
+    if (outbounds is! List) return const [];
+
+    final hosts = <String>{};
+    for (final outbound in outbounds) {
+      if (outbound is! Map) continue;
+      final type = outbound['type'];
+      if (type == 'direct' || type == 'selector' || type == 'urltest') {
+        continue;
+      }
+      final server = outbound['server'];
+      if (server is! String || server.isEmpty) continue;
+      if (!RegExp(r'[A-Za-z]').hasMatch(server)) continue;
+      hosts.add(server);
+    }
+    return hosts.toList();
   }
 
   List<String> _mergeStringList(Object? current, List<String> fallback) {
