@@ -183,6 +183,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
     final dns = config['dns'];
     if (dns is Map) {
       final rules = dns['rules'] is List ? dns['rules'] as List : <dynamic>[];
+      _removeDomainRules(rules, hosts);
       rules.insert(0, {'domain': hosts, 'server': 'direct-dns'});
       dns['rules'] = rules;
     }
@@ -192,6 +193,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
       final rules = route['rules'] is List
           ? route['rules'] as List
           : <dynamic>[];
+      _removeDomainRules(rules, hosts);
       final insertAt = rules.indexWhere(
         (rule) => rule is Map && rule['protocol'] == 'dns',
       );
@@ -201,6 +203,16 @@ class AndroidHiddifyEngine implements TunnelEngine {
       });
       route['rules'] = rules;
     }
+  }
+
+  void _removeDomainRules(List<dynamic> rules, List<String> hosts) {
+    final hostSet = hosts.toSet();
+    rules.removeWhere((rule) {
+      if (rule is! Map) return false;
+      final domains = rule['domain'];
+      if (domains is! List) return false;
+      return domains.whereType<String>().toSet().containsAll(hostSet);
+    });
   }
 
   List<String> _proxyServerHosts(Map<String, dynamic> config) {
