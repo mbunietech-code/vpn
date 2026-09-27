@@ -397,9 +397,6 @@ class SubscriptionBuilder
             ],
         ];
 
-        if ($cipher = $this->firstArg($directives, 'cipher')) {
-            $endpoint['cipher'] = $cipher;
-        }
         if ($auth = $this->firstArg($directives, 'auth')) {
             $endpoint['auth'] = $auth;
         }

@@ -130,6 +130,8 @@ class SingboxConfigTest extends TestCase
         $this->assertSame(443, $cfg['endpoints'][0]['server_port']);
         $this->assertSame('tcp', $cfg['endpoints'][0]['network']);
         $this->assertSame('user1', $cfg['endpoints'][0]['username']);
+        $this->assertArrayNotHasKey('cipher', $cfg['endpoints'][0]);
+        $this->assertSame(['AES-256-GCM', 'AES-128-GCM'], $cfg['endpoints'][0]['data_ciphers']);
         $this->assertSame('ovpn-dns', $cfg['dns']['final']);
         $this->assertSame('direct', $cfg['route']['final']);
     }
