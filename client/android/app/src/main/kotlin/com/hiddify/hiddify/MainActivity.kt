@@ -133,7 +133,10 @@ class MainActivity : FlutterActivity(), ServiceConnection.Callback {
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startService()
-            } else onServiceAlert(Alert.RequestNotificationPermission, null)
+            } else {
+                Log.w(TAG, "notification permission denied; starting VPN service anyway")
+                startService0()
+            }
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
@@ -145,7 +148,7 @@ class MainActivity : FlutterActivity(), ServiceConnection.Callback {
             else onServiceAlert(Alert.RequestVPNPermission, null)
         } else if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
             if (resultCode == RESULT_OK) startService()
-            else onServiceAlert(Alert.RequestNotificationPermission, null)
+            else startService0()
         }
     }
 }

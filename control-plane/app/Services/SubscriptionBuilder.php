@@ -204,9 +204,7 @@ class SubscriptionBuilder
                         'path' => '/dns-query',
                     ],
                 ],
-                'rules' => array_merge($bootstrapDnsRules, [
-                    ['domain_suffix' => ['.cn'], 'server' => 'direct-dns'],
-                ]),
+                'rules' => $bootstrapDnsRules,
                 'final' => 'proxy-dns',
                 'strategy' => 'prefer_ipv4',
             ],
@@ -222,7 +220,7 @@ class SubscriptionBuilder
                     'type' => 'urltest',
                     'tag' => 'auto',
                     'outbounds' => $proxyOutbounds ?: ['direct'],
-                    'url' => 'https://www.gstatic.com/generate_204',
+                    'url' => 'https://www.apple.com/library/test/success.html',
                     'interval' => '3m',
                     'tolerance' => 50,
                 ],
@@ -235,7 +233,6 @@ class SubscriptionBuilder
                     ['protocol' => 'dns', 'action' => 'hijack-dns'],
                 ], $bootstrapRouteRules, [
                     ['ip_is_private' => true, 'outbound' => 'direct'],
-                    ['domain_suffix' => ['.cn'], 'outbound' => 'direct'],
                 ]),
                 'final' => 'proxy',
                 'auto_detect_interface' => true,

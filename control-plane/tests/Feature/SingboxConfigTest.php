@@ -74,10 +74,13 @@ class SingboxConfigTest extends TestCase
 
         $this->assertSame('proxy', $cfg['route']['final']);
         $this->assertSame('127.0.0.1:9095', $cfg['experimental']['clash_api']['external_controller']);
+        $this->assertSame('https://www.apple.com/library/test/success.html', collect($cfg['outbounds'])->firstWhere('tag', 'auto')['url']);
 
         $this->assertSame('direct-dns', $cfg['dns']['rules'][0]['server']);
         $this->assertContains('n1.mbuniehub.com', $cfg['dns']['rules'][0]['domain']);
         $this->assertContains('n1.mbuniehub.com', $cfg['route']['rules'][2]['domain']);
+        $this->assertFalse(collect($cfg['route']['rules'])->contains(fn ($rule) => ($rule['domain_suffix'] ?? null) === ['.cn']));
+        $this->assertFalse(collect($cfg['dns']['rules'])->contains(fn ($rule) => ($rule['domain_suffix'] ?? null) === ['.cn']));
     }
 
     public function test_android_tun_excludes_debug_and_system_packages(): void

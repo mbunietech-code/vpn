@@ -107,7 +107,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
     final protocol = switch (pref) {
       ProtocolPref.vlessReality => 'reality',
       ProtocolPref.hysteria2 => 'hysteria2',
-      ProtocolPref.auto => 'auto',
+      ProtocolPref.auto => 'reality',
     };
     final sep = subUrl.contains('?') ? '&' : '?';
     final uri = Uri.parse(
@@ -298,6 +298,9 @@ class AndroidHiddifyEngine implements TunnelEngine {
       final map = (event as Map).cast<String, dynamic>();
       final message = map['message']?.toString();
       final alert = map['alert']?.toString();
+      if (alert == 'RequestNotificationPermission') {
+        return;
+      }
       _reports.add(
         EngineReport(
           EngineStatus.error,
