@@ -15,10 +15,14 @@ class AndroidHiddifyEngine implements TunnelEngine {
   static bool get supported => Platform.isAndroid;
 
   static const _method = MethodChannel('com.hiddify.app/method');
-  static const _status =
-      EventChannel('com.hiddify.app/service.status', JSONMethodCodec());
-  static const _alerts =
-      EventChannel('com.hiddify.app/service.alerts', JSONMethodCodec());
+  static const _status = EventChannel(
+    'com.hiddify.app/service.status',
+    JSONMethodCodec(),
+  );
+  static const _alerts = EventChannel(
+    'com.hiddify.app/service.alerts',
+    JSONMethodCodec(),
+  );
 
   static const _fgPort = 17078;
   static const _bgPort = 17079;
@@ -109,9 +113,10 @@ class AndroidHiddifyEngine implements TunnelEngine {
     final uri = Uri.parse(
       '$subUrl${sep}format=singbox&platform=android&protocol=$protocol',
     );
-    final res = await _http.get(uri, headers: {
-      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-    });
+    final res = await _http.get(
+      uri,
+      headers: {if (token.isNotEmpty) 'Authorization': 'Bearer $token'},
+    );
     if (res.statusCode != 200) {
       throw StateError('Config haijapatikana (${res.statusCode})');
     }
@@ -146,7 +151,32 @@ class AndroidHiddifyEngine implements TunnelEngine {
       inbound.remove('sniff_override_destination');
       inbound['stack'] = 'mixed';
       inbound['auto_route'] = true;
+      inbound['route_exclude_address'] =
+          _mergeStringList(inbound['route_exclude_address'], const [
+            '10.0.0.0/8',
+            '100.64.0.0/10',
+            '169.254.0.0/16',
+            '172.16.0.0/12',
+            '192.168.0.0/16',
+            '224.0.0.0/4',
+            '255.255.255.255/32',
+            '::1/128',
+            'fc00::/7',
+            'fe80::/10',
+            'ff00::/8',
+          ]);
     }
+  }
+
+  List<String> _mergeStringList(Object? current, List<String> fallback) {
+    final merged = <String>{};
+    if (current is List) {
+      for (final item in current) {
+        if (item is String && item.isNotEmpty) merged.add(item);
+      }
+    }
+    merged.addAll(fallback);
+    return merged.toList();
   }
 
   void _normalizeDnsConfig(Map<String, dynamic> config) {
@@ -179,30 +209,35 @@ class AndroidHiddifyEngine implements TunnelEngine {
   }
 
   void _listen() {
-    _statusSub ??= _status.receiveBroadcastStream().listen((event) {
-      final map = (event as Map).cast<String, dynamic>();
-      switch (map['status']) {
-        case 'Starting':
-          _reports.add(const EngineReport(EngineStatus.starting));
-        case 'Started':
-          _reports.add(const EngineReport(EngineStatus.up));
-          _startTrafficTicker();
-        case 'Stopped':
-        case 'Stopping':
-          _tick?.cancel();
-          _reports.add(const EngineReport(EngineStatus.down));
-      }
-    }, onError: (Object e) {
-      _reports.add(EngineReport(EngineStatus.error, message: e.toString()));
-    });
+    _statusSub ??= _status.receiveBroadcastStream().listen(
+      (event) {
+        final map = (event as Map).cast<String, dynamic>();
+        switch (map['status']) {
+          case 'Starting':
+            _reports.add(const EngineReport(EngineStatus.starting));
+          case 'Started':
+            _reports.add(const EngineReport(EngineStatus.up));
+            _startTrafficTicker();
+          case 'Stopped':
+          case 'Stopping':
+            _tick?.cancel();
+            _reports.add(const EngineReport(EngineStatus.down));
+        }
+      },
+      onError: (Object e) {
+        _reports.add(EngineReport(EngineStatus.error, message: e.toString()));
+      },
+    );
     _alertsSub ??= _alerts.receiveBroadcastStream().listen((event) {
       final map = (event as Map).cast<String, dynamic>();
       final message = map['message']?.toString();
       final alert = map['alert']?.toString();
-      _reports.add(EngineReport(
-        EngineStatus.error,
-        message: message ?? alert ?? 'VPN service failed',
-      ));
+      _reports.add(
+        EngineReport(
+          EngineStatus.error,
+          message: message ?? alert ?? 'VPN service failed',
+        ),
+      );
     });
   }
 
@@ -211,12 +246,14 @@ class AndroidHiddifyEngine implements TunnelEngine {
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       _up += 512;
       _down += 2048;
-      _traffic.add(EngineTraffic(
-        upBytes: _up,
-        downBytes: _down,
-        upBps: 512,
-        downBps: 2048,
-      ));
+      _traffic.add(
+        EngineTraffic(
+          upBytes: _up,
+          downBytes: _down,
+          upBps: 512,
+          downBps: 2048,
+        ),
+      );
     });
   }
 

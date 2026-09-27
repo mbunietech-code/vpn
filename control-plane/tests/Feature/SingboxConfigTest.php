@@ -54,6 +54,8 @@ class SingboxConfigTest extends TestCase
 
         $this->assertSame('tun', $cfg['inbounds'][0]['type']);
         $this->assertTrue($cfg['inbounds'][0]['auto_route']);
+        $this->assertContains('192.168.0.0/16', $cfg['inbounds'][0]['route_exclude_address']);
+        $this->assertContains('fe80::/10', $cfg['inbounds'][0]['route_exclude_address']);
 
         $tags = array_column($cfg['outbounds'], 'tag');
         $this->assertContains('proxy', $tags);

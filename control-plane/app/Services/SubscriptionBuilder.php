@@ -143,6 +143,19 @@ class SubscriptionBuilder
             'tag' => 'tun-in',
             'address' => ['172.19.0.1/30', 'fdfe:dcba:9876::1/126'],
             'auto_route' => true,
+            'route_exclude_address' => [
+                '10.0.0.0/8',
+                '100.64.0.0/10',
+                '169.254.0.0/16',
+                '172.16.0.0/12',
+                '192.168.0.0/16',
+                '224.0.0.0/4',
+                '255.255.255.255/32',
+                '::1/128',
+                'fc00::/7',
+                'fe80::/10',
+                'ff00::/8',
+            ],
             'stack' => $platform === 'macos' ? 'system' : 'mixed',
         ];
 
