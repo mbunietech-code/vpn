@@ -16,12 +16,13 @@ import 'tunnel/tunnel_engine.dart';
 /// standalone sing-box process; unsupported platforms fall back to demo mode.
 class VpnController extends ChangeNotifier {
   VpnController({TunnelEngine? engine})
-      : _engine = engine ??
-            (Platform.isAndroid
-                ? AndroidHiddifyEngine()
-                : SingboxEngine.supported
-                    ? SingboxEngine()
-                    : SimulatedEngine()) {
+    : _engine =
+          engine ??
+          (Platform.isAndroid
+              ? AndroidHiddifyEngine()
+              : SingboxEngine.supported
+              ? SingboxEngine()
+              : SimulatedEngine()) {
     _nodes = _seedNodes();
     _currentNode = _nodes.first;
     _repSub = _engine.reports.listen(_onReport);
@@ -69,7 +70,7 @@ class VpnController extends ChangeNotifier {
   bool autoConnect = false;
   bool autoReconnect = true;
   bool pingOnOpen = true;
-  ProtocolPref protocol = ProtocolPref.auto;
+  ProtocolPref protocol = ProtocolPref.openVpn;
   bool get ipObfuscated => _status == VpnStatus.connected;
 
   bool _userWantsConnected = false;
@@ -86,11 +87,15 @@ class VpnController extends ChangeNotifier {
       pingOnOpen = p.getBool('pref_ping') ?? pingOnOpen;
       final pr = p.getString('pref_protocol');
       if (pr != null) {
-        protocol = ProtocolPref.values.firstWhere((e) => e.name == pr,
-            orElse: () => ProtocolPref.auto);
+        protocol = ProtocolPref.values.firstWhere(
+          (e) => e.name == pr,
+          orElse: () => ProtocolPref.openVpn,
+        );
       }
       notifyListeners();
-    } catch (_) {/* defaults */}
+    } catch (_) {
+      /* defaults */
+    }
   }
 
   Future<void> _persist() async {
@@ -142,7 +147,8 @@ class VpnController extends ChangeNotifier {
   }
 
   Future<void> connect() async {
-    if (_status == VpnStatus.connecting || _status == VpnStatus.connected) return;
+    if (_status == VpnStatus.connecting || _status == VpnStatus.connected)
+      return;
     _userWantsConnected = true;
     _reconnectTimer?.cancel();
 
@@ -153,7 +159,9 @@ class VpnController extends ChangeNotifier {
     }
 
     _error = null;
-    _set(_reconnectAttempts > 0 ? VpnStatus.reconnecting : VpnStatus.connecting);
+    _set(
+      _reconnectAttempts > 0 ? VpnStatus.reconnecting : VpnStatus.connecting,
+    );
     try {
       await _engine.start(
         subUrl: _subUrl ?? '',
@@ -182,7 +190,8 @@ class VpnController extends ChangeNotifier {
   }
 
   void _scheduleReconnect() {
-    if (!autoReconnect || !_userWantsConnected || _reconnectAttempts >= 5) return;
+    if (!autoReconnect || !_userWantsConnected || _reconnectAttempts >= 5)
+      return;
     _reconnectAttempts++;
     final delay = Duration(seconds: 2 * _reconnectAttempts);
     _reconnectTimer?.cancel();
@@ -272,12 +281,13 @@ class VpnController extends ChangeNotifier {
   }
 
   List<VpnNode> _seedNodes() => const [
-        VpnNode(
-            id: 'tk1',
-            name: 'Tokyo',
-            code: 'JP-TK-01',
-            region: 'Asia-Pacific',
-            latencyMs: 0,
-            optimizedFor: 'China'),
-      ];
+    VpnNode(
+      id: 'tk1',
+      name: 'Tokyo',
+      code: 'JP-TK-01',
+      region: 'Asia-Pacific',
+      latencyMs: 0,
+      optimizedFor: 'China',
+    ),
+  ];
 }
