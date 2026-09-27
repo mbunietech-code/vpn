@@ -3,9 +3,9 @@ package com.hiddify.hiddify.ktx
 import android.net.IpPrefix
 import android.os.Build
 import androidx.annotation.RequiresApi
-import com.hiddify.core.libbox.RoutePrefix
-import com.hiddify.core.libbox.StringIterator
-import com.hiddify.core.libbox.StringBox
+import io.nekohasekai.libbox.RoutePrefix
+import io.nekohasekai.libbox.StringIterator
+import io.nekohasekai.libbox.StringBox
 import java.net.InetAddress
 
 val StringBox?.unwrap: String

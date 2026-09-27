@@ -66,7 +66,7 @@ class SubscriptionBuilder
 
     /**
      * Full sing-box client config. `stack` differs per platform:
-     *   windows/linux → "system" (or "gvisor"),  macos → "system".
+     *   windows/linux/android → "mixed",  macos → "system".
      *
      * @return array<string,mixed>
      */
@@ -138,31 +138,44 @@ class SubscriptionBuilder
         // Selector + auto (urltest) sit in front of the peers.
         $selectorMembers = array_merge(['auto'], $proxyOutbounds);
 
+        $tunInbound = [
+            'type' => 'tun',
+            'tag' => 'tun-in',
+            'address' => ['172.19.0.1/30', 'fdfe:dcba:9876::1/126'],
+            'auto_route' => true,
+            'stack' => $platform === 'macos' ? 'system' : 'mixed',
+        ];
+
+        if ($platform !== 'android') {
+            $tunInbound['interface_name'] = 'mvpn0';
+            $tunInbound['strict_route'] = true;
+        }
+
         $config = [
             'log' => ['level' => 'warn', 'timestamp' => true],
             'dns' => [
                 'servers' => [
-                    ['tag' => 'proxy-dns', 'address' => 'https://1.1.1.1/dns-query', 'detour' => 'proxy'],
-                    ['tag' => 'direct-dns', 'address' => 'https://223.5.5.5/dns-query', 'detour' => 'direct'],
+                    [
+                        'type' => 'https',
+                        'tag' => 'proxy-dns',
+                        'server' => '1.1.1.1',
+                        'path' => '/dns-query',
+                        'detour' => 'proxy',
+                    ],
+                    [
+                        'type' => 'https',
+                        'tag' => 'direct-dns',
+                        'server' => '223.5.5.5',
+                        'path' => '/dns-query',
+                    ],
                 ],
                 'rules' => [
                     ['domain_suffix' => ['.cn'], 'server' => 'direct-dns'],
                 ],
                 'final' => 'proxy-dns',
                 'strategy' => 'prefer_ipv4',
-                'independent_cache' => true,
             ],
-            'inbounds' => [[
-                'type' => 'tun',
-                'tag' => 'tun-in',
-                'interface_name' => 'mvpn0',
-                'address' => ['172.19.0.1/30', 'fdfe:dcba:9876::1/126'],
-                'auto_route' => true,
-                'strict_route' => true,
-                'stack' => $platform === 'macos' ? 'system' : 'mixed',
-                'sniff' => true,
-                'sniff_override_destination' => false,
-            ]],
+            'inbounds' => [$tunInbound],
             'outbounds' => array_merge([
                 [
                     'type' => 'selector',

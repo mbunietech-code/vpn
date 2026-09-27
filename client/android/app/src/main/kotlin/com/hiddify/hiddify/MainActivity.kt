@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
 import android.util.Log
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.MutableLiveData
@@ -17,7 +16,7 @@ import com.hiddify.hiddify.bg.ServiceNotification
 import com.hiddify.hiddify.constant.Alert
 import com.hiddify.hiddify.constant.ServiceMode
 import com.hiddify.hiddify.constant.Status
-import io.flutter.embedding.android.FlutterFragmentActivity
+import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -25,7 +24,7 @@ import kotlinx.coroutines.withContext
 import java.util.LinkedList
 
 
-class MainActivity : FlutterFragmentActivity(), ServiceConnection.Callback {
+class MainActivity : FlutterActivity(), ServiceConnection.Callback {
     companion object {
         private const val TAG = "ANDROID/MyActivity"
         lateinit var instance: MainActivity
@@ -61,7 +60,7 @@ class MainActivity : FlutterFragmentActivity(), ServiceConnection.Callback {
     @SuppressLint("NewApi")
     fun startService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !ServiceNotification.checkPermission()) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            grantNotificationPermission()
             return
         }
         startService0()
@@ -89,7 +88,7 @@ class MainActivity : FlutterFragmentActivity(), ServiceConnection.Callback {
         try {
             val intent = VpnService.prepare(this@MainActivity)
             if (intent != null) {
-                prepareLauncher.launch(intent)
+                startActivityForResult(intent, VPN_PERMISSION_REQUEST_CODE)
                 true
             } else {
                 false
@@ -99,28 +98,6 @@ class MainActivity : FlutterFragmentActivity(), ServiceConnection.Callback {
             true
         }
     }
-    private val notificationPermissionLauncher =
-        registerForActivityResult(
-            ActivityResultContracts.RequestPermission(),
-        ) { isGranted ->
-            if (Settings.dynamicNotification && !isGranted) {
-                onServiceAlert(Alert.RequestNotificationPermission, null)
-            } else {
-                startService0()
-            }
-        }
-
-    private val prepareLauncher =
-        registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult(),
-        ) { result ->
-            if (result.resultCode == RESULT_OK) {
-                startService0()
-            } else {
-                onServiceAlert(Alert.RequestVPNPermission, null)
-            }
-        }
-
     override fun onServiceStatusChanged(status: Status) {
         serviceStatus.postValue(status)
     }

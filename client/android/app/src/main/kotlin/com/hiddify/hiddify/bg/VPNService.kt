@@ -9,10 +9,10 @@ import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
-import com.hiddify.core.libbox.Notification
+import io.nekohasekai.libbox.Notification
 import com.hiddify.hiddify.constant.PerAppProxyMode
 import com.hiddify.hiddify.ktx.toIpPrefix
-import com.hiddify.core.libbox.TunOptions
+import io.nekohasekai.libbox.TunOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -112,7 +112,12 @@ class VPNService : VpnService(), PlatformInterfaceWrapper {
         }
 
         if (options.autoRoute) {
-            builder.addDnsServer(options.dnsServerAddress.value)
+            if (options.dnsMode.value != io.nekohasekai.libbox.Libbox.DNSModeDisabled) {
+                val dnsServerAddress = options.dnsServerAddress
+                while (dnsServerAddress.hasNext()) {
+                    builder.addDnsServer(dnsServerAddress.next())
+                }
+            }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val inet4RouteAddress = options.inet4RouteAddress
@@ -214,7 +219,7 @@ class VPNService : VpnService(), PlatformInterfaceWrapper {
 
 //    override fun writeLog(message: String) = service.writeLog(message)
 
-    override fun sendNotification(notification: Notification) {
+    override fun sendNotification(notification: Notification?) {
 //        service.sendNotification(notification)
     }
 }

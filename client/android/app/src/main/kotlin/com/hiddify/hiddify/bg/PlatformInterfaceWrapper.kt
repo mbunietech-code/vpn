@@ -8,31 +8,38 @@ import android.os.Process
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.hiddify.hiddify.Application
-import com.hiddify.core.libbox.InterfaceUpdateListener
-import com.hiddify.core.libbox.Libbox
-import com.hiddify.core.libbox.NetworkInterfaceIterator
-import com.hiddify.core.libbox.PlatformInterface
-import com.hiddify.core.libbox.StringIterator
-import com.hiddify.core.libbox.TunOptions
-import com.hiddify.core.libbox.WIFIState
+import io.nekohasekai.libbox.BridgeOptions
+import io.nekohasekai.libbox.BridgeSession
+import io.nekohasekai.libbox.ConnectionOwner
+import io.nekohasekai.libbox.InterfaceUpdateListener
+import io.nekohasekai.libbox.Libbox
+import io.nekohasekai.libbox.LocalDNSTransport
+import io.nekohasekai.libbox.NeighborUpdateListener
+import io.nekohasekai.libbox.NetworkInterfaceIterator
+import io.nekohasekai.libbox.Notification
+import io.nekohasekai.libbox.PlatformInterface
+import io.nekohasekai.libbox.PlatformUser
+import io.nekohasekai.libbox.ShellSession
+import io.nekohasekai.libbox.StringIterator
+import io.nekohasekai.libbox.TunOptions
+import io.nekohasekai.libbox.WIFIState
 import java.net.Inet6Address
 import java.net.InetSocketAddress
 import java.net.InterfaceAddress
 import java.net.NetworkInterface
 import java.util.Enumeration
-import com.hiddify.core.libbox.NetworkInterface as LibboxNetworkInterface
+import io.nekohasekai.libbox.NetworkInterface as LibboxNetworkInterface
 
 
 
 import android.system.OsConstants
-import com.hiddify.core.libbox.ConnectionOwner
-import com.hiddify.core.libbox.LocalDNSTransport
-import java.security.KeyStore
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
 
 interface PlatformInterfaceWrapper : PlatformInterface {
     override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
+
+    override fun usePlatformBridge(): Boolean = false
+
+    override fun usePlatformShell(): Boolean = false
 
     override fun autoDetectInterfaceControl(fd: Int) {
     }
@@ -65,7 +72,6 @@ interface PlatformInterfaceWrapper : PlatformInterface {
             if (uid!=Process.INVALID_UID) {
                 val packages = Application.packageManager.getPackagesForUid(uid)
                 owner.userName = packages?.firstOrNull() ?: ""
-                owner.androidPackageName = owner.userName
             }
             return owner
         } catch (e: Exception) {
@@ -81,6 +87,17 @@ interface PlatformInterfaceWrapper : PlatformInterface {
 
     override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
         DefaultNetworkMonitor.setListener(null)
+    }
+
+    override fun startNeighborMonitor(listener: NeighborUpdateListener) {
+        throw UnsupportedOperationException("neighbor monitor is not supported on Android client")
+    }
+
+    override fun closeNeighborMonitor(listener: NeighborUpdateListener) {
+    }
+
+    override fun createBridge(options: BridgeOptions): BridgeSession {
+        throw UnsupportedOperationException("bridge mode is not supported on Android client")
     }
 
     override fun getInterfaces(): NetworkInterfaceIterator {
@@ -147,38 +164,68 @@ interface PlatformInterfaceWrapper : PlatformInterface {
     override fun clearDNSCache() {
     }
 
+    override fun checkPlatformShell() {
+        throw UnsupportedOperationException("platform shell is not supported on Android client")
+    }
+
+    override fun lookupSFTPServer(): String {
+        throw UnsupportedOperationException("sftp server is not supported on Android client")
+    }
+
+    override fun lookupUser(username: String?): PlatformUser {
+        return PlatformUser().apply {
+            this.username = username ?: ""
+            uid = Process.myUid()
+            gid = Process.myUid()
+            homeDir = Application.application.filesDir.path
+            shell = ""
+        }
+    }
+
+    override fun openShellSession(
+        user: PlatformUser?,
+        command: String?,
+        arguments: StringIterator?,
+        directory: String?,
+        columns: Int,
+        rows: Int,
+    ): ShellSession {
+        throw UnsupportedOperationException("platform shell is not supported on Android client")
+    }
+
+    override fun readSystemSSHHostKey(): String = ""
+
+    override fun registerMyInterface(name: String?) {
+    }
+
+    override fun tailscaleHostname(): String = ""
+
+    override fun sendNotification(notification: Notification?) {
+    }
+
+    override fun cancelNotification(identifier: String?, typeID: Int) {
+    }
+
     override fun readWIFIState(): WIFIState? {
-        @Suppress("DEPRECATION")
-        val wifiInfo =
-            Application.wifiManager.connectionInfo ?: return null
-        var ssid = wifiInfo.ssid
-        if (ssid == "<unknown ssid>") {
-            return WIFIState("", "")
+        return try {
+            @Suppress("DEPRECATION")
+            val wifiInfo =
+                Application.wifiManager.connectionInfo ?: return WIFIState("", "")
+            var ssid = wifiInfo.ssid
+            if (ssid == "<unknown ssid>") {
+                return WIFIState("", "")
+            }
+            if (ssid.startsWith("\"") && ssid.endsWith("\"")) {
+                ssid = ssid.substring(1, ssid.length - 1)
+            }
+            WIFIState(ssid, wifiInfo.bssid ?: "")
+        } catch (e: Exception) {
+            Log.w("PlatformInterface", "readWIFIState failed", e)
+            WIFIState("", "")
         }
-        if (ssid.startsWith("\"") && ssid.endsWith("\"")) {
-            ssid = ssid.substring(1, ssid.length - 1)
-        }
-        return WIFIState(ssid, wifiInfo.bssid)
     }
 
     override fun localDNSTransport(): LocalDNSTransport? = LocalResolver
-
-    @OptIn(ExperimentalEncodingApi::class)
-    override fun systemCertificates(): StringIterator {
-        val certificates = mutableListOf<String>()
-        val keyStore = KeyStore.getInstance("AndroidCAStore")
-        if (keyStore != null) {
-            keyStore.load(null, null)
-            val aliases = keyStore.aliases()
-            while (aliases.hasMoreElements()) {
-                val cert = keyStore.getCertificate(aliases.nextElement())
-                certificates.add(
-                    "-----BEGIN CERTIFICATE-----\n" + Base64.encode(cert.encoded) + "\n-----END CERTIFICATE-----",
-                )
-            }
-        }
-        return StringArray(certificates.iterator())
-    }
 
     private class InterfaceArray(private val iterator: Iterator<LibboxNetworkInterface>) : NetworkInterfaceIterator {
         override fun hasNext(): Boolean = iterator.hasNext()

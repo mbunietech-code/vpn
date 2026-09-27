@@ -3,7 +3,7 @@ package com.hiddify.hiddify.bg
 import android.net.Network
 import android.os.Build
 import com.hiddify.hiddify.Application
-import com.hiddify.core.libbox.InterfaceUpdateListener
+import io.nekohasekai.libbox.InterfaceUpdateListener
 import com.hiddify.hiddify.constant.Bugs
 
 

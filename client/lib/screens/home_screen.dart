@@ -125,6 +125,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 5),
                 Row(
                   mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       vpn.isConnected
@@ -134,9 +135,14 @@ class HomeScreen extends StatelessWidget {
                       color: tone,
                     ),
                     const SizedBox(width: 5),
-                    Text(subtitle,
-                        style:
-                            TextStyle(fontSize: 12.8, color: c.textSecondary)),
+                    Flexible(
+                      child: Text(
+                        subtitle,
+                        textAlign: TextAlign.center,
+                        softWrap: true,
+                        style: TextStyle(fontSize: 12.8, color: c.textSecondary),
+                      ),
+                    ),
                   ],
                 ),
               ],

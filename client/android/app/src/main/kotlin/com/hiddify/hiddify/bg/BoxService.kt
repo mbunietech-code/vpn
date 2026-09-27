@@ -24,25 +24,19 @@ import com.hiddify.hiddify.constant.Action
 import com.hiddify.hiddify.constant.Alert
 import com.hiddify.hiddify.constant.Status
 import com.mbunie.mvpn.R
-import com.hiddify.core.mobile.SetupOptions
 
-import go.Seq
-import com.hiddify.core.libbox.Libbox
-import com.hiddify.core.mobile.Mobile
+import io.nekohasekai.libbox.Libbox
 
-
-import com.hiddify.core.libbox.CommandServer
-import com.hiddify.core.libbox.CommandServerHandler
-import com.hiddify.core.libbox.Notification
-import com.hiddify.core.libbox.PlatformInterface
-import com.hiddify.core.libbox.SystemProxyStatus
-import com.mbunie.mvpn.BuildConfig
+import io.nekohasekai.libbox.CommandServer
+import io.nekohasekai.libbox.CommandServerHandler
+import io.nekohasekai.libbox.Notification
+import io.nekohasekai.libbox.OverrideOptions
+import io.nekohasekai.libbox.PlatformInterface
+import io.nekohasekai.libbox.SystemProxyStatus
 import com.hiddify.hiddify.MainActivity
-import com.hiddify.hiddify.constant.Bugs
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -51,43 +45,10 @@ import java.io.File
 class BoxService(
         private val service: Service,
         private val platformInterface: PlatformInterface
-)  {
+) : CommandServerHandler {
 
     companion object {
         private const val TAG = "A/BoxService"
-
-        private var initializeOnce = false
-        private lateinit var workingDir: File
-        private fun initialize() {
-            System.setProperty("GODEBUG", "efence=1,stacktraceback=2");
-            System.setProperty("GOGC", "off");
-            if (initializeOnce) return
-            val baseDir = Application.application.filesDir
-
-            baseDir.mkdirs()
-            workingDir = Application.application.getExternalFilesDir(null) ?: return
-            workingDir.mkdirs()
-            val tempDir = Application.application.cacheDir
-            tempDir.mkdirs()
-            Log.d(TAG, "base dir: ${baseDir.path}")
-            Log.d(TAG, "working dir: ${workingDir.path}")
-            Log.d(TAG, "temp dir: ${tempDir.path}")
-
-//
-            //Mobile.setup(baseDir.path, workingDir.path, tempDir.path,  2L ,"127.0.0.1:{Setting}","",false,this)
-//            Libbox.setup(baseDir.path, workingDir.path, tempDir.path, false)
-
-//            Libbox.setup(SetupOptions().also {
-//                it.basePath = baseDir.path
-//                it.workingPath = workingDir.path
-//                it.tempPath = tempDir.path
-//                it.fixAndroidStack = Bugs.fixAndroidStack
-//
-//            })
-            Libbox.redirectStderr(File(Settings.workingDir, "stderr.log").path)
-            initializeOnce = true
-            return
-        }
 
         fun start() {
             val intent = runBlocking {
@@ -114,7 +75,6 @@ class BoxService(
     private val status = MutableLiveData(Status.Stopped)
     private val binder = ServiceBinder(status)
     private val notification = ServiceNotification(status, service)
-//    private var boxService: BoxService? = null
     private var commandServer: CommandServer? = null
     private var receiverRegistered = false
     private val receiver = object : BroadcastReceiver() {
@@ -160,40 +120,23 @@ class BoxService(
             }
 
             DefaultNetworkMonitor.start()
-            Libbox.setMemoryLimit(!Settings.disableMemoryLimit)
-            val newService = try {
-                Mobile.setup(
-                    SetupOptions().also {
-                        it.basePath = Settings.baseDir
-                        it.workingDir = Settings.workingDir
-                        it.tempDir = Settings.tempDir
-                        it.fixAndroidStack = com.hiddify.hiddify.bg.Bugs.fixAndroidStack
-                        it.mode=4L//mode.toLong()
-                        it.listen= "127.0.0.1:${Settings.grpcServiceModePort}"
-                        it.secret=""
-                        it.debug = Settings.debugMode
-                    },platformInterface)
-
-
-//                Libbox.newService(content,platformInterface)
-
+            val content = File(selectedConfigPath).readText()
+            if (content.isBlank()) {
+                stopAndAlert(Alert.EmptyConfiguration)
+                return
+            }
+            try {
+                val server = commandServer ?: CommandServer(this, platformInterface).also {
+                    it.start()
+                    commandServer = it
+                }
+                server.startOrReloadService(content, OverrideOptions())
             } catch (e: Exception) {
                 stopAndAlert(Alert.CreateService, e.message)
                 return
             }
-            if (Settings.startCoreAfterStartingService){
-                Mobile.start(Settings.activeConfigPath, activeProfileName)
-            }
 
             status.postValue(Status.Started)
-//            if (delayStart) {
-//                delay(1000L)
-//            }
-
-//            newService.start()
-//            boxService = newService
-//            commandServer?.setService(boxService)
-
 
             withContext(Dispatchers.Main) {
                 notification.show(activeProfileName, R.string.status_started)
@@ -205,7 +148,7 @@ class BoxService(
         }
     }
 
-    fun serviceReload() {
+    override fun serviceReload() {
         runBlocking {
             serviceReload0()
         }
@@ -221,22 +164,12 @@ class BoxService(
             fileDescriptor = null
         }
         
-//        boxService?.apply {
-//            runCatching {
-//                close()
-//            }.onFailure {
-//                writeLog("service: error when closing: $it")
-//            }
-//            Seq.destroyRef(refnum)
-//        }
-        Mobile.stop()
-//        boxService = null
-        
-            startService()
+        commandServer?.closeService()
+        startService()
         
     }
 
-    fun getSystemProxyStatus(): SystemProxyStatus {
+    override fun getSystemProxyStatus(): SystemProxyStatus {
         val status = SystemProxyStatus()
         if (service is VPNService) {
             status.available = service.systemProxyAvailable
@@ -245,18 +178,16 @@ class BoxService(
         return status
     }
 
-    fun setSystemProxyEnabled(isEnabled: Boolean) {
+    override fun setSystemProxyEnabled(isEnabled: Boolean) {
         serviceReload()
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
     private fun serviceUpdateIdleMode() {
         if (Application.powerManager.isDeviceIdleMode) {
-//            boxService?.pause()
-            //Mobile.pause()
+            commandServer?.pause()
         } else {
-            Mobile.wake()
-//            boxService?.wake()
+            commandServer?.wake()
         }
     }
 
@@ -274,28 +205,15 @@ class BoxService(
                 pfd.close()
                 fileDescriptor = null
             }
-//            commandServer?.setService(null)
-//            boxService?.apply {
-//                runCatching {
-//                    close()
-//                }.onFailure {
-//                    writeLog("service: error when closing: $it")
-//                }
-//                //Seq.destroyRef(refnum)
-//            }
-
-//            boxService = null
-//            Libbox.registerLocalDNSTransport(null)
             DefaultNetworkMonitor.stop()
 
-//            commandServer?.apply {
-//                close()
-//                Seq.destroyRef(refnum)
-//            }
-//            commandServer = null
+            commandServer?.apply {
+                closeService()
+                close()
+            }
+            commandServer = null
             Settings.startedByUser = false
             withContext(Dispatchers.Main) {
-                Mobile.close(4L)
                 status.value = Status.Stopped
                 service.stopSelf()
             }
@@ -311,6 +229,11 @@ class BoxService(
                 receiverRegistered = false
             }
             notification.close()
+            commandServer?.apply {
+                runCatching { closeService() }
+                close()
+            }
+            commandServer = null
             binder.broadcast { callback ->
                 callback.onServiceAlert(type.ordinal, message)
             }
@@ -336,13 +259,6 @@ class BoxService(
 
         GlobalScope.launch(Dispatchers.IO) {
             Settings.startedByUser = true
-            initialize()
-//            try {
-//                startCommandServer()
-//            } catch (e: Exception) {
-//                stopAndAlert(Alert.StartCommandServer, e.message)
-//                return@launch
-//            }
             startService()
         }
         return Service.START_NOT_STICKY
@@ -401,11 +317,24 @@ class BoxService(
         }
     }
 
-     fun writeDebugMessage(message: String?) {
+     override fun writeDebugMessage(message: String?) {
         Log.d("BoxService", message!!)
         binder.broadcast {
             it.onServiceWriteLog(message)
         }
     }
+
+    override fun serviceStop() {
+        stopService()
+    }
+
+    override fun triggerNativeCrash() {
+        Thread {
+            Thread.sleep(200)
+            throw RuntimeException("debug native crash")
+        }.start()
+    }
+
+    override fun connectSSHAgent(): Int = -1
 
 }

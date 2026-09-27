@@ -115,10 +115,67 @@ class AndroidHiddifyEngine implements TunnelEngine {
     if (res.statusCode != 200) {
       throw StateError('Config haijapatikana (${res.statusCode})');
     }
-    jsonDecode(res.body);
+    final decoded = jsonDecode(res.body);
+    if (decoded is! Map<String, dynamic>) {
+      final preview = res.body.trim().replaceAll(RegExp(r'\s+'), ' ');
+      final end = preview.length > 80 ? 80 : preview.length;
+      throw StateError(
+        'Config si JSON ya sing-box: ${preview.substring(0, end)}',
+      );
+    }
+    _normalizeAndroidTunConfig(decoded);
+    _normalizeDnsConfig(decoded);
     final file = File('${dirs.configs.path}/mbunie-singbox.json');
-    await file.writeAsString(res.body, flush: true);
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(decoded),
+      flush: true,
+    );
     return file;
+  }
+
+  void _normalizeAndroidTunConfig(Map<String, dynamic> config) {
+    final inbounds = config['inbounds'];
+    if (inbounds is! List) return;
+
+    for (final inbound in inbounds) {
+      if (inbound is! Map || inbound['type'] != 'tun') continue;
+
+      inbound.remove('interface_name');
+      inbound.remove('strict_route');
+      inbound.remove('sniff');
+      inbound.remove('sniff_override_destination');
+      inbound['stack'] = 'mixed';
+      inbound['auto_route'] = true;
+    }
+  }
+
+  void _normalizeDnsConfig(Map<String, dynamic> config) {
+    final dns = config['dns'];
+    if (dns is! Map) return;
+    dns.remove('independent_cache');
+
+    final servers = dns['servers'];
+    if (servers is! List) return;
+    for (final server in servers) {
+      if (server is! Map) continue;
+      if (server['detour'] == 'direct') server.remove('detour');
+
+      final address = server.remove('address');
+      if (address is! String) continue;
+
+      final uri = Uri.tryParse(address);
+      if (uri != null && (uri.scheme == 'https' || uri.scheme == 'h3')) {
+        server['type'] = uri.scheme == 'h3' ? 'h3' : 'https';
+        server['server'] = uri.host;
+        if (uri.hasPort) server['server_port'] = uri.port;
+        server['path'] = uri.path.isEmpty ? '/dns-query' : uri.path;
+      } else if (address == 'local') {
+        server['type'] = 'local';
+      } else {
+        server['type'] = 'udp';
+        server['server'] = address.replaceFirst(RegExp(r'^udp://'), '');
+      }
+    }
   }
 
   void _listen() {

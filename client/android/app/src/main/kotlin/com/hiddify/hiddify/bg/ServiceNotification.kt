@@ -27,7 +27,7 @@ import com.hiddify.hiddify.constant.Action
 import com.hiddify.hiddify.constant.Status
 import com.mbunie.mvpn.R
 //import com.hiddify.hiddify.utils.CommandClient
-import com.hiddify.core.libbox.Libbox
+import io.nekohasekai.libbox.Libbox
 import com.hiddify.hiddify.Application.Companion.notification
 import com.hiddify.hiddify.utils.GrpcClientProvider
 import com.squareup.wire.GrpcClient

@@ -5,7 +5,7 @@ import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.JSONMethodCodec
-import com.hiddify.core.libbox.StatusMessage
+import io.nekohasekai.libbox.StatusMessage
 import kotlinx.coroutines.CoroutineScope
 
 //class StatsChannel(private val scope: CoroutineScope) : FlutterPlugin, CommandClient.Handler{

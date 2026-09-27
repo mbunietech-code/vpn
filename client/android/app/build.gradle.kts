@@ -43,6 +43,9 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -50,6 +53,12 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            excludes += listOf("lib/x86/**", "lib/x86_64/**")
         }
     }
 }
@@ -65,7 +74,7 @@ flutter {
 }
 
 dependencies {
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
+    implementation(files("libs/libbox.aar"))
 
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("androidx.core:core-ktx:1.17.0")

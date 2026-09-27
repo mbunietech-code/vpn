@@ -2,7 +2,7 @@ package com.hiddify.hiddify.bg
 
 import android.app.Service
 import android.content.Intent
-import com.hiddify.core.libbox.Notification
+import io.nekohasekai.libbox.Notification
 
 class ProxyService :
     Service(),
@@ -15,5 +15,7 @@ class ProxyService :
 
     override fun onDestroy() = service.onDestroy()
 
-    override fun sendNotification(notification: Notification) = service.sendNotification(notification)
+    override fun sendNotification(notification: Notification?) {
+        if (notification != null) service.sendNotification(notification)
+    }
 }
