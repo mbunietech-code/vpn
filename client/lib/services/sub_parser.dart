@@ -33,7 +33,7 @@ class SubParser {
       text = body; // some servers return plain text
     }
 
-    final seen = <String, VpnNode>{};
+    final seen = <String, _ParsedNode>{};
     for (final raw in const LineSplitter().convert(text)) {
       final line = raw.trim();
       if (line.isEmpty) continue;
@@ -47,22 +47,23 @@ class SubParser {
 
       final host = uri.host;
       if (host.isEmpty) continue;
-      final label = Uri.decodeComponent(uri.fragment).replaceFirst('MVPN ', '').trim();
+      final label = Uri.decodeComponent(
+        uri.fragment,
+      ).replaceFirst('MVPN ', '').trim();
       final name = label.isEmpty ? host : label;
 
-      seen.putIfAbsent(
+      final parsed = seen.putIfAbsent(
         host,
-        () => VpnNode(
-          id: host,
-          name: name,
-          code: uri.queryParameters['sni'] ?? host,
-          region: _region(name),
-          latencyMs: 0, // filled by a later ping pass
-        ),
+        () => _ParsedNode(host: host, name: name, region: _region(name)),
       );
+      parsed.protocols.add(switch (uri.scheme) {
+        'vless' => 'REALITY',
+        'hysteria2' => 'Hysteria2',
+        _ => uri.scheme,
+      });
     }
 
-    final nodes = seen.values.toList()
+    final nodes = seen.values.map((n) => n.toNode()).toList()
       ..sort((a, b) => a.region.compareTo(b.region));
     return nodes;
   }
@@ -73,5 +74,29 @@ class SubParser {
       if (n.contains(entry.key)) return entry.value;
     }
     return 'Servers';
+  }
+}
+
+class _ParsedNode {
+  _ParsedNode({required this.host, required this.name, required this.region});
+
+  final String host;
+  final String name;
+  final String region;
+  final Set<String> protocols = {};
+
+  VpnNode toNode() {
+    final sortedProtocols = protocols.toList()..sort();
+    final protocolLabel = sortedProtocols.isEmpty
+        ? 'Auto'
+        : 'Auto · ${sortedProtocols.join(' + ')}';
+
+    return VpnNode(
+      id: host,
+      name: name,
+      code: protocolLabel,
+      region: region,
+      latencyMs: 0,
+    );
   }
 }

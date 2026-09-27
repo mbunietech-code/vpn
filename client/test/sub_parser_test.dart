@@ -17,6 +17,8 @@ void main() {
     final hk = nodes.firstWhere((n) => n.id == 'hk1.mbunievpn.com');
     expect(hk.name, 'Hong Kong 1');
     expect(hk.region, 'Asia-Pacific');
+    expect(hk.code, 'Auto · Hysteria2 + REALITY');
+    expect(hk.code, isNot(contains('www.microsoft.com')));
     expect(nodes.firstWhere((n) => n.id == 'fra1.mbunievpn.com').region, 'Europe');
   });
 
