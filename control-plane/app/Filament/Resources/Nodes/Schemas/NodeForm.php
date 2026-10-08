@@ -37,6 +37,9 @@ class NodeForm
                             ->dehydrated(fn ($state) => filled($state))
                             ->helperText(fn (string $operation) => $operation === 'edit' ? 'Acha tupu kubaki na token ya sasa.' : null)
                             ->password()
+                            // Stop browsers autofilling the admin password here
+                            // (that silently replaced the token and 401'd the agent).
+                            ->autocomplete('new-password')
                             ->revealable()
                             ->copyable()
                             ->default(fn () => bin2hex(random_bytes(24)))
