@@ -14,6 +14,9 @@ use Filament\Schemas\Schema;
 
 class NodeForm
 {
+    /** Hostname or IPv4 — no scheme, path, or "@". */
+    private const HOST_REGEX = '/^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$/';
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -26,9 +29,16 @@ class NodeForm
                         TextInput::make('region')->required()->placeholder('my'),
                         TextInput::make('public_host')
                             ->required()
+                            ->autocomplete('off')
+                            ->regex(self::HOST_REGEX)
                             ->placeholder('n1.mbuniehub.com')
                             ->helperText('DNS A record → IP ya VPS, Cloudflare DNS only (grey).'),
-                        TextInput::make('cdn_host')->placeholder('(hiari)'),
+                        // Sits right above the password-type token field, so
+                        // browsers autofill the login email here — reject it.
+                        TextInput::make('cdn_host')
+                            ->autocomplete('off')
+                            ->regex(self::HOST_REGEX)
+                            ->placeholder('(hiari)'),
                         TextInput::make('api_secret')
                             ->label('Node token')
                             // The token is $hidden on the model, so the edit form
