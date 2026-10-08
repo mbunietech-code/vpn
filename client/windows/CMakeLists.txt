@@ -106,3 +106,12 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# Bundle the sing-box engine (not in git; drop sing-box.exe into
+# windows/engine/ before `flutter build windows`) so clients in China
+# never need to download it.
+set(MVPN_ENGINE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/engine")
+if(EXISTS "${MVPN_ENGINE_DIR}/sing-box.exe")
+  install(FILES "${MVPN_ENGINE_DIR}/sing-box.exe"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}/engine" COMPONENT Runtime)
+endif()

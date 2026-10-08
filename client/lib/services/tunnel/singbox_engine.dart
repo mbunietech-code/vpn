@@ -139,6 +139,14 @@ class SingboxEngine implements TunnelEngine {
 
   Future<File> _ensureBinary(String apiBase, Directory dir) async {
     final name = Platform.isWindows ? 'sing-box.exe' : 'sing-box';
+
+    // Prefer the engine shipped inside the installer (<app>/engine/).
+    final bundled = File(
+      '${File(Platform.resolvedExecutable).parent.path}'
+      '${Platform.pathSeparator}engine${Platform.pathSeparator}$name',
+    );
+    if (bundled.existsSync()) return bundled;
+
     final file = File('${dir.path}${Platform.pathSeparator}$name');
     if (file.existsSync() && file.lengthSync() > 1024 * 1024) return file;
 

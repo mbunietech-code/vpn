@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Bundled sing-box engine for Windows builds (large binary, fetched at build time)
+/windows/engine/

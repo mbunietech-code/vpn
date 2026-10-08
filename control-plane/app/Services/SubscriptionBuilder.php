@@ -240,6 +240,9 @@ class SubscriptionBuilder
                 ]),
                 'final' => 'proxy',
                 'auto_detect_interface' => true,
+                // sing-box >= 1.14 refuses to start without a resolver for
+                // domain dial fields (node hosts).
+                'default_domain_resolver' => 'direct-dns',
             ],
             'experimental' => [
                 'clash_api' => [
@@ -356,6 +359,7 @@ class SubscriptionBuilder
                 ]),
                 'final' => 'direct',
                 'auto_detect_interface' => true,
+                'default_domain_resolver' => 'direct-dns',
             ],
             'experimental' => [
                 'clash_api' => [
