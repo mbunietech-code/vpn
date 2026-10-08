@@ -33,6 +33,10 @@ class SingboxEngine implements TunnelEngine {
   int _lastUp = 0, _lastDown = 0;
   DateTime _lastPoll = DateTime.now();
   final _errBuf = <String>[];
+  bool _up = false;
+
+  /// Full engine output of the current run: <support>/engine/engine.log.
+  IOSink? _logSink;
 
   @override
   Stream<EngineReport> get reports => _reports.stream;
@@ -52,6 +56,9 @@ class SingboxEngine implements TunnelEngine {
     if (!supported) {
       throw StateError('SingboxEngine is desktop-only');
     }
+    // Never run two engines: a retry while the old one still holds the TUN
+    // adapter and the Clash API port is what made restarts fail.
+    await _killEngine();
     _reports.add(const EngineReport(EngineStatus.starting));
 
     final support = await getApplicationSupportDirectory();
@@ -62,6 +69,10 @@ class SingboxEngine implements TunnelEngine {
     final cfg = await _fetchConfig(subUrl, apiToken, dir, pref);
 
     _errBuf.clear();
+    _up = false;
+    await _logSink?.close();
+    _logSink = File('${dir.path}${Platform.pathSeparator}engine.log')
+        .openWrite(mode: FileMode.write);
     final proc = await Process.start(bin.path, [
       'run',
       '-c',
@@ -83,6 +94,10 @@ class SingboxEngine implements TunnelEngine {
 
     unawaited(
       proc.exitCode.then((code) {
+        _logSink?.writeln('--- engine exited with code $code');
+        // A newer engine has replaced this one; its exit is not news.
+        if (!identical(_proc, proc)) return;
+        _proc = null;
         _stopPolling();
         if (code == 0) {
           _reports.add(const EngineReport(EngineStatus.down));
@@ -95,29 +110,41 @@ class SingboxEngine implements TunnelEngine {
     );
 
     await _waitUntilUp();
+    _up = true;
     _reports.add(const EngineReport(EngineStatus.up));
     _startPolling();
   }
 
   @override
   Future<void> stop() async {
+    final hadEngine = _proc != null;
+    await _killEngine();
+    if (hadEngine) _reports.add(const EngineReport(EngineStatus.down));
+  }
+
+  Future<void> _killEngine() async {
     _stopPolling();
     final p = _proc;
     _proc = null;
-    if (p == null) return;
-    p.kill(ProcessSignal.sigterm);
-    try {
-      await p.exitCode.timeout(const Duration(seconds: 5));
-    } on TimeoutException {
-      p.kill(ProcessSignal.sigkill);
+    if (p != null) {
+      p.kill(ProcessSignal.sigterm);
+      try {
+        await p.exitCode.timeout(const Duration(seconds: 5));
+      } on TimeoutException {
+        p.kill(ProcessSignal.sigkill);
+      }
     }
-    _reports.add(const EngineReport(EngineStatus.down));
+    // Also clear an engine orphaned by a crashed/force-closed app session.
+    if (Platform.isWindows) {
+      await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe']);
+    }
   }
 
   @override
   void dispose() {
     _stopPolling();
     _proc?.kill(ProcessSignal.sigkill);
+    _logSink?.close();
     _http.close();
     _reports.close();
     _traffic.close();
@@ -196,11 +223,13 @@ class SingboxEngine implements TunnelEngine {
     if (res.statusCode != 200) {
       throw StateError('Config haijapatikana (${res.statusCode})');
     }
-    // sanity check it's valid JSON
-    jsonDecode(res.body);
+    // Decode as UTF-8 explicitly: res.body falls back to latin1 and mangles
+    // outbound tags ("·" became "Â·").
+    final body = utf8.decode(res.bodyBytes);
+    jsonDecode(body); // sanity check it's valid JSON
 
     final f = File('${dir.path}${Platform.pathSeparator}config.json');
-    await f.writeAsString(res.body, flush: true);
+    await f.writeAsString(body, flush: true);
     return f;
   }
 
@@ -208,9 +237,13 @@ class SingboxEngine implements TunnelEngine {
 
   void _onLog(String line) {
     if (line.trim().isEmpty) return;
+    _logSink?.writeln(line);
     _errBuf.add(line);
     if (_errBuf.length > 40) _errBuf.removeAt(0);
 
+    // Once the tunnel is up, a "denied" in a warning (e.g. one blocked
+    // connection) is not a reason to tear everything down.
+    if (_up) return;
     final l = line.toLowerCase();
     if (l.contains('operation not permitted') ||
         l.contains('access is denied') ||
@@ -220,7 +253,7 @@ class SingboxEngine implements TunnelEngine {
   }
 
   Future<void> _waitUntilUp() async {
-    final deadline = DateTime.now().add(const Duration(seconds: 20));
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
     while (DateTime.now().isBefore(deadline)) {
       if (_proc == null) {
         throw StateError(_diagnose(-1));
