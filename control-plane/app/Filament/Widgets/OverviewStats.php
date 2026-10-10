@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\Device;
 use App\Models\Invoice;
 use App\Models\Node;
 use App\Models\Subscription;
@@ -33,6 +34,9 @@ class OverviewStats extends StatsOverviewWidget
         $nodesOnline = Node::where('status', 'online')->count();
         $nodesTotal = Node::count();
 
+        $onlineNow = Device::online()->whereNull('revoked_at')->count();
+        $onlineUsers = Device::online()->whereNull('revoked_at')->distinct('subscription_id')->count('subscription_id');
+
         $expiringSoon = Subscription::where('status', 'active')
             ->whereBetween('expires_at', [now(), now()->addDays(3)])->count();
 
@@ -41,6 +45,12 @@ class OverviewStats extends StatsOverviewWidget
                 ->description($expiringSoon > 0 ? "$expiringSoon zinaisha ndani ya siku 3" : 'Zote sawa')
                 ->descriptionIcon($expiringSoon > 0 ? 'heroicon-m-clock' : 'heroicon-m-check-circle')
                 ->color($expiringSoon > 0 ? 'warning' : 'success'),
+
+            Stat::make('Wanaotumia VPN sasa', (string) $onlineNow)
+                ->description($onlineNow > 0 ? "Vifaa $onlineNow · wateja $onlineUsers" : 'Hakuna aliyeconnect')
+                ->descriptionIcon('heroicon-m-signal')
+                ->color($onlineNow > 0 ? 'success' : 'gray')
+                ->url(\App\Filament\Resources\Devices\DeviceResource::getUrl()),
 
             Stat::make('Malipo yanayosubiri', (string) $pending)
                 ->description($pending > 0 ? 'Yanahitaji idhini yako' : 'Hakuna')

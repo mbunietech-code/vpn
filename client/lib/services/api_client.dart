@@ -34,6 +34,15 @@ class ApiClient {
         'device_name': deviceName,
       });
 
+  /// "Sign in with MbunieHub": EduHub credentials, verified by the control plane.
+  Future<Map<String, dynamic>> loginEduHub(
+          String email, String password, String deviceName) =>
+      _post('/api/auth/eduhub', {
+        'email': email,
+        'password': password,
+        'device_name': deviceName,
+      });
+
   Future<Map<String, dynamic>> me() => _get('/api/me');
 
   Future<Map<String, dynamic>> plans() => _get('/api/plans');
@@ -86,11 +95,17 @@ class ApiClient {
     required String fingerprint,
     required String platform,
     String? name,
+    bool? connected,
+    String? protocol,
+    String? appVersion,
   }) =>
       _post('/api/subscription/device', {
         'fingerprint': fingerprint,
         'platform': platform,
         'name': ?name,
+        'connected': ?connected,
+        'protocol': ?protocol,
+        'app_version': ?appVersion,
       });
 
   /// LOCAL-ONLY: simulate a completed payment (control plane must be in `local`).
@@ -147,7 +162,7 @@ class ApiClient {
       }
       _active = (_active + 1) % _bases.length;
     }
-    throw ApiException(0, {'message': 'Server haipatikani. Angalia mtandao.', 'cause': '$lastErr'});
+    throw ApiException(0, {'message': 'Server unreachable. Check your internet connection.', 'cause': '$lastErr'});
   }
 
   Map<String, dynamic> _decode(http.Response res) {

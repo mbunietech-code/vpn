@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart';
+import '../config.dart';
 import 'api_client.dart';
 import 'sub_parser.dart';
 import 'vpn_controller.dart';
@@ -16,13 +19,55 @@ class AppState extends ChangeNotifier {
         vpn = vpn ?? VpnController() {
     // Forward VPN state changes to app-wide listeners.
     this.vpn.addListener(notifyListeners);
+    this.vpn.addListener(_onVpnChanged);
   }
 
   @override
   void dispose() {
+    _beatTimer?.cancel();
+    vpn.removeListener(_onVpnChanged);
     vpn.removeListener(notifyListeners);
     vpn.dispose();
     super.dispose();
+  }
+
+  // ---- device heartbeat (admin "who is online now") ---------------------
+
+  String? _deviceId;
+  Timer? _beatTimer;
+  bool? _lastBeatConnected;
+
+  void _onVpnChanged() {
+    final connected = vpn.isConnected;
+    if (connected == _lastBeatConnected) return;
+    _lastBeatConnected = connected;
+    _beat();
+    _beatTimer?.cancel();
+    if (connected) {
+      _beatTimer = Timer.periodic(const Duration(minutes: 2), (_) => _beat());
+    }
+  }
+
+  Future<void> _beat() async {
+    final id = _deviceId;
+    if (id == null || _token == null || subStatus != 'active') return;
+    try {
+      await api.registerDevice(
+        fingerprint: id,
+        platform: Platform.operatingSystem,
+        name: _deviceName(),
+        connected: vpn.isConnected,
+        protocol: vpn.protocol.name,
+        appVersion: MvpnConfig.appVersion,
+      );
+    } catch (_) {
+      // Best effort: telemetry must never get in the way of the tunnel.
+    }
+  }
+
+  static String _newDeviceId() {
+    final r = Random.secure();
+    return List.generate(16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
   }
 
   final ApiClient api;
@@ -61,6 +106,11 @@ class AppState extends ChangeNotifier {
     await vpn.loadPrefs();
     final prefs = await SharedPreferences.getInstance();
     localeOverride = prefs.getString('mvpn_locale');
+    _deviceId = prefs.getString('mvpn_device_id');
+    if (_deviceId == null) {
+      _deviceId = _newDeviceId();
+      await prefs.setString('mvpn_device_id', _deviceId!);
+    }
     _token = prefs.getString('mvpn_token');
     identifier = prefs.getString('mvpn_identifier');
     api.token = _token;
@@ -87,9 +137,19 @@ class AppState extends ChangeNotifier {
     return r['debug_code'] as String?;
   }
 
+  Future<void> loginWithEduHub(String email, String password) async {
+    identifier = email.trim();
+    final r = await api.loginEduHub(identifier!, password, _deviceName());
+    await _storeSession(r['token'] as String);
+  }
+
   Future<void> verifyOtp(String code) async {
     final r = await api.verifyOtp(identifier!, code, _deviceName());
-    _token = r['token'] as String;
+    await _storeSession(r['token'] as String);
+  }
+
+  Future<void> _storeSession(String token) async {
+    _token = token;
     api.token = _token;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('mvpn_token', _token!);
@@ -193,6 +253,7 @@ class AppState extends ChangeNotifier {
         );
         await _loadNodesFrom(subUrl);
         gate = AuthGate.ready;
+        unawaited(_beat());
         vpn.maybeAutoConnect();
       } else {
         gate = AuthGate.needsPlan;

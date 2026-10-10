@@ -36,14 +36,14 @@ class _MvpnAppState extends State<MvpnApp> {
 
   @override
   Widget build(BuildContext context) {
-    final device = WidgetsBinding.instance.platformDispatcher.locale;
 
     return MvpnScope(
       state: _state,
       child: ListenableBuilder(
         listenable: _state,
         builder: (context, _) {
-          final code = AppText.resolve(_state.localeOverride, device);
+          // The app ships in English only (owner's decision, 2026-10-10).
+          const code = 'en';
           return AppTextScope(
             code: code,
             child: MaterialApp(
@@ -52,8 +52,8 @@ class _MvpnAppState extends State<MvpnApp> {
               theme: MvpnTheme.light,
               darkTheme: MvpnTheme.dark,
               themeMode: ThemeMode.system,
-              locale: Locale(code),
-              supportedLocales: const [Locale('en'), Locale('sw'), Locale('zh')],
+              locale: const Locale(code),
+              supportedLocales: const [Locale('en')],
               localizationsDelegates: const [
                 GlobalMaterialLocalizations.delegate,
                 GlobalWidgetsLocalizations.delegate,

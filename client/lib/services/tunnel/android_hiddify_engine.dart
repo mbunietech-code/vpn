@@ -34,6 +34,8 @@ class AndroidHiddifyEngine implements TunnelEngine {
   StreamSubscription? _statusSub;
   StreamSubscription? _alertsSub;
   Timer? _tick;
+  Timer? _watchdog;
+  bool _started = false;
   bool _setupDone = false;
   int _up = 0;
   int _down = 0;
@@ -58,6 +60,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
     final dirs = await _ensureSetup();
     final config = await _fetchConfig(subUrl, apiToken, dirs, pref);
     _listen();
+    _started = false;
     await _method.invokeMethod('start', {
       'path': config.path,
       'name': 'Mbunie VPN',
@@ -65,10 +68,28 @@ class AndroidHiddifyEngine implements TunnelEngine {
       'startCore': true,
       'debug': false,
     });
+
+    // Never spin forever: if the core hasn't reported Started, surface it.
+    _watchdog?.cancel();
+    _watchdog = Timer(const Duration(seconds: 45), () async {
+      if (_started) return;
+      _reports.add(
+        const EngineReport(
+          EngineStatus.error,
+          message:
+              'VPN did not start within 45 seconds. '
+              'Make sure you allowed the Android VPN request, then try again.',
+        ),
+      );
+      try {
+        await _method.invokeMethod('stop');
+      } catch (_) {}
+    });
   }
 
   @override
   Future<void> stop() async {
+    _watchdog?.cancel();
     _tick?.cancel();
     _tick = null;
     await _method.invokeMethod('stop');
@@ -108,25 +129,35 @@ class AndroidHiddifyEngine implements TunnelEngine {
       ProtocolPref.vlessReality => 'reality',
       ProtocolPref.hysteria2 => 'hysteria2',
       ProtocolPref.openVpn => 'openvpn',
-      ProtocolPref.auto => 'reality',
+      ProtocolPref.auto => 'auto',
     };
     final sep = subUrl.contains('?') ? '&' : '?';
     final uri = Uri.parse(
       '$subUrl${sep}format=singbox&platform=android&protocol=$protocol',
     );
-    final res = await _http.get(
-      uri,
-      headers: {if (token.isNotEmpty) 'Authorization': 'Bearer $token'},
-    );
+    final http.Response res;
+    try {
+      res = await _http
+          .get(
+            uri,
+            headers: {if (token.isNotEmpty) 'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 25));
+    } on TimeoutException {
+      throw StateError(
+        'Could not download the VPN config within 25 seconds '
+        '(${uri.host} is unreachable from this network).',
+      );
+    }
     if (res.statusCode != 200) {
-      throw StateError('Config haijapatikana (${res.statusCode})');
+      throw StateError('Could not get the VPN config (HTTP ${res.statusCode})');
     }
     final decoded = jsonDecode(res.body);
     if (decoded is! Map<String, dynamic>) {
       final preview = res.body.trim().replaceAll(RegExp(r'\s+'), ' ');
       final end = preview.length > 80 ? 80 : preview.length;
       throw StateError(
-        'Config si JSON ya sing-box: ${preview.substring(0, end)}',
+        'VPN config is not valid sing-box JSON: ${preview.substring(0, end)}',
       );
     }
     _normalizeAndroidTunConfig(decoded);
@@ -283,6 +314,8 @@ class AndroidHiddifyEngine implements TunnelEngine {
           case 'Starting':
             _reports.add(const EngineReport(EngineStatus.starting));
           case 'Started':
+            _started = true;
+            _watchdog?.cancel();
             _reports.add(const EngineReport(EngineStatus.up));
             _startTrafficTicker();
           case 'Stopped':
@@ -329,6 +362,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
 
   @override
   void dispose() {
+    _watchdog?.cancel();
     _tick?.cancel();
     _statusSub?.cancel();
     _alertsSub?.cancel();

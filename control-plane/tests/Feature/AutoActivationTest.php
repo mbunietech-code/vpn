@@ -82,9 +82,10 @@ class AutoActivationTest extends TestCase
 
         $resp = $this->withToken($node->api_secret)->getJson('/api/node/peers');
 
-        $resp->assertOk()
-            ->assertJsonPath('version', 1)
-            ->assertJsonCount(2, 'peers');
+        $resp->assertOk()->assertJsonCount(2, 'peers');
+        // version is an opaque change marker (peer_version + active set), stable between polls.
+        $this->assertIsInt($resp->json('version'));
+        $this->assertSame($resp->json('version'), $this->withToken($node->api_secret)->getJson('/api/node/peers')->json('version'));
     }
 
     public function test_expired_subscription_is_swept_and_peers_disabled(): void

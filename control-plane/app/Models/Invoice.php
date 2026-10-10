@@ -12,6 +12,7 @@ class Invoice extends Model
     protected $casts = [
         'meta' => 'array',
         'paid_at' => 'datetime',
+        'provisioned_at' => 'datetime',
         'expires_at' => 'datetime',
         'reviewed_at' => 'datetime',
     ];

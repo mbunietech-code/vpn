@@ -51,13 +51,21 @@ class SubscriptionController extends Controller
         ]);
     }
 
-    /** Register / refresh this device against the device limit (FR-NEW-08). */
+    /**
+     * Register / refresh this device against the device limit (FR-NEW-08).
+     * The app also calls this as a heartbeat (every ~2 min while the tunnel
+     * is up, and once on connect/disconnect) so the admin can see who is
+     * online right now.
+     */
     public function registerDevice(Request $request): JsonResponse
     {
         $data = $request->validate([
             'fingerprint' => ['required', 'string', 'max:128'],
-            'platform' => ['nullable', 'in:android,windows,macos,linux'],
+            'platform' => ['nullable', 'in:android,windows,macos,linux,ios'],
             'name' => ['nullable', 'string', 'max:80'],
+            'connected' => ['nullable', 'boolean'],
+            'protocol' => ['nullable', 'string', 'max:32'],
+            'app_version' => ['nullable', 'string', 'max:32'],
         ]);
 
         $sub = $request->user()->activeSubscription();
@@ -67,22 +75,34 @@ class SubscriptionController extends Controller
 
         $device = $sub->devices()->firstOrNew(['fingerprint' => $data['fingerprint']]);
 
-        if (! $device->exists) {
-            $activeCount = $sub->devices()->whereNull('revoked_at')->count();
-            if ($activeCount >= $sub->max_devices) {
-                return response()->json([
-                    'error' => 'device_limit_reached',
-                    'limit' => $sub->max_devices,
-                ], 409);
-            }
+        // An admin-revoked device stays revoked; it must not lift its own block.
+        if ($device->exists && $device->revoked_at !== null) {
+            return response()->json(['error' => 'device_revoked'], 403);
         }
 
+        $overLimit = ! $device->exists
+            && $sub->devices()->whereNull('revoked_at')->count() >= $sub->max_devices;
+
+        $connected = (bool) ($data['connected'] ?? false);
         $device->fill([
             'platform' => $data['platform'] ?? $device->platform,
             'name' => $data['name'] ?? $device->name,
+            'app_version' => $data['app_version'] ?? $device->app_version,
             'last_seen_at' => now(),
-            'revoked_at' => null,
+            'vpn_connected' => $connected,
+            'protocol' => $connected ? ($data['protocol'] ?? $device->protocol) : $device->protocol,
+            'connected_at' => $connected ? ($device->vpn_connected ? $device->connected_at : now()) : null,
         ])->save();
+
+        // Recorded either way so the admin sees it; the limit is reported,
+        // not yet enforced by the client.
+        if ($overLimit) {
+            return response()->json([
+                'error' => 'device_limit_reached',
+                'limit' => $sub->max_devices,
+                'device_id' => $device->id,
+            ], 409);
+        }
 
         return response()->json(['status' => 'ok', 'device_id' => $device->id]);
     }

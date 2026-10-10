@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\DevController;
 use App\Http\Controllers\Api\NodeController;
+use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\SubscriptionController;
@@ -54,3 +55,16 @@ Route::prefix('node')->group(function () {
     Route::get('peers', [NodeController::class, 'peers']);
     Route::post('health', [NodeController::class, 'health']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Partner API for MbunieEduHub  (HMAC-signed, see VerifyPartnerSignature)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('partner')
+    ->middleware([\App\Http\Middleware\VerifyPartnerSignature::class, 'throttle:120,1'])
+    ->group(function () {
+        Route::get('stats', [PartnerController::class, 'stats']);
+        Route::get('customers/{eduhubUserId}', [PartnerController::class, 'customer'])->whereNumber('eduhubUserId');
+        Route::post('activations', [PartnerController::class, 'activate']);
+    });

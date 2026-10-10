@@ -53,18 +53,6 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 Divider(color: c.border, height: 1),
                 SettingRow(
-                  leading: _icon(c, Icons.translate_rounded),
-                  title: tr.t('settings.language'),
-                  trailing: Text(
-                    state.localeOverride == null
-                        ? '${AppText.names[tr.code]} (auto)'
-                        : AppText.names[tr.code]!,
-                    style: TextStyle(fontSize: 13, color: c.textSecondary),
-                  ),
-                  onTap: () => _pickLanguage(context, state),
-                ),
-                Divider(color: c.border, height: 1),
-                SettingRow(
                   leading: _icon(c, Icons.logout_rounded, danger: true),
                   title: tr.t('settings.logout'),
                   onTap: () => _confirmLogout(context, state, tr),
@@ -212,42 +200,6 @@ class SettingsScreen extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
-  }
-
-  void _pickLanguage(BuildContext context, AppState state) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.smartphone_rounded),
-              title: Text('${ctx.tt('settings.language')} — auto'),
-              trailing: state.localeOverride == null
-                  ? const Icon(Icons.check_rounded)
-                  : null,
-              onTap: () {
-                state.setLocale(null);
-                Navigator.pop(ctx);
-              },
-            ),
-            for (final code in AppText.supported)
-              ListTile(
-                title: Text(AppText.names[code]!),
-                trailing: state.localeOverride == code
-                    ? const Icon(Icons.check_rounded)
-                    : null,
-                onTap: () {
-                  state.setLocale(code);
-                  Navigator.pop(ctx);
-                },
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _confirmLogout(BuildContext context, AppState state, AppText tr) {

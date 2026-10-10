@@ -107,6 +107,23 @@ class NodeAgentTest extends TestCase
         $this->assertSame([8443], $ports);
     }
 
+    public function test_expiry_changes_peer_list_version_without_the_sweep(): void
+    {
+        $sub = $this->activeSubscription();
+        $this->freshNode();
+        $this->health(['node_info' => ['reality_pubkey' => 'PUBKEY123', 'reality_short_id' => 'abcd1234']])->assertOk();
+
+        $before = $this->withToken(self::TOKEN)->getJson('/api/node/peers')->assertOk();
+        $this->assertCount(2, $before->json('peers'));
+
+        // Lapses, but no cron has run mvpn:sweep-expired yet.
+        $sub->update(['expires_at' => now()->subMinute()]);
+
+        $after = $this->withToken(self::TOKEN)->getJson('/api/node/peers')->assertOk();
+        $this->assertCount(0, $after->json('peers'));
+        $this->assertNotSame($before->json('version'), $after->json('version'), 'agent must re-apply');
+    }
+
     public function test_health_never_overrides_admin_draining_or_disabled(): void
     {
         foreach (['draining', 'disabled'] as $status) {

@@ -181,8 +181,8 @@ class SingboxEngine implements TunnelEngine {
     final res = await _http.get(Uri.parse(url));
     if (res.statusCode != 200) {
       throw StateError(
-        'sing-box engine haijapatikana ($url → ${res.statusCode}). '
-        'Pakia binary kwenye control-plane (storage/app/bin/).',
+        'VPN engine not found ($url → ${res.statusCode}). '
+        'Please reinstall Mbunie VPN.',
       );
     }
     await file.writeAsBytes(res.bodyBytes, flush: true);
@@ -221,7 +221,7 @@ class SingboxEngine implements TunnelEngine {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (res.statusCode != 200) {
-      throw StateError('Config haijapatikana (${res.statusCode})');
+      throw StateError('Could not get the VPN config (HTTP ${res.statusCode})');
     }
     // Decode as UTF-8 explicitly: res.body falls back to latin1 and mangles
     // outbound tags ("·" became "Â·").
@@ -326,9 +326,9 @@ class SingboxEngine implements TunnelEngine {
 
   String _privilegeHint() {
     if (Platform.isWindows) {
-      return 'Fungua Mbunie VPN kama Administrator (bonyeza kulia → Run as administrator).';
+      return 'Run Mbunie VPN as Administrator (right-click → Run as administrator).';
     }
-    return 'Endesha kwa ruhusa ya root (sudo) — TUN inahitaji CAP_NET_ADMIN.';
+    return 'Run with root privileges (sudo): the TUN device needs CAP_NET_ADMIN.';
   }
 
   String _diagnose(int code) {
@@ -338,7 +338,7 @@ class SingboxEngine implements TunnelEngine {
         tail.toLowerCase().contains('not permitted')) {
       return _privilegeHint();
     }
-    if (tail.isNotEmpty) return 'Engine imeshindwa:\n$tail';
-    return 'Engine imeshindwa kuanza (code $code).';
+    if (tail.isNotEmpty) return 'VPN engine failed:\n$tail';
+    return 'VPN engine failed to start (code $code).';
   }
 }

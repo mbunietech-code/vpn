@@ -35,6 +35,10 @@ Route::get('/admin/invoice/{invoice}/proof', function (\App\Models\Invoice $invo
 Route::view('/legal/terms', 'legal.terms')->name('legal.terms');
 Route::view('/legal/privacy', 'legal.privacy')->name('legal.privacy');
 
+// Public app download page + a QR of its own URL (linked from MbunieHub).
+Route::get('/download', [\App\Http\Controllers\DownloadController::class, 'page'])->name('download');
+Route::get('/download/qr.svg', [\App\Http\Controllers\DownloadController::class, 'qr'])->name('download.qr');
+
 // Lightweight return page the hosted checkout redirects back to
 Route::get('/pay/return', function () {
     return response(

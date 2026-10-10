@@ -471,6 +471,16 @@ const _map = <String, Map<String, String>>{
   'nav.servers': {'en': 'Servers', 'sw': 'Seva', 'zh': '服务器'},
   'nav.settings': {'en': 'Settings', 'sw': 'Mipangilio', 'zh': '设置'},
 
+  'auth.hub': {'en': 'Sign in with MbunieHub', 'sw': 'Ingia kwa MbunieHub', 'zh': '使用 MbunieHub 登录'},
+  'auth.hubHint': {
+    'en': 'Use the same email and password as your mbuniehub.com account.',
+    'sw': 'Tumia email na password ile ile ya akaunti yako ya mbuniehub.com.',
+    'zh': '使用您 mbuniehub.com 账户的邮箱和密码。',
+  },
+  'auth.password': {'en': 'Password', 'sw': 'Password', 'zh': '密码'},
+  'auth.hubSignIn': {'en': 'Sign in', 'sw': 'Ingia', 'zh': '登录'},
+  'auth.useCode': {'en': 'Use an email code instead', 'sw': 'Tumia code ya email badala yake', 'zh': '改用邮箱验证码'},
+
   // ---- vpn controller messages ----
   'vpn.noSub': {
     'en': 'No active subscription. Buy a plan first.',

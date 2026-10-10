@@ -70,8 +70,10 @@ class VpnController extends ChangeNotifier {
   bool autoConnect = false;
   bool autoReconnect = true;
   bool pingOnOpen = true;
-  ProtocolPref protocol = ProtocolPref.openVpn;
+  ProtocolPref protocol = ProtocolPref.auto;
   bool get ipObfuscated => _status == VpnStatus.connected;
+
+  static const _protocolKey = 'pref_protocol_v2';
 
   bool _userWantsConnected = false;
   int _reconnectAttempts = 0;
@@ -85,11 +87,13 @@ class VpnController extends ChangeNotifier {
       autoConnect = p.getBool('pref_autoconnect') ?? autoConnect;
       autoReconnect = p.getBool('pref_autoreconnect') ?? autoReconnect;
       pingOnOpen = p.getBool('pref_ping') ?? pingOnOpen;
-      final pr = p.getString('pref_protocol');
+      // v2: the old key stored the OpenVPN default even for users who never
+      // picked a protocol; starting fresh puts everyone on Auto once.
+      final pr = p.getString(_protocolKey);
       if (pr != null) {
         protocol = ProtocolPref.values.firstWhere(
           (e) => e.name == pr,
-          orElse: () => ProtocolPref.openVpn,
+          orElse: () => ProtocolPref.auto,
         );
       }
       notifyListeners();
@@ -105,7 +109,7 @@ class VpnController extends ChangeNotifier {
       await p.setBool('pref_autoconnect', autoConnect);
       await p.setBool('pref_autoreconnect', autoReconnect);
       await p.setBool('pref_ping', pingOnOpen);
-      await p.setString('pref_protocol', protocol.name);
+      await p.setString(_protocolKey, protocol.name);
     } catch (_) {}
   }
 

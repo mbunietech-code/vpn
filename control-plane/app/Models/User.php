@@ -27,6 +27,7 @@ class User extends Authenticatable implements FilamentUser
             'phone_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'eduhub_user_id' => 'integer',
         ];
     }
 

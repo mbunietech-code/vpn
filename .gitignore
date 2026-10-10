@@ -55,3 +55,13 @@ sammple.jpeg
 android-app/
 
 client/android/app/libs/*.aar
+
+# --- local build outputs / device captures (never commit) ---
+# apps/ holds installers and .ovpn profiles with private keys
+apps/
+*.ovpn
+device-*.png
+site-error.png
+tmp-aar/
+tmp-sfa/
+client/android/.kotlin/

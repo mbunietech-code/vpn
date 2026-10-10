@@ -23,9 +23,15 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  // "Sign in with MbunieHub" stays hidden until EduHub's browser (PKCE)
+  // login is live on the VPN side.
+  static const _hubLoginEnabled = false;
+
   final _id = TextEditingController();
   final _code = TextEditingController();
+  final _password = TextEditingController();
   bool _sent = false;
+  bool _hub = false; // "Sign in with MbunieHub" (email + password)
   bool _busy = false;
   String? _error;
   String? _debugHint;
@@ -49,6 +55,11 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _verify(dynamic state, String code) => _run(() async {
         await state.verifyOtp(code);
         // Close the OS autofill session so its overlay doesn't linger.
+        TextInput.finishAutofillContext();
+      });
+
+  Future<void> _hubSignIn() => _run(() async {
+        await MvpnScope.read(context).loginWithEduHub(_id.text, _password.text);
         TextInput.finishAutofillContext();
       });
 
@@ -114,7 +125,11 @@ class _AuthScreenState extends State<AuthScreen> {
                   AutofillGroup(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 220),
-                      child: _sent ? _verifyStep(state, c) : _idStep(c),
+                      child: _hub
+                          ? _hubStep(c)
+                          : _sent
+                              ? _verifyStep(state, c)
+                              : _idStep(c),
                     ),
                   ),
                   if (_error != null) ...[
@@ -163,6 +178,70 @@ class _AuthScreenState extends State<AuthScreen> {
         ElevatedButton(
           onPressed: _busy || _id.text.trim().isEmpty ? null : _send0,
           child: _busy ? const BtnSpinner() : Text(context.tr.t('auth.sendCode')),
+        ),
+        if (_hubLoginEnabled) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _busy
+                ? null
+                : () => setState(() {
+                      _hub = true;
+                      _error = null;
+                    }),
+            icon: const Icon(Icons.school_rounded, size: 18),
+            label: Text(context.tr.t('auth.hub')),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _hubStep(MvpnColors c) {
+    final ready = _id.text.trim().contains('@') && _password.text.isNotEmpty;
+    return Column(
+      key: const ValueKey('hub'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(context.tr.t('auth.hubHint'),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, height: 1.4, color: c.textSecondary)),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _id,
+          keyboardType: TextInputType.emailAddress,
+          autofillHints: const [AutofillHints.email, AutofillHints.username],
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            hintText: 'you@email.com',
+            prefixIcon: Icon(Icons.alternate_email_rounded),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _password,
+          obscureText: true,
+          autofillHints: const [AutofillHints.password],
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) => ready && !_busy ? _hubSignIn() : null,
+          decoration: InputDecoration(
+            hintText: context.tr.t('auth.password'),
+            prefixIcon: const Icon(Icons.lock_rounded),
+          ),
+        ),
+        const SizedBox(height: 14),
+        ElevatedButton(
+          onPressed: _busy || !ready ? null : _hubSignIn,
+          child: _busy ? const BtnSpinner() : Text(context.tr.t('auth.hubSignIn')),
+        ),
+        TextButton(
+          onPressed: _busy
+              ? null
+              : () => setState(() {
+                    _hub = false;
+                    _password.clear();
+                    _error = null;
+                  }),
+          child: Text(context.tr.t('auth.useCode')),
         ),
       ],
     );

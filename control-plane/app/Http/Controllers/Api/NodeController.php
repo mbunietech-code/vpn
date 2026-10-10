@@ -45,8 +45,13 @@ class NodeController extends Controller
                 'status' => 'active',
             ])->values();
 
+        // The agent re-applies only when `version` changes. Fold the actual
+        // active set into it so an expiry takes effect on the next sync even
+        // if nothing bumped peer_version (e.g. the sweep cron isn't running).
+        $fingerprint = $peers->map(fn ($p) => $p['protocol'] . ':' . $p['remote_id'])->sort()->implode(',');
+
         return response()->json([
-            'version' => $node->peer_version,
+            'version' => (int) sprintf('%u', crc32($node->peer_version . '|' . $fingerprint)),
             'peers' => $peers,
         ]);
     }

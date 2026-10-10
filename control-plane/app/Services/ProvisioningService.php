@@ -22,13 +22,29 @@ class ProvisioningService
     public function fulfill(Invoice $invoice): Subscription
     {
         return DB::transaction(function () use ($invoice) {
+            // Lock the invoice: one paid invoice extends a subscription exactly once,
+            // however many times a job retry or duplicate webhook gets here.
+            $invoice = Invoice::whereKey($invoice->getKey())->lockForUpdate()->firstOrFail();
             $plan = Plan::where('code', $invoice->plan_code)->firstOrFail();
             $user = $invoice->user;
+
+            if ($invoice->provisioned_at !== null) {
+                $sub = $invoice->subscription_id
+                    ? Subscription::find($invoice->subscription_id)
+                    : $user->subscriptions()->latest('expires_at')->first();
+                if ($sub) {
+                    // Still make sure the peers exist (e.g. a node came online since).
+                    $this->syncPeers($sub, $plan);
+
+                    return $sub->refresh();
+                }
+            }
 
             $sub = $this->upsertSubscription($user, $plan);
             $this->syncPeers($sub, $plan);
 
             $sub->update(['status' => 'active', 'last_synced_at' => now()]);
+            $invoice->update(['provisioned_at' => now(), 'subscription_id' => $sub->id]);
 
             return $sub->refresh();
         });

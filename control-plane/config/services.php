@@ -78,6 +78,18 @@ return [
         'currencies' => explode(',', (string) env('MVPN_CURRENCIES', 'usd,cny')),
         'default_currency' => env('MVPN_DEFAULT_CURRENCY', 'usd'),
         'provision_timeout' => (int) env('MVPN_PROVISION_TIMEOUT', 60),
+        // Public installers shown on /download (files under storage/app/public/downloads).
+        'download_android' => env('MVPN_DOWNLOAD_ANDROID', '/storage/downloads/Mbunie-VPN-1.0.6.apk'),
+        'download_windows' => env('MVPN_DOWNLOAD_WINDOWS', '/storage/downloads/Mbunie-VPN-Setup-1.0.6.exe'),
+        'app_version' => env('MVPN_APP_VERSION', '1.0.6'),
+    ],
+
+    // MbunieEduHub (mbuniehub.com): signed partner API (EduHub sells/activates VPN plans).
+    'eduhub' => [
+        'url' => rtrim((string) env('EDUHUB_URL', 'https://mbuniehub.com'), '/'),
+        // Shared with EduHub's MVPN_PARTNER_SECRET; signs partner API calls.
+        'partner_secret' => env('EDUHUB_PARTNER_SECRET'),
+        'timeout' => (int) env('EDUHUB_TIMEOUT', 15),
     ],
 
 ];
