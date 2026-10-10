@@ -154,6 +154,22 @@ class SubscriptionBuilder
             ? [['domain' => $nodeHosts, 'outbound' => 'direct']]
             : [];
 
+        // Phones: Hysteria2 first, and only leave it for REALITY when REALITY is
+        // clearly faster (or Hysteria2 fails its test, e.g. UDP blocked). On
+        // phones REALITY often wins the latency probe by a few ms yet browses
+        // much slower; urltest keeps the earlier member unless another beats
+        // it by more than `tolerance`.
+        $preferHysteria = $platform === 'android';
+        if ($preferHysteria) {
+            // Within each node only — node priority order is kept.
+            $nodeOrder = [];
+            foreach ($proxyOutbounds as $tag) {
+                $nodeOrder[strstr($tag, ' · ', true) ?: $tag] ??= count($nodeOrder);
+            }
+            usort($proxyOutbounds, fn ($a, $b) => [$nodeOrder[strstr($a, ' · ', true) ?: $a], ! str_contains($a, 'Hysteria2')]
+                <=> [$nodeOrder[strstr($b, ' · ', true) ?: $b], ! str_contains($b, 'Hysteria2')]);
+        }
+
         // Selector + auto (urltest) sit in front of the peers.
         $selectorMembers = array_merge(['auto'], $proxyOutbounds);
 
@@ -226,7 +242,7 @@ class SubscriptionBuilder
                     'outbounds' => $proxyOutbounds ?: ['direct'],
                     'url' => 'https://www.apple.com/library/test/success.html',
                     'interval' => '3m',
-                    'tolerance' => 50,
+                    'tolerance' => $preferHysteria ? 300 : 50,
                 ],
             ], $outbounds, [
                 ['type' => 'direct', 'tag' => 'direct'],

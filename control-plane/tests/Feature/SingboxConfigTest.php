@@ -83,6 +83,20 @@ class SingboxConfigTest extends TestCase
         $this->assertFalse(collect($cfg['dns']['rules'])->contains(fn ($rule) => ($rule['domain_suffix'] ?? null) === ['.cn']));
     }
 
+    public function test_android_auto_prefers_hysteria2_desktop_unchanged(): void
+    {
+        $sub = $this->activeSub();
+
+        $android = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android&protocol=auto")->assertOk()->json();
+        $auto = collect($android['outbounds'])->firstWhere('tag', 'auto');
+        $this->assertStringContainsString('Hysteria2', $auto['outbounds'][0]);
+        $this->assertCount(2, $auto['outbounds'], 'REALITY stays as the fallback');
+        $this->assertSame(300, $auto['tolerance']);
+
+        $windows = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=windows&protocol=auto")->assertOk()->json();
+        $this->assertSame(50, collect($windows['outbounds'])->firstWhere('tag', 'auto')['tolerance']);
+    }
+
     public function test_android_tun_excludes_debug_and_system_packages(): void
     {
         $sub = $this->activeSub();
