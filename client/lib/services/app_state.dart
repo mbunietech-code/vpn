@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart';
@@ -36,8 +37,23 @@ class AppState extends ChangeNotifier {
   String? _deviceId;
   Timer? _beatTimer;
   bool? _lastBeatConnected;
+  String? _lastReportedError;
+  DateTime? _lastReportedAt;
+  Map<String, String>? _deviceInfo;
 
   void _onVpnChanged() {
+    // Diagnostics: report each new failure (same one at most every 2 min, so a
+    // reconnect loop doesn't flood the server).
+    final err = vpn.status == VpnStatus.error ? vpn.error : null;
+    if (err != null &&
+        (err != _lastReportedError ||
+            _lastReportedAt == null ||
+            DateTime.now().difference(_lastReportedAt!) > const Duration(minutes: 2))) {
+      _lastReportedError = err;
+      _lastReportedAt = DateTime.now();
+      _beat(error: err);
+    }
+
     final connected = vpn.isConnected;
     if (connected == _lastBeatConnected) return;
     _lastBeatConnected = connected;
@@ -48,10 +64,11 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> _beat() async {
+  Future<void> _beat({String? error}) async {
     final id = _deviceId;
     if (id == null || _token == null || subStatus != 'active') return;
     try {
+      final info = await _loadDeviceInfo();
       await api.registerDevice(
         fingerprint: id,
         platform: Platform.operatingSystem,
@@ -59,10 +76,30 @@ class AppState extends ChangeNotifier {
         connected: vpn.isConnected,
         protocol: vpn.protocol.name,
         appVersion: MvpnConfig.appVersion,
+        error: error,
+        model: info['model'],
+        osVersion: info['os_version'],
       );
     } catch (_) {
       // Best effort: telemetry must never get in the way of the tunnel.
     }
+  }
+
+  Future<Map<String, String>> _loadDeviceInfo() async {
+    if (_deviceInfo != null) return _deviceInfo!;
+    var info = <String, String>{'os_version': Platform.operatingSystemVersion};
+    if (Platform.isAndroid) {
+      try {
+        final r = await const MethodChannel('com.hiddify.app/method')
+            .invokeMapMethod<String, String>('device_info');
+        if (r != null) info = r;
+      } catch (_) {}
+    } else {
+      try {
+        info['model'] = Platform.localHostname;
+      } catch (_) {}
+    }
+    return _deviceInfo = info;
   }
 
   static String _newDeviceId() {

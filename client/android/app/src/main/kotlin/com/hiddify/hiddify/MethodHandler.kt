@@ -1,5 +1,6 @@
 package com.hiddify.hiddify
 
+import android.os.Build
 import android.util.Log
 import com.hiddify.hiddify.bg.BoxService
 //import com.hiddify.hiddify.bg.BoxService.Companion.workingDir
@@ -27,6 +28,7 @@ class MethodHandler(private val scope: CoroutineScope) : FlutterPlugin,
             Restart("restart"),
             AddGrpcClientPublicKey("add_grpc_client_public_key"),
             GetGrpcServerPublicKey("get_grpc_server_public_key"),
+            DeviceInfo("device_info"),
 
         }
     }
@@ -45,6 +47,15 @@ class MethodHandler(private val scope: CoroutineScope) : FlutterPlugin,
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
+            // Phone + OS for the diagnostics the app reports to the control plane.
+            Trigger.DeviceInfo.method -> {
+                result.success(
+                    mapOf(
+                        "model" to "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
+                        "os_version" to "Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
+                    )
+                )
+            }
             Trigger.AddGrpcClientPublicKey.method -> {
                 GlobalScope.launch {
                     result.runCatching {

@@ -98,6 +98,9 @@ class ApiClient {
     bool? connected,
     String? protocol,
     String? appVersion,
+    String? error,
+    String? model,
+    String? osVersion,
   }) =>
       _post('/api/subscription/device', {
         'fingerprint': fingerprint,
@@ -106,6 +109,9 @@ class ApiClient {
         'connected': ?connected,
         'protocol': ?protocol,
         'app_version': ?appVersion,
+        'error': ?error,
+        'model': ?model,
+        'os_version': ?osVersion,
       });
 
   /// LOCAL-ONLY: simulate a completed payment (control plane must be in `local`).
