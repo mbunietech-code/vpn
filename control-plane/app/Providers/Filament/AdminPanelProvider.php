@@ -69,6 +69,8 @@ class AdminPanelProvider extends PanelProvider
                             overflow-wrap: anywhere;
                         }
                         .fi-ta-cell { padding-left: .75rem; padding-right: .5rem; }
+                        /* First column (customer/name) keeps a readable width. */
+                        .fi-ta-row .fi-ta-cell:first-child { min-width: 9.5rem; }
                     }
                 </style>
                 HTML)
