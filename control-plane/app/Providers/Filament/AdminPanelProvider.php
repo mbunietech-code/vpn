@@ -63,14 +63,15 @@ class AdminPanelProvider extends PanelProvider
                     /* Phones: let long emails/names wrap instead of pushing the
                        table sideways. */
                     @media (max-width: 640px) {
-                        .fi-ta-cell .fi-ta-text-item,
-                        .fi-ta-cell .fi-ta-text-item-label {
+                        .fi-ta-cell { padding-left: .75rem; padding-right: .5rem; }
+                        /* Only the first column (customer/name) wraps, with a
+                           readable minimum width; numbers and dates stay intact. */
+                        .fi-ta-row .fi-ta-cell:first-child { min-width: 9.5rem; }
+                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item,
+                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item-label {
                             white-space: normal;
                             overflow-wrap: anywhere;
                         }
-                        .fi-ta-cell { padding-left: .75rem; padding-right: .5rem; }
-                        /* First column (customer/name) keeps a readable width. */
-                        .fi-ta-row .fi-ta-cell:first-child { min-width: 9.5rem; }
                     }
                 </style>
                 HTML)
