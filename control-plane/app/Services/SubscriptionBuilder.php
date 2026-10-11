@@ -191,7 +191,7 @@ class SubscriptionBuilder
                 'fe80::/10',
                 'ff00::/8',
             ],
-            'stack' => $platform === 'macos' ? 'system' : 'mixed',
+            'stack' => match ($platform) { 'macos' => 'system', 'android' => 'gvisor', default => 'mixed' },
         ];
 
         if ($platform !== 'android') {
@@ -314,7 +314,7 @@ class SubscriptionBuilder
                 'fe80::/10',
                 'ff00::/8',
             ],
-            'stack' => $platform === 'macos' ? 'system' : 'mixed',
+            'stack' => match ($platform) { 'macos' => 'system', 'android' => 'gvisor', default => 'mixed' },
         ];
 
         if ($platform !== 'android') {

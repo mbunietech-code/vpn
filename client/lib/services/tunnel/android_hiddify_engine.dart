@@ -182,7 +182,10 @@ class AndroidHiddifyEngine implements TunnelEngine {
       inbound.remove('strict_route');
       inbound.remove('sniff');
       inbound.remove('sniff_override_destination');
-      inbound['stack'] = 'mixed';
+      // gvisor, not mixed/system: the system stack's IPv4 TCP listener on the
+      // tun address never came up on Android (only the IPv6 one), so every
+      // IPv4 TCP connection died and only UDP/QUIC got through.
+      inbound['stack'] = 'gvisor';
       inbound['auto_route'] = true;
       inbound['route_exclude_address'] =
           _mergeStringList(inbound['route_exclude_address'], const [
