@@ -77,6 +77,12 @@ class AdminPanelProvider extends PanelProvider
                             overflow-wrap: anywhere;
                         }
                     }
+                    /* Very small phones (≤ 359px): tighter still. */
+                    @media (max-width: 359px) {
+                        .fi-ta-cell { padding-left: .45rem; padding-right: .25rem; }
+                        .fi-ta-row .fi-ta-cell:first-child { min-width: 7rem; }
+                        .fi-ta-cell .fi-ta-text-description { font-size: .72rem; }
+                    }
                 </style>
                 HTML)
             ->colors([
