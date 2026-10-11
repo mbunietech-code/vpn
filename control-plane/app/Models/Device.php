@@ -16,6 +16,7 @@ class Device extends Model
         'last_seen_at' => 'datetime',
         'revoked_at' => 'datetime',
         'connected_at' => 'datetime',
+        'last_error_at' => 'datetime',
         'vpn_connected' => 'boolean',
     ];
 

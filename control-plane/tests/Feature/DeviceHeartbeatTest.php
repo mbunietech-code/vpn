@@ -54,6 +54,28 @@ class DeviceHeartbeatTest extends TestCase
         $this->assertNull($device->fresh()->connected_at);
     }
 
+    public function test_failure_report_is_kept_with_phone_details(): void
+    {
+        $user = $this->subscriber();
+
+        $this->beat($user, [
+            'connected' => false,
+            'error' => 'VPN did not start within 45 seconds.',
+            'model' => 'TECNO KI5q',
+            'os_version' => 'Android 14 (SDK 34)',
+        ])->assertOk();
+
+        $device = Device::firstOrFail();
+        $this->assertSame('VPN did not start within 45 seconds.', $device->last_error);
+        $this->assertNotNull($device->last_error_at);
+        $this->assertSame('TECNO KI5q', $device->model);
+        $this->assertSame('Android 14 (SDK 34)', $device->os_version);
+
+        // A normal beat later doesn't wipe the last error.
+        $this->beat($user, ['connected' => true])->assertOk();
+        $this->assertSame('VPN did not start within 45 seconds.', $device->fresh()->last_error);
+    }
+
     public function test_silent_device_drops_offline_after_window(): void
     {
         $user = $this->subscriber();

@@ -19,7 +19,8 @@ class DevicesTable
                 TextColumn::make('subscription.user.email')->label('Mtumiaji')->searchable()
                     ->description(fn (Device $r) => $r->subscription?->user?->phone),
                 TextColumn::make('name')->placeholder('—'),
-                TextColumn::make('platform')->badge()->placeholder('—'),
+                TextColumn::make('platform')->badge()->placeholder('—')
+                    ->description(fn (Device $r) => trim(($r->model ?? '') . ' ' . ($r->os_version ?? '')) ?: null),
                 TextColumn::make('vpn_connected')->label('VPN sasa')
                     ->badge()
                     ->getStateUsing(fn (Device $r) => $r->isOnline() ? 'online' : 'offline')
@@ -29,6 +30,10 @@ class DevicesTable
                     ->getStateUsing(fn (Device $r) => $r->isOnline() ? $r->connected_at : null),
                 TextColumn::make('protocol')->placeholder('—')->toggleable(),
                 TextColumn::make('app_version')->label('App')->placeholder('—')->toggleable(),
+                TextColumn::make('last_error')->label('Error ya mwisho')
+                    ->placeholder('—')->color('danger')->wrap()->limit(160)
+                    ->tooltip(fn (Device $r) => $r->last_error)
+                    ->description(fn (Device $r) => $r->last_error_at?->diffForHumans()),
                 TextColumn::make('last_seen_at')->label('Mwisho')->since()->placeholder('kamwe'),
                 TextColumn::make('revoked_at')->label('Hali')
                     ->badge()

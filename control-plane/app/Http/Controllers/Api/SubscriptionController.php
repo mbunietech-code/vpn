@@ -66,6 +66,10 @@ class SubscriptionController extends Controller
             'connected' => ['nullable', 'boolean'],
             'protocol' => ['nullable', 'string', 'max:32'],
             'app_version' => ['nullable', 'string', 'max:32'],
+            // Diagnostics: what failed on this phone, and which phone/OS it is.
+            'error' => ['nullable', 'string', 'max:2000'],
+            'model' => ['nullable', 'string', 'max:120'],
+            'os_version' => ['nullable', 'string', 'max:120'],
         ]);
 
         $sub = $request->user()->activeSubscription();
@@ -88,11 +92,18 @@ class SubscriptionController extends Controller
             'platform' => $data['platform'] ?? $device->platform,
             'name' => $data['name'] ?? $device->name,
             'app_version' => $data['app_version'] ?? $device->app_version,
+            'model' => $data['model'] ?? $device->model,
+            'os_version' => $data['os_version'] ?? $device->os_version,
             'last_seen_at' => now(),
             'vpn_connected' => $connected,
             'protocol' => $connected ? ($data['protocol'] ?? $device->protocol) : $device->protocol,
             'connected_at' => $connected ? ($device->vpn_connected ? $device->connected_at : now()) : null,
-        ])->save();
+        ]);
+        if (filled($data['error'] ?? null)) {
+            $device->last_error = $data['error'];
+            $device->last_error_at = now();
+        }
+        $device->save();
 
         // Recorded either way so the admin sees it; the limit is reported,
         // not yet enforced by the client.
