@@ -44,11 +44,15 @@ Route::get('/download', [DownloadController::class, 'page'])->name('download');
 Route::get('/download/qr.svg', [DownloadController::class, 'qr'])->name('download.qr');
 
 // Lightweight return page the hosted checkout redirects back to
-Route::get('/pay/return', function () {
+Route::get('/pay/return', function (Request $request) {
+    [$title, $text] = $request->query('status') === 'cancel'
+        ? ['Payment cancelled', 'Nothing was charged. Go back to the app to try again.']
+        : ['Payment received', 'Go back to the Mbunie VPN app: it connects by itself in a few seconds.'];
+
     return response(
-        '<!doctype html><meta charset="utf-8"><title>Mbunie VPN</title>'
+        '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mbunie VPN</title>'
         .'<body style="font:16px system-ui;text-align:center;padding:16vh 24px">'
-        .'<h2>Malipo yamepokelewa</h2><p>Unaweza kufunga ukurasa huu na kurudi kwenye app.</p>'
+        ."<h2>{$title}</h2><p>{$text}</p>"
         .'<script>setTimeout(()=>{location.href="mvpn://payment/return"},800)</script>'
     );
 })->name('pay.return');
