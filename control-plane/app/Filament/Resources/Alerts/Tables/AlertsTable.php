@@ -17,17 +17,18 @@ class AlertsTable
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('severity')->badge()
+                TextColumn::make('severity')->visibleFrom('md')->badge()
                     ->color(fn ($state) => match ($state) {
                         'critical' => 'danger', 'warn' => 'warning', default => 'gray',
                     }),
                 TextColumn::make('source')->visibleFrom('md')->badge()->color('gray'),
-                TextColumn::make('title')->wrap()->searchable(),
+                TextColumn::make('title')->wrap()->searchable()
+                    ->description(fn (\App\Models\Alert $r) => $r->severity . ' · ' . $r->created_at?->diffForHumans()),
                 TextColumn::make('ai_summary')->visibleFrom('md')->label('AI')->wrap()->placeholder('—')->toggleable(),
                 TextColumn::make('acknowledged_at')->visibleFrom('md')->label('Resolved')
                     ->since()->placeholder('—')
                     ->badge()->color(fn ($state) => $state ? 'success' : 'danger'),
-                TextColumn::make('created_at')->since(),
+                TextColumn::make('created_at')->visibleFrom('md')->since(),
             ])
             ->filters([
                 TernaryFilter::make('acknowledged_at')

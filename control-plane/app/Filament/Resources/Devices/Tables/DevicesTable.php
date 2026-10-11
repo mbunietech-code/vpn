@@ -26,7 +26,8 @@ class DevicesTable
                     ->badge()
                     ->getStateUsing(fn (Device $r) => $r->isOnline() ? 'online' : 'offline')
                     ->formatStateUsing(fn ($state) => $state === 'online' ? 'Online' : 'Offline')
-                    ->color(fn ($state) => $state === 'online' ? 'success' : 'gray'),
+                    ->color(fn ($state) => $state === 'online' ? 'success' : 'gray')
+                    ->description(fn (Device $r) => $r->last_seen_at ? 'seen ' . $r->last_seen_at->diffForHumans() : 'never seen'),
                 TextColumn::make('connected_at')->visibleFrom('md')->label('Connected')->since()->placeholder('—')
                     ->getStateUsing(fn (Device $r) => $r->isOnline() ? $r->connected_at : null),
                 TextColumn::make('protocol')->visibleFrom('md')->placeholder('—')->toggleable(),
@@ -35,7 +36,7 @@ class DevicesTable
                     ->placeholder('—')->color('danger')->wrap()->limit(160)
                     ->tooltip(fn (Device $r) => $r->last_error)
                     ->description(fn (Device $r) => $r->last_error_at?->diffForHumans()),
-                TextColumn::make('last_seen_at')->label('Last seen')->since()->placeholder('never'),
+                TextColumn::make('last_seen_at')->visibleFrom('md')->label('Last seen')->since()->placeholder('never'),
                 TextColumn::make('revoked_at')->visibleFrom('md')->label('Status')
                     ->badge()
                     ->formatStateUsing(fn ($state) => $state ? 'Revoked' : 'Active')

@@ -12,9 +12,10 @@ class PeersTable
     {
         return $table
             ->columns([
-                TextColumn::make('subscription.user.email')->label('Customer')->searchable(),
+                TextColumn::make('subscription.user.email')->label('Customer')->searchable()
+                    ->description(fn (\App\Models\Peer $r) => $r->protocol . ' · ' . ($r->node?->name ?? '')),
                 TextColumn::make('node.name')->visibleFrom('md')->label('Node')->badge(),
-                TextColumn::make('protocol')->badge()->color('gray'),
+                TextColumn::make('protocol')->visibleFrom('md')->badge()->color('gray'),
                 TextColumn::make('status')->badge()
                     ->color(fn ($state) => $state === 'active' ? 'success' : 'gray'),
                 TextColumn::make('bytes_down')->visibleFrom('md')->label('Down')

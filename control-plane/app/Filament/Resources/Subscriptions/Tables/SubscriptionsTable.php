@@ -23,18 +23,21 @@ class SubscriptionsTable
             ->columns([
                 TextColumn::make('user.email')
                     ->label('Customer')
-                    ->description(fn (Subscription $r) => $r->user?->phone)
+                    ->description(fn (Subscription $r) => $r->plan_code . ($r->user?->phone ? ' · ' . $r->user->phone : ''))
                     ->searchable(),
                 TextColumn::make('plan_code')->visibleFrom('md')->label('Plan')->badge(),
                 TextColumn::make('status')
                     ->badge()
+                    ->description(fn (Subscription $r) => $r->expires_at
+                        ? ($r->expires_at->isPast() ? 'ended ' : 'ends ') . $r->expires_at->diffForHumans()
+                        : null)
                     ->color(fn ($state) => match ($state) {
                         'active' => 'success',
                         'pending' => 'gray',
                         'suspended' => 'danger',
                         default => 'warning',
                     }),
-                TextColumn::make('expires_at')
+                TextColumn::make('expires_at')->visibleFrom('md')
                     ->label('Expires')
                     ->dateTime('d M Y')
                     ->description(fn (Subscription $r) => $r->expires_at
