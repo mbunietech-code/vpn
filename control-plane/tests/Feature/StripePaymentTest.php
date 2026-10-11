@@ -81,13 +81,31 @@ class StripePaymentTest extends TestCase
         ];
     }
 
-    public function test_checkout_offers_alipay_and_wechat_for_cny(): void
+    public function test_wechat_pay_only_when_switched_on_in_settings(): void
+    {
+        config(['services.stripe.methods' => 'alipay, wechat_pay ,card']);
+        $this->checkout(User::factory()->create());
+
+        Http::assertSent(fn ($r) => ($r->data()['payment_method_types[1]'] ?? null) === 'wechat_pay'
+            && ($r->data()['payment_method_options[wechat_pay][client]'] ?? null) === 'web');
+    }
+
+    public function test_usd_checkout_is_card_only(): void
+    {
+        $this->checkout(User::factory()->create(), 'usd');
+
+        Http::assertSent(fn ($r) => ($r->data()['payment_method_types[0]'] ?? null) === 'card'
+            && ! isset($r->data()['payment_method_types[1]']));
+    }
+
+    public function test_checkout_offers_alipay_and_card_for_cny_by_default(): void
     {
         $this->checkout(User::factory()->create());
 
         Http::assertSent(fn ($r) => str_contains($r->url(), 'checkout/sessions')
             && ($r->data()['payment_method_types[0]'] ?? null) === 'alipay'
-            && ($r->data()['payment_method_types[1]'] ?? null) === 'wechat_pay'
+            && ($r->data()['payment_method_types[1]'] ?? null) === 'card'
+            && ! isset($r->data()['payment_method_types[2]'])
             && ($r->data()['line_items[0][price_data][unit_amount]'] ?? null) == 5500
             && ($r->data()['line_items[0][price_data][currency]'] ?? null) === 'cny');
     }

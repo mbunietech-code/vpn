@@ -39,6 +39,10 @@ return [
         'key' => env('STRIPE_KEY'),
         'secret' => env('STRIPE_SECRET'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        // Methods offered on Stripe Checkout, in order. WeChat Pay only works on
+        // Stripe accounts in some countries (not Malaysia) - add it only if the
+        // Dashboard shows it as available, or Checkout refuses the whole session.
+        'methods' => env('STRIPE_METHODS', 'alipay,card'),
     ],
 
     'cryptomus' => [

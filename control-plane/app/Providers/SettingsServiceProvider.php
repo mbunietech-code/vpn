@@ -27,6 +27,7 @@ class SettingsServiceProvider extends ServiceProvider
         'stripe_key' => 'services.stripe.key',
         'stripe_secret' => 'services.stripe.secret',
         'stripe_webhook_secret' => 'services.stripe.webhook_secret',
+        'stripe_methods' => 'services.stripe.methods',
         'cryptomus_merchant_id' => 'services.cryptomus.merchant_id',
         'cryptomus_payment_key' => 'services.cryptomus.payment_key',
         'clickpesa_client_id' => 'services.clickpesa.client_id',

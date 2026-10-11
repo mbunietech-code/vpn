@@ -23,6 +23,7 @@ class SettingsSeeder extends Seeder
             ['payments', 'stripe_key', 'Stripe publishable key', false],
             ['payments', 'stripe_secret', 'Stripe secret key', true],
             ['payments', 'stripe_webhook_secret', 'Stripe webhook signing secret', true],
+            ['payments', 'stripe_methods', 'Stripe payment methods, comma separated (default: alipay,card; add wechat_pay only if your Stripe country supports it)', false],
             ['payments', 'cryptomus_merchant_id', 'Cryptomus merchant ID', false],
             ['payments', 'cryptomus_payment_key', 'Cryptomus payment key', true],
             ['payments', 'clickpesa_client_id', 'ClickPesa client-id', false],

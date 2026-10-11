@@ -33,9 +33,7 @@ class StripeGateway implements PaymentGateway
 
     public function createCheckout(Invoice $invoice): array
     {
-        $methods = $invoice->currency === 'cny'
-            ? ['alipay', 'wechat_pay', 'card']
-            : ['card', 'alipay'];
+        $methods = $this->methods($invoice->currency);
 
         $payload = [
             'mode' => 'payment',
@@ -65,6 +63,25 @@ class StripeGateway implements PaymentGateway
             ->json();
 
         return ['pay_url' => $resp['url'], 'provider_ref' => $resp['id']];
+    }
+
+    /**
+     * Methods from settings, minus ones Stripe can't take in this currency:
+     * WeChat Pay is CNY-only here; Alipay takes CNY or the account's local
+     * currency, so outside CNY only card is safe.
+     */
+    private function methods(string $currency): array
+    {
+        $wanted = collect(explode(',', (string) config('services.stripe.methods', 'alipay,card')))
+            ->map(fn ($m) => strtolower(trim($m)))
+            ->filter(fn ($m) => in_array($m, ['alipay', 'wechat_pay', 'card'], true))
+            ->unique()->values();
+
+        if ($currency !== 'cny') {
+            $wanted = $wanted->intersect(['card'])->values();
+        }
+
+        return $wanted->isEmpty() ? ['card'] : $wanted->all();
     }
 
     public function verifySignature(Request $request): bool
