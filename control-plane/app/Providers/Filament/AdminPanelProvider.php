@@ -66,9 +66,12 @@ class AdminPanelProvider extends PanelProvider
                         .fi-ta-cell { padding-left: .75rem; padding-right: .5rem; }
                         /* Only the first column (customer/name) wraps, with a
                            readable minimum width; numbers and dates stay intact. */
-                        .fi-ta-row .fi-ta-cell:first-child { min-width: 9.5rem; }
+                        .fi-ta-row .fi-ta-cell:first-child { min-width: 9.5rem; max-width: 13.5rem; }
+                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-col,
+                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-text,
                         .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item,
-                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item-label {
+                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item-label,
+                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-description {
                             white-space: normal;
                             overflow-wrap: anywhere;
                         }
