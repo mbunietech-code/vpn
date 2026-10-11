@@ -14,8 +14,8 @@ class NodesTable
         return $table
             ->columns([
                 TextColumn::make('name')->weight('bold')->searchable(),
-                TextColumn::make('region')->badge(),
-                TextColumn::make('public_host')->color('gray')->copyable(),
+                TextColumn::make('region')->visibleFrom('md')->badge(),
+                TextColumn::make('public_host')->visibleFrom('md')->color('gray')->copyable(),
                 TextColumn::make('status')
                     ->badge()
                     ->color(fn ($s) => match ($s) {
@@ -24,16 +24,16 @@ class NodesTable
                         'provisioning' => 'info',
                         default => 'danger',
                     }),
-                TextColumn::make('peers_count')
+                TextColumn::make('peers_count')->visibleFrom('md')
                     ->label('Peers')
                     ->counts('peers'),
-                TextColumn::make('priority')
+                TextColumn::make('priority')->visibleFrom('md')
                     ->label('Priority')
                     ->sortable()
                     ->badge()
                     ->color('gray'),
-                TextColumn::make('peer_version')->label('v')->badge()->color('gray'),
-                TextColumn::make('last_health_at')
+                TextColumn::make('peer_version')->visibleFrom('md')->label('v')->badge()->color('gray'),
+                TextColumn::make('last_health_at')->visibleFrom('md')
                     ->label('Health')
                     ->since()
                     ->placeholder('never')

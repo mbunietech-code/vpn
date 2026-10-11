@@ -21,10 +21,10 @@ class AlertsTable
                     ->color(fn ($s) => match ($s) {
                         'critical' => 'danger', 'warn' => 'warning', default => 'gray',
                     }),
-                TextColumn::make('source')->badge()->color('gray'),
+                TextColumn::make('source')->visibleFrom('md')->badge()->color('gray'),
                 TextColumn::make('title')->wrap()->searchable(),
-                TextColumn::make('ai_summary')->label('AI')->wrap()->placeholder('—')->toggleable(),
-                TextColumn::make('acknowledged_at')->label('Resolved')
+                TextColumn::make('ai_summary')->visibleFrom('md')->label('AI')->wrap()->placeholder('—')->toggleable(),
+                TextColumn::make('acknowledged_at')->visibleFrom('md')->label('Resolved')
                     ->since()->placeholder('—')
                     ->badge()->color(fn ($s) => $s ? 'success' : 'danger'),
                 TextColumn::make('created_at')->since(),

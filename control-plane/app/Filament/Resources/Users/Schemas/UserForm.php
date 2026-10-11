@@ -19,13 +19,18 @@ class UserForm
                     ->email(),
                 TextInput::make('phone')
                     ->tel(),
-                DateTimePicker::make('email_verified_at'),
-                DateTimePicker::make('phone_verified_at'),
+                DateTimePicker::make('email_verified_at')->disabled()->dehydrated(false),
+                DateTimePicker::make('phone_verified_at')->disabled()->dehydrated(false),
                 TextInput::make('password')
-                    ->password(),
+                    ->password()
+                    ->revealable()
+                    ->autocomplete('new-password')
+                    // Only change it when something is typed; empty keeps the current one.
+                    ->dehydrated(fn ($state) => filled($state))
+                    ->helperText('Leave empty to keep the current password. Only admins need one.'),
                 Toggle::make('is_admin')
                     ->required(),
-                TextInput::make('status')
+                TextInput::make('status')->disabled()->dehydrated(false)
                     ->required()
                     ->default('active'),
                 TextInput::make('locale')
@@ -34,7 +39,7 @@ class UserForm
                 TextInput::make('preferred_currency')
                     ->required()
                     ->default('usd'),
-                TextInput::make('signup_ip'),
+                TextInput::make('signup_ip')->disabled()->dehydrated(false),
             ]);
     }
 }

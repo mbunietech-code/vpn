@@ -14,24 +14,24 @@ class AlertForm
     {
         return $schema
             ->components([
-                TextInput::make('severity')
+                TextInput::make('severity')->disabled()->dehydrated(false)
                     ->required(),
-                TextInput::make('source')
+                TextInput::make('source')->disabled()->dehydrated(false)
                     ->required(),
-                TextInput::make('title')
+                TextInput::make('title')->disabled()->dehydrated(false)
                     ->required(),
-                Textarea::make('body')
+                Textarea::make('body')->disabled()->dehydrated(false)
                     ->columnSpanFull(),
-                Textarea::make('ai_summary')
+                Textarea::make('ai_summary')->disabled()->dehydrated(false)
                     ->columnSpanFull(),
-                Textarea::make('ai_action')
+                Textarea::make('ai_action')->disabled()->dehydrated(false)
                     ->columnSpanFull(),
-                Textarea::make('context')
+                Textarea::make('context')->disabled()->dehydrated(false)
                     ->columnSpanFull(),
-                Select::make('node_id')
+                Select::make('node_id')->disabled()->dehydrated(false)
                     ->relationship('node', 'name'),
-                DateTimePicker::make('acknowledged_at'),
-                TextInput::make('acknowledged_by'),
+                DateTimePicker::make('acknowledged_at')->disabled()->dehydrated(false),
+                TextInput::make('acknowledged_by')->disabled()->dehydrated(false),
             ]);
     }
 }

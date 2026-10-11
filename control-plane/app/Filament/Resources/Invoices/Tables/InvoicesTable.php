@@ -20,15 +20,15 @@ class InvoicesTable
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('id')->label('#')->sortable(),
+                TextColumn::make('id')->visibleFrom('md')->label('#')->sortable(),
                 TextColumn::make('user.email')
                     ->description(fn (Invoice $r) => $r->user?->phone)
                     ->searchable(),
-                TextColumn::make('plan_code')->badge(),
-                TextColumn::make('provider')
+                TextColumn::make('plan_code')->visibleFrom('md')->badge(),
+                TextColumn::make('provider')->visibleFrom('md')
                     ->badge()
                     ->color(fn ($state) => $state === 'manual' ? 'warning' : 'gray'),
-                TextColumn::make('payment_method')->toggleable(),
+                TextColumn::make('payment_method')->visibleFrom('md')->toggleable(),
                 TextColumn::make('amount_cents')
                     ->label('Amount')
                     ->formatStateUsing(fn ($state, Invoice $r) => number_format($state / 100, 2) . ' ' . strtoupper($r->currency)),
@@ -41,12 +41,12 @@ class InvoicesTable
                         'refunded' => 'info',
                         default => 'danger',
                     }),
-                IconColumn::make('proof_path')
+                IconColumn::make('proof_path')->visibleFrom('md')
                     ->label('Proof')
                     ->boolean()
                     ->state(fn (Invoice $r) => (bool) $r->proof_path),
-                TextColumn::make('created_at')->since()->sortable(),
-                TextColumn::make('paid_at')->dateTime()->toggleable()->sortable(),
+                TextColumn::make('created_at')->visibleFrom('md')->since()->sortable(),
+                TextColumn::make('paid_at')->visibleFrom('md')->dateTime()->toggleable()->sortable(),
             ])
             ->filters([
                 SelectFilter::make('status')->options([

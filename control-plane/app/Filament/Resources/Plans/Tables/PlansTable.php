@@ -17,13 +17,18 @@ class PlansTable
             ->reorderable('sort')
             ->columns([
                 TextColumn::make('name')->weight('bold'),
-                TextColumn::make('code')->badge()->color('gray'),
-                TextColumn::make('days')->label('Days')->suffix(' d'),
-                TextColumn::make('max_devices')->label('Devices'),
-                TextColumn::make('price_cny_cents')->label('CNY')
+                TextColumn::make('code')->visibleFrom('md')->badge()->color('gray'),
+                TextColumn::make('days')->visibleFrom('md')->label('Days')->suffix(' d'),
+                TextColumn::make('max_devices')->visibleFrom('md')->label('Devices'),
+                TextColumn::make('price_cny_cents')->visibleFrom('md')->label('CNY')
                     ->formatStateUsing(fn ($s) => '¥' . number_format($s / 100, $s % 100 ? 2 : 0)),
                 TextColumn::make('price_usd_cents')->label('USD')
                     ->formatStateUsing(fn ($s) => '$' . number_format($s / 100, 2)),
+                // Shown on phones too: EduHub can only sell plans that have a TZS price.
+                TextColumn::make('price_tzs_cents')->label('TZS')
+                    ->formatStateUsing(fn ($s) => $s > 0 ? 'TSh ' . number_format($s / 100) : '—')
+                    ->color(fn ($s) => $s > 0 ? null : 'danger')
+                    ->tooltip(fn ($s) => $s > 0 ? null : 'No TZS price — cannot be sold through MbunieHub'),
                 IconColumn::make('is_active')->boolean(),
             ])
             ->recordActions([EditAction::make()]);

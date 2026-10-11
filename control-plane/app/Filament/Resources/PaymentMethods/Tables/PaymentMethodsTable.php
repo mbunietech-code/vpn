@@ -16,13 +16,13 @@ class PaymentMethodsTable
         return $table
             ->defaultSort('sort')
             ->columns([
-                ImageColumn::make('qr_path')->label('QR')->disk('public')->height(44),
+                ImageColumn::make('qr_path')->visibleFrom('md')->label('QR')->disk('public')->height(44),
                 TextColumn::make('label')->searchable(),
-                TextColumn::make('type')->badge(),
-                TextColumn::make('currency')->badge()->placeholder('any'),
-                TextColumn::make('account_ref')->limit(24)->toggleable(),
+                TextColumn::make('type')->visibleFrom('md')->badge(),
+                TextColumn::make('currency')->visibleFrom('md')->badge()->placeholder('any'),
+                TextColumn::make('account_ref')->visibleFrom('md')->limit(24)->toggleable(),
                 IconColumn::make('is_active')->boolean(),
-                TextColumn::make('sort')->sortable(),
+                TextColumn::make('sort')->visibleFrom('md')->sortable(),
             ])
             ->recordActions([EditAction::make(), DeleteAction::make()]);
     }

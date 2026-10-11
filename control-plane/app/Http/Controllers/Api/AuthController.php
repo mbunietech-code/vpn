@@ -88,6 +88,14 @@ class AuthController extends Controller
             ($channel === 'email' ? 'email_verified_at' : 'phone_verified_at') => now(),
         ])->save();
 
+        // A suspended customer can't sign back in (admin "Suspend customer").
+        if (($user->refresh()->status ?? 'active') !== 'active') {
+            return response()->json([
+                'error' => 'account_suspended',
+                'message' => 'This account is suspended. Contact support@mbuniehub.com.',
+            ], 403);
+        }
+
         $token = $user->createToken($data['device_name'] ?? 'mvpn-app')->plainTextToken;
 
         return response()->json([

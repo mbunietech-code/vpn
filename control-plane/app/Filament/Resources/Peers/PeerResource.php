@@ -45,7 +45,6 @@ class PeerResource extends Resource
     {
         return [
             'index' => ListPeers::route('/'),
-            'create' => CreatePeer::route('/create'),
             'edit' => EditPeer::route('/{record}/edit'),
         ];
     }
