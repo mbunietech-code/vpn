@@ -21,7 +21,6 @@ class UsersTable
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('id')->visibleFrom('md')->label('#'),
                 TextColumn::make('email')->label('Customer')->searchable()->placeholder('—')
                     ->description(fn (User $r) => $r->phone),
                 TextColumn::make('phone')->visibleFrom('md')->searchable()->placeholder('—'),
