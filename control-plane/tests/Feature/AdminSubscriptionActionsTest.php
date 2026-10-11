@@ -124,6 +124,24 @@ class AdminSubscriptionActionsTest extends TestCase
         $this->assertSame('paid', $invoice->status);
     }
 
+    public function test_approve_manual_payment_from_the_invoices_menu(): void
+    {
+        $cust = $this->customer();
+        $invoice = \App\Models\Invoice::create([
+            'user_id' => $cust->id, 'plan_code' => 'm1', 'provider' => 'manual',
+            'currency' => 'tzs', 'amount_cents' => 2000000, 'status' => 'pending_review',
+            'idempotency_key' => (string) Str::uuid(),
+        ]);
+
+        Livewire::test(\App\Filament\Resources\Invoices\Pages\ListInvoices::class)
+            ->assertSee('TZS 20,000 · m1')
+            ->callTableAction('approve', $invoice, ['note' => 'paid by M-Pesa'])
+            ->assertHasNoTableActionErrors();
+
+        $this->assertSame('paid', $invoice->fresh()->status);
+        $this->assertNotNull($cust->activeSubscription());
+    }
+
     public function test_raw_create_pages_are_gone(): void
     {
         $this->get('/admin/subscriptions/create')->assertNotFound();
