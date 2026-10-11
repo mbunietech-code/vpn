@@ -20,7 +20,7 @@ class SubscriptionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCheckBadge;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Uendeshaji';
+    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
 
     protected static ?int $navigationSort = 20;
 

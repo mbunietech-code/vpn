@@ -42,7 +42,7 @@ class AuthController extends Controller
         ] as [$rlKey, $max, $decay]) {
             if (RateLimiter::tooManyAttempts($rlKey, $max)) {
                 throw ValidationException::withMessages([
-                    'identifier' => 'Umeomba nambari mara nyingi. Subiri kidoga.',
+                    'identifier' => 'Too many code requests. Please wait a moment and try again.',
                 ]);
             }
             RateLimiter::hit($rlKey, $decay);

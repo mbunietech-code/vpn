@@ -48,14 +48,14 @@ class OpenAlerts extends TableWidget
             ])
             ->recordActions([
                 Action::make('ack')
-                    ->label('Nimeshughulikia')
+                    ->label('Mark resolved')
                     ->icon('heroicon-m-check')
                     ->action(function (Alert $r) {
                         $r->update([
                             'acknowledged_at' => now(),
                             'acknowledged_by' => 'admin:' . auth()->id(),
                         ]);
-                        Notification::make()->success()->title('Imefungwa')->send();
+                        Notification::make()->success()->title('Resolved')->send();
                     }),
             ])
             ->paginated(false);

@@ -20,7 +20,7 @@ class AlertResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBellAlert;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Miundombinu';
+    protected static string|\UnitEnum|null $navigationGroup = 'Infrastructure';
 
     protected static ?int $navigationSort = 30;
 

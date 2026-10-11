@@ -18,7 +18,7 @@ class PendingApprovals extends TableWidget
 
     protected static ?int $sort = 2;
 
-    protected static ?string $heading = 'Malipo yanayosubiri idhini';
+    protected static ?string $heading = 'Payments awaiting approval';
 
     protected int|string|array $columnSpan = 'full';
 
@@ -39,23 +39,23 @@ class PendingApprovals extends TableWidget
             )
             ->columns([
                 TextColumn::make('user.email')
-                    ->label('Mtumiaji')
+                    ->label('Customer')
                     ->description(fn (Invoice $r) => $r->user?->phone),
-                TextColumn::make('plan_code')->label('Kifurushi')->badge(),
-                TextColumn::make('payment_method')->label('Njia')->placeholder('—'),
+                TextColumn::make('plan_code')->label('Plan')->badge(),
+                TextColumn::make('payment_method')->label('Method')->placeholder('—'),
                 TextColumn::make('amount_cents')
-                    ->label('Kiasi')
+                    ->label('Amount')
                     ->formatStateUsing(fn ($s, Invoice $r) => number_format($s / 100, 2) . ' ' . strtoupper($r->currency)),
                 TextColumn::make('proof_path')
                     ->label('Proof')
                     ->badge()
                     ->formatStateUsing(fn ($s) => $s ? 'Ipo' : 'Haipo')
                     ->color(fn ($s) => $s ? 'success' : 'gray'),
-                TextColumn::make('created_at')->label('Muda')->since(),
+                TextColumn::make('created_at')->label('Time')->since(),
             ])
             ->recordActions([
                 Action::make('proof')
-                    ->label('Angalia proof')
+                    ->label('View proof')
                     ->icon('heroicon-m-photo')
                     ->color('gray')
                     ->visible(fn (Invoice $r) => (bool) $r->proof_path)
@@ -66,23 +66,23 @@ class PendingApprovals extends TableWidget
                     ->modalSubmitAction(false),
 
                 Action::make('approve')
-                    ->label('Idhinisha')
+                    ->label('Approve')
                     ->icon('heroicon-m-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
                     ->action(function (Invoice $r) {
                         app(ManualPaymentService::class)->approve($r, 'admin:' . auth()->id());
-                        Notification::make()->success()->title('Subscription imeanzishwa')->send();
+                        Notification::make()->success()->title('Subscription activated')->send();
                     }),
 
                 Action::make('reject')
-                    ->label('Kataa')
+                    ->label('Reject')
                     ->icon('heroicon-m-x-circle')
                     ->color('danger')
-                    ->form([Textarea::make('reason')->label('Sababu')->required()])
+                    ->form([Textarea::make('reason')->label('Reason')->required()])
                     ->action(function (Invoice $r, array $data) {
                         app(ManualPaymentService::class)->reject($r, 'admin:' . auth()->id(), $data['reason']);
-                        Notification::make()->warning()->title('Imekataliwa')->send();
+                        Notification::make()->warning()->title('Rejected')->send();
                     }),
             ])
             ->paginated(false);

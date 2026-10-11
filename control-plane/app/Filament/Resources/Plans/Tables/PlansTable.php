@@ -18,8 +18,8 @@ class PlansTable
             ->columns([
                 TextColumn::make('name')->weight('bold'),
                 TextColumn::make('code')->badge()->color('gray'),
-                TextColumn::make('days')->label('Siku')->suffix(' d'),
-                TextColumn::make('max_devices')->label('Vifaa'),
+                TextColumn::make('days')->label('Days')->suffix(' d'),
+                TextColumn::make('max_devices')->label('Devices'),
                 TextColumn::make('price_cny_cents')->label('CNY')
                     ->formatStateUsing(fn ($s) => '¥' . number_format($s / 100, $s % 100 ? 2 : 0)),
                 TextColumn::make('price_usd_cents')->label('USD')

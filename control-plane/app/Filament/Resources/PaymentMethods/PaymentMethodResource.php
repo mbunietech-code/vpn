@@ -22,7 +22,7 @@ class PaymentMethodResource extends Resource
 
     protected static ?string $navigationLabel = 'Payment Methods';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Usanidi';
+    protected static string|\UnitEnum|null $navigationGroup = 'Configuration';
 
     protected static ?int $navigationSort = 20;
 

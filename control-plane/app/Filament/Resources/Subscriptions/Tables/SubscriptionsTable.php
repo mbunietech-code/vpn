@@ -30,7 +30,7 @@ class SubscriptionsTable
                         default => 'warning',
                     }),
                 TextColumn::make('expires_at')
-                    ->label('Inaisha')
+                    ->label('Expires')
                     ->dateTime('d M Y')
                     ->description(fn (Subscription $r) => $r->expires_at
                         ? $r->expires_at->diffForHumans()
@@ -38,7 +38,7 @@ class SubscriptionsTable
                     ->color(fn (Subscription $r) => $r->expires_at && $r->expires_at->isBefore(now()->addDays(3))
                         ? 'warning' : null)
                     ->sortable(),
-                TextColumn::make('devices_count')->label('Vifaa')->counts('devices'),
+                TextColumn::make('devices_count')->label('Devices')->counts('devices'),
                 TextColumn::make('data_used_mb')->label('Data')
                     ->formatStateUsing(fn ($s) => number_format($s) . ' MB'),
             ])
@@ -57,7 +57,7 @@ class SubscriptionsTable
                     ->color('gray')
                     ->visible(fn (Subscription $r) => $r->isActive())
                     ->modalHeading('Subscription link')
-                    ->modalDescription('Nakili na uiimport kwenye Hiddify (Add profile → clipboard). Ni siri ya mtumiaji huyu.')
+                    ->modalDescription('Copy it into a compatible client (Add profile → from clipboard). This link is private to this customer.')
                     ->modalContent(function (Subscription $r) {
                         $link = url("/sub/{$r->sub_token}");
                         // chillerlan/php-qrcode ships with Filament's 2FA deps.

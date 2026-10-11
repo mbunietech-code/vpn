@@ -19,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Everything (admin, emails, API messages) is English — owner's decision
+        // 2026-10-11 — regardless of an older APP_LOCALE=sw left in .env.
+        config(['app.locale' => 'en']);
+        $this->app->setLocale('en');
     }
 }

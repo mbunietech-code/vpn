@@ -17,7 +17,7 @@ class SettingForm
                 ->password(fn ($record) => (bool) $record?->is_secret)
                 ->revealable(fn ($record) => (bool) $record?->is_secret)
                 ->autocomplete(false)
-                ->helperText('Huhifadhiwa encrypted. Wacha tupu kutumia thamani ya .env.'),
+                ->helperText('Stored encrypted. Leave empty to use the .env value.'),
         ]);
     }
 }

@@ -20,7 +20,7 @@ class PeerResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Miundombinu';
+    protected static string|\UnitEnum|null $navigationGroup = 'Infrastructure';
 
     protected static ?int $navigationSort = 20;
 

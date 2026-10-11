@@ -23,11 +23,11 @@ class PaymentMethodForm
                     'other' => 'Other',
                 ])->required(),
             TextInput::make('label')
-                ->helperText('Inavyoonekana kwa mtumiaji, mfano "Alipay (¥)"')
+                ->helperText('Shown to the customer, e.g. "Alipay (¥)"')
                 ->required(),
             Select::make('currency')
                 ->options(['cny' => 'CNY (¥)', 'usd' => 'USD ($)'])
-                ->placeholder('Yoyote'),
+                ->placeholder('Any'),
             FileUpload::make('qr_path')
                 ->label('QR code image')
                 ->image()
@@ -35,11 +35,11 @@ class PaymentMethodForm
                 ->disk('public')
                 ->imagePreviewHeight('180'),
             TextInput::make('account_ref')
-                ->label('Account / address (maandishi)')
-                ->helperText('Nambari ya akaunti, anwani ya wallet, n.k.'),
+                ->label('Account / address (text)')
+                ->helperText('Account number, wallet address, etc.'),
             Textarea::make('instructions')
                 ->rows(3)
-                ->helperText('Maelekezo ya kulipa. Mfano: "Lipa kiasi kamili, kisha pakia screenshot."'),
+                ->helperText('Payment instructions, e.g. "Pay the exact amount, then upload a screenshot."'),
             Toggle::make('is_active')->default(true),
             TextInput::make('sort')->numeric()->default(0),
         ]);

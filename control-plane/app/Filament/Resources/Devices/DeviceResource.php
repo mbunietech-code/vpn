@@ -20,7 +20,7 @@ class DeviceResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDevicePhoneMobile;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Uendeshaji';
+    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
 
     protected static ?int $navigationSort = 30;
 

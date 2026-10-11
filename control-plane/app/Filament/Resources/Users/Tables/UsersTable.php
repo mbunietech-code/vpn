@@ -22,7 +22,7 @@ class UsersTable
                 TextColumn::make('status')->badge()
                     ->color(fn ($s) => $s === 'active' ? 'success' : 'danger'),
                 TextColumn::make('subscriptions_count')->label('Subs')->counts('subscriptions'),
-                TextColumn::make('created_at')->since()->label('Alijiunga'),
+                TextColumn::make('created_at')->since()->label('Joined'),
             ])
             ->recordActions([EditAction::make()]);
     }

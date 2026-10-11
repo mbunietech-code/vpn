@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sw">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -19,10 +19,10 @@
 <body>
 <div class="wrap">
   <h1>{{ $title }}</h1>
-  <p class="muted">Mbunie VPN · Mbunie Tech · imesasishwa {{ date('Y-m-d') }}</p>
+  <p class="muted">Mbunie VPN · Mbunie Tech · updated {{ date('Y-m-d') }}</p>
   {{ $slot }}
   <p class="muted" style="margin-top:40px">
-    Maswali: <a href="mailto:support@mbuniehub.com">support@mbuniehub.com</a>
+    Questions: <a href="mailto:support@mbuniehub.com">support@mbuniehub.com</a>
   </p>
 </div>
 </body>

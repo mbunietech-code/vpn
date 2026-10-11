@@ -44,36 +44,36 @@ class OverviewStats extends StatsOverviewWidget
             ->whereBetween('expires_at', [now(), now()->addDays(3)])->count();
 
         return [
-            Stat::make('Subscriptions hai', (string) $active)
-                ->description($expiringSoon > 0 ? "$expiringSoon zinaisha ndani ya siku 3" : 'Zote sawa')
+            Stat::make('Active subscriptions', (string) $active)
+                ->description($expiringSoon > 0 ? "$expiringSoon expire within 3 days" : 'All good')
                 ->descriptionIcon($expiringSoon > 0 ? 'heroicon-m-clock' : 'heroicon-m-check-circle')
                 ->color($expiringSoon > 0 ? 'warning' : 'success'),
 
-            Stat::make('Wanaotumia VPN sasa', (string) $onlineNow)
-                ->description($onlineNow > 0 ? "Vifaa $onlineNow · wateja $onlineUsers" : 'Hakuna aliyeconnect')
+            Stat::make('Using the VPN now', (string) $onlineNow)
+                ->description($onlineNow > 0 ? "$onlineNow devices · $onlineUsers customers" : 'Nobody connected')
                 ->descriptionIcon('heroicon-m-signal')
                 ->color($onlineNow > 0 ? 'success' : 'gray')
                 ->url(\App\Filament\Resources\Devices\DeviceResource::getUrl()),
 
-            Stat::make('Malipo yanayosubiri', (string) $pending)
-                ->description($pending > 0 ? 'Yanahitaji idhini yako' : 'Hakuna')
+            Stat::make('Pending payments', (string) $pending)
+                ->description($pending > 0 ? 'Need your approval' : 'None')
                 ->descriptionIcon('heroicon-m-inbox-arrow-down')
                 ->color($pending > 0 ? 'danger' : 'gray'),
 
-            Stat::make('Mapato (mwezi huu)', '$' . number_format($revenueCents / 100, 0))
-                ->description('Makadirio ya USD')
+            Stat::make('Revenue (this month)', '$' . number_format($revenueCents / 100, 0))
+                ->description('Approximate, in USD')
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success'),
 
-            Stat::make('Cron (scheduler)', $schedulerOk ? 'Inafanya kazi' : 'Haifanyi kazi!')
+            Stat::make('Cron (scheduler)', $schedulerOk ? 'Running' : 'Not running!')
                 ->description($lastRun
-                    ? 'Mwisho: ' . \Illuminate\Support\Carbon::parse($lastRun)->diffForHumans()
-                    : 'Haijawahi kuendeshwa — weka cron kwenye hPanel')
+                    ? 'Last run ' . \Illuminate\Support\Carbon::parse($lastRun)->diffForHumans()
+                    : 'Never ran — add the cron job in hPanel')
                 ->descriptionIcon($schedulerOk ? 'heroicon-m-check-circle' : 'heroicon-m-exclamation-triangle')
                 ->color($schedulerOk ? 'success' : 'danger'),
 
             Stat::make('Nodes online', "$nodesOnline / $nodesTotal")
-                ->description($nodesOnline < $nodesTotal ? 'Kuna node chini!' : 'Zote hai')
+                ->description($nodesOnline < $nodesTotal ? 'A node is down!' : 'All up')
                 ->descriptionIcon($nodesOnline < $nodesTotal ? 'heroicon-m-exclamation-triangle' : 'heroicon-m-server')
                 ->color($nodesOnline < $nodesTotal ? 'danger' : 'success'),
         ];

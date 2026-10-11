@@ -24,17 +24,17 @@ class AlertsTable
                 TextColumn::make('source')->badge()->color('gray'),
                 TextColumn::make('title')->wrap()->searchable(),
                 TextColumn::make('ai_summary')->label('AI')->wrap()->placeholder('—')->toggleable(),
-                TextColumn::make('acknowledged_at')->label('Imefungwa')
+                TextColumn::make('acknowledged_at')->label('Resolved')
                     ->since()->placeholder('—')
                     ->badge()->color(fn ($s) => $s ? 'success' : 'danger'),
                 TextColumn::make('created_at')->since(),
             ])
             ->filters([
                 TernaryFilter::make('acknowledged_at')
-                    ->label('Hazijafungwa')
+                    ->label('Open')
                     ->nullable()
-                    ->trueLabel('Zote')
-                    ->falseLabel('Hazijafungwa tu')
+                    ->trueLabel('All')
+                    ->falseLabel('Open only')
                     ->queries(
                         true: fn ($q) => $q,
                         false: fn ($q) => $q->whereNull('acknowledged_at'),
@@ -43,12 +43,12 @@ class AlertsTable
             ])
             ->recordActions([
                 Action::make('ack')
-                    ->label('Nimeshughulikia')
+                    ->label('Mark resolved')
                     ->icon('heroicon-m-check')
                     ->visible(fn (Alert $r) => $r->acknowledged_at === null)
                     ->action(function (Alert $r) {
                         $r->update(['acknowledged_at' => now(), 'acknowledged_by' => 'admin:' . auth()->id()]);
-                        Notification::make()->success()->title('Imefungwa')->send();
+                        Notification::make()->success()->title('Resolved')->send();
                     }),
                 ViewAction::make(),
             ]);

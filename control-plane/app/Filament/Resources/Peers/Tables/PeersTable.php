@@ -12,7 +12,7 @@ class PeersTable
     {
         return $table
             ->columns([
-                TextColumn::make('subscription.user.email')->label('Mtumiaji')->searchable(),
+                TextColumn::make('subscription.user.email')->label('Customer')->searchable(),
                 TextColumn::make('node.name')->label('Node')->badge(),
                 TextColumn::make('protocol')->badge()->color('gray'),
                 TextColumn::make('status')->badge()

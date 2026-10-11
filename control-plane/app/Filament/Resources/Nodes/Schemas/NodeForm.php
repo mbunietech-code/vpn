@@ -22,7 +22,7 @@ class NodeForm
         return $schema
             ->components([
                 Section::make('Node')
-                    ->description('Unda node hapa, nakili token, kisha endesha install.sh kwenye VPS kwa --node-token hiyo. Vigezo vya protocol vinajazwa na agent yenyewe.')
+                    ->description('Create the node here, copy its token, then run install.sh on the VPS with --node-token. Protocol settings are filled in by the agent.')
                     ->columns(2)
                     ->schema([
                         TextInput::make('name')->required()->placeholder('Kuala Lumpur 1'),
@@ -32,20 +32,20 @@ class NodeForm
                             ->autocomplete('off')
                             ->regex(self::HOST_REGEX)
                             ->placeholder('n1.mbuniehub.com')
-                            ->helperText('DNS A record → IP ya VPS, Cloudflare DNS only (grey).'),
+                            ->helperText('DNS A record → the VPS IP, Cloudflare DNS only (grey cloud).'),
                         // Sits right above the password-type token field, so
                         // browsers autofill the login email here — reject it.
                         TextInput::make('cdn_host')
                             ->autocomplete('off')
                             ->regex(self::HOST_REGEX)
-                            ->placeholder('(hiari)'),
+                            ->placeholder('(optional)'),
                         TextInput::make('api_secret')
                             ->label('Node token')
                             // The token is $hidden on the model, so the edit form
                             // starts empty: blank = keep the current token.
                             ->required(fn (string $operation) => $operation === 'create')
                             ->dehydrated(fn ($state) => filled($state))
-                            ->helperText(fn (string $operation) => $operation === 'edit' ? 'Acha tupu kubaki na token ya sasa.' : null)
+                            ->helperText(fn (string $operation) => $operation === 'edit' ? 'Leave empty to keep the current token.' : null)
                             ->password()
                             // Stop browsers autofilling the admin password here
                             // (that silently replaced the token and 401'd the agent).
@@ -57,23 +57,23 @@ class NodeForm
                                 Action::make('regenerate')
                                     ->icon('heroicon-m-arrow-path')
                                     ->requiresConfirmation()
-                                    ->modalDescription('Token mpya itafanya agent ya sasa ikataliwe hadi install.sh iendeshwe tena kwa token hii.')
+                                    ->modalDescription('A new token locks out the current agent until its agent.env is updated with the new token.')
                                     ->action(fn (Set $set) => $set('api_secret', bin2hex(random_bytes(24))))
                             ),
                         Select::make('status')
                             ->required()
                             ->default('provisioning')
                             ->options(array_combine(Node::STATUSES, Node::STATUSES))
-                            ->helperText('draining/disabled: agent haitabadilisha. Nyingine zinasasishwa na health.'),
+                            ->helperText('draining/disabled are kept as set; other statuses follow the agent health reports.'),
                         TextInput::make('capacity')->required()->numeric()->default(500),
                         TextInput::make('priority')
                             ->required()
                             ->numeric()
                             ->default(100)
-                            ->helperText('Namba ndogo hupewa nafasi ya kwanza kwenye app. Mfano 10 = primary, 100 = backup.'),
+                            ->helperText('Lower numbers are tried first by the app. Example: 10 = primary, 100 = backup.'),
                     ]),
 
-                Section::make('Protocol (inajazwa na agent)')
+                Section::make('Protocol (filled in by the agent)')
                     ->columns(2)
                     ->collapsed(fn (?Node $record) => filled($record?->reality_pubkey))
                     ->schema([
@@ -88,7 +88,7 @@ class NodeForm
                     ]),
 
                 Section::make('OpenVPN fallback')
-                    ->description('Hiari: bandika .ovpn profile hapa ili China Stable/OpenVPN itumike kama fallback.')
+                    ->description('Optional: paste an .ovpn profile so OpenVPN can be used as a fallback.')
                     ->columns(2)
                     ->collapsed(fn (?Node $record) => blank($record?->openvpn_config))
                     ->schema([
@@ -96,22 +96,22 @@ class NodeForm
                             ->label('.ovpn profile')
                             ->rows(10)
                             ->columnSpanFull()
-                            ->helperText('Inasaidia remote/proto pamoja na inline <ca>, <cert>, <key>, <tls-auth>, au <tls-crypt>.'),
+                            ->helperText('Supports remote/proto with inline <ca>, <cert>, <key>, <tls-auth> or <tls-crypt>.'),
                         TextInput::make('openvpn_username')->label('Username')->password()->revealable(),
                         TextInput::make('openvpn_password')->label('Password')->password()->revealable(),
                         TextInput::make('openvpn_server_name')
                             ->label('TLS/SNI name')
                             ->placeholder('asia8.libaivps.pw')
-                            ->helperText('Acha tupu kutumia public_host.'),
+                            ->helperText('Leave empty to use public_host.'),
                     ]),
 
-                Section::make('Hali')
+                Section::make('Status')
                     ->columns(3)
                     ->visibleOn('edit')
                     ->schema([
                         Placeholder::make('last_health_at')
-                            ->label('Health ya mwisho')
-                            ->content(fn (?Node $record) => $record?->last_health_at?->diffForHumans() ?? 'kamwe'),
+                            ->label('Last health report')
+                            ->content(fn (?Node $record) => $record?->last_health_at?->diffForHumans() ?? 'never'),
                         Placeholder::make('agent_version')
                             ->label('Agent')
                             ->content(fn (?Node $record) => $record?->agent_version ?? '—'),

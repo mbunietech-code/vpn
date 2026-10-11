@@ -72,33 +72,33 @@ class InvoicesTable
                     ->modalSubmitAction(false),
 
                 Action::make('approve')
-                    ->label('Idhinisha')
+                    ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
                     ->visible(fn (Invoice $r) => in_array($r->status, ['pending', 'pending_review'], true))
                     ->form([
-                        Textarea::make('note')->label('Note (hiari)')->rows(2),
+                        Textarea::make('note')->label('Note (optional)')->rows(2),
                     ])
                     ->action(function (Invoice $r, array $data) {
                         app(ManualPaymentService::class)->approve(
                             $r, 'admin:' . auth()->id(), $data['note'] ?? null);
                         Notification::make()->success()
-                            ->title('Imeidhinishwa — subscription imeanzishwa')->send();
+                            ->title('Approved — subscription activated')->send();
                     }),
 
                 Action::make('reject')
-                    ->label('Kataa')
+                    ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->visible(fn (Invoice $r) => in_array($r->status, ['pending', 'pending_review'], true))
                     ->form([
-                        Textarea::make('reason')->label('Sababu')->required()->rows(2),
+                        Textarea::make('reason')->label('Reason')->required()->rows(2),
                     ])
                     ->action(function (Invoice $r, array $data) {
                         app(ManualPaymentService::class)->reject(
                             $r, 'admin:' . auth()->id(), $data['reason']);
-                        Notification::make()->warning()->title('Imekataliwa')->send();
+                        Notification::make()->warning()->title('Rejected')->send();
                     }),
 
                 ViewAction::make(),

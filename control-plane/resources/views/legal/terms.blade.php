@@ -1,33 +1,32 @@
-<x-legal.layout title="Masharti ya Huduma / Terms of Service">
-  <p><strong>Rasimu — mmiliki lazima aipitie na mwanasheria kabla ya kutoa hadharani.</strong></p>
+<x-legal.layout title="Terms of Service">
+  <p><strong>Draft — the owner must review this with a lawyer before relying on it.</strong></p>
 
-  <h2>1. Huduma</h2>
-  <p>Mbunie VPN hutoa muunganisho wa VPN uliosimbwa kwa vifaa vyako. Huduma
-  inatolewa "kama ilivyo" kwa msingi wa kifurushi unacholipia.</p>
+  <h2>1. The service</h2>
+  <p>Mbunie VPN provides an encrypted VPN connection for your devices. The service
+  is provided "as is" for the plan you pay for.</p>
 
-  <h2>2. Matumizi yanayokubalika</h2>
-  <p>Hutaruhusiwa kutumia huduma kwa: uhalifu wa mtandao, kutuma spam, kushambulia
-  mifumo mingine (DoS/hacking), au shughuli zisizo halali chini ya sheria
-  zinazohusika. Akaunti zinazokiuka zitasimamishwa bila marejesho.</p>
+  <h2>2. Acceptable use</h2>
+  <p>You may not use the service for cybercrime, sending spam, attacking other
+  systems (DoS/hacking) or any activity that is illegal under the applicable law.
+  Accounts that break these rules will be suspended without a refund.</p>
 
-  <h2>3. Malipo na marejesho</h2>
-  <p>Malipo yanachakatwa na watoa-huduma wa nje (Stripe, Cryptomus). Kifurushi
-  huanza mara malipo yanapothibitishwa. Marejesho: [ELEZEA SERA YAKO — mfano:
-  hakuna marejesho baada ya kuanza matumizi, isipokuwa hitilafu ya kiufundi
-  isiyoweza kutatuliwa ndani ya siku 3].</p>
+  <h2>3. Payments and refunds</h2>
+  <p>Payments are processed by third-party providers. A plan starts as soon as the
+  payment is confirmed. Refunds: [DESCRIBE YOUR POLICY — e.g. no refunds once the
+  plan is in use, except for a technical fault we cannot fix within 3 days].</p>
 
-  <h2>4. Vikwazo vya vifaa</h2>
-  <p>Kila kifurushi kina idadi ya juu ya vifaa vinavyoweza kuunganishwa kwa wakati
-  mmoja, kama ilivyoainishwa kwenye app.</p>
+  <h2>4. Device limits</h2>
+  <p>Each plan has a maximum number of devices that can be connected at the same
+  time, as shown in the app.</p>
 
-  <h2>5. Kutokuwepo kwa dhamana</h2>
-  <p>Hatuhakikishi upatikanaji wa 100%, kasi mahususi, au ufikiaji wa tovuti
-  yoyote. Mitandao yenye vizuizi vikali inaweza kuathiri huduma.</p>
+  <h2>5. No warranty</h2>
+  <p>We do not guarantee 100% availability, a particular speed, or access to any
+  specific website. Heavily restricted networks may affect the service.</p>
 
-  <h2>6. Mabadiliko</h2>
-  <p>Tunaweza kubadilisha masharti haya. Matumizi yanayoendelea baada ya
-  mabadiliko yanamaanisha umekubali.</p>
+  <h2>6. Changes</h2>
+  <p>We may change these terms. Continuing to use the service after a change means
+  you accept it.</p>
 
-  <h2>7. Sheria inayotumika</h2>
-  <p>[ELEZEA — mfano: sheria za Tanzania, au eneo lako la biashara].</p>
+  <h2>7. Governing law</h2>
+  <p>[DESCRIBE — e.g. the laws of Tanzania, or where your business is registered].</p>
 </x-legal.layout>

@@ -36,7 +36,7 @@ class NodesTable
                 TextColumn::make('last_health_at')
                     ->label('Health')
                     ->since()
-                    ->placeholder('kamwe')
+                    ->placeholder('never')
                     ->color(fn ($state) => $state && $state->gt(now()->subMinutes(5)) ? 'success' : 'danger'),
             ])
             ->recordActions([EditAction::make()]);
