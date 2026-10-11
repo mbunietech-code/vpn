@@ -55,6 +55,21 @@ class AdminPanelProvider extends PanelProvider
                         border-radius: 1rem;
                         box-shadow: 0 24px 60px -24px rgba(10, 29, 46, .35);
                     }
+                    /* Tables: drop the empty toolbar-actions row (it left a blank
+                       gap above the search box on phones). */
+                    .fi-ta-header-toolbar .fi-ta-actions:not(:has(*)) {
+                        display: none;
+                    }
+                    /* Phones: let long emails/names wrap instead of pushing the
+                       table sideways. */
+                    @media (max-width: 640px) {
+                        .fi-ta-cell .fi-ta-text-item,
+                        .fi-ta-cell .fi-ta-text-item-label {
+                            white-space: normal;
+                            overflow-wrap: anywhere;
+                        }
+                        .fi-ta-cell { padding-left: .75rem; padding-right: .5rem; }
+                    }
                 </style>
                 HTML)
             ->colors([
