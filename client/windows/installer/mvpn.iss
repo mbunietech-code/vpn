@@ -3,7 +3,7 @@
 ;        ISCC.exe windows\installer\mvpn.iss
 
 #define AppName "Mbunie VPN"
-#define AppVersion "1.0.9"
+#define AppVersion "1.0.10"
 #define AppExe "mvpn.exe"
 #define BuildDir "..\..\build\windows\x64\runner\Release"
 

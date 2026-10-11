@@ -25,11 +25,13 @@ class _MvpnAppState extends State<MvpnApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(_state); // pay -> connect on return
     _state.bootstrap();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(_state);
     _state.dispose();
     super.dispose();
   }

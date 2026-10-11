@@ -36,6 +36,17 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _error;
   String? _debugHint;
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Explain a remote sign-out (e.g. an admin removed this device).
+    final state = MvpnScope.read(context);
+    if (state.signOutNotice != null) {
+      _error = state.signOutNotice;
+      state.signOutNotice = null;
+    }
+  }
+
   Future<void> _run(Future<void> Function() action) async {
     setState(() {
       _busy = true;
@@ -657,6 +668,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         await state.refreshSubscription();
         if (state.subStatus == 'active' && mounted) {
           Navigator.of(context).popUntil((r) => r.isFirst);
+          state.connectAfterPayment();
           return;
         }
       } catch (_) {}

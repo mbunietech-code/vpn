@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart';
@@ -14,7 +15,7 @@ import 'vpn_controller.dart';
 
 enum AuthGate { loading, needsAuth, needsPlan, ready }
 
-class AppState extends ChangeNotifier {
+class AppState extends ChangeNotifier with WidgetsBindingObserver {
   AppState({ApiClient? api, VpnController? vpn})
       : api = api ?? ApiClient(),
         vpn = vpn ?? VpnController() {
@@ -80,6 +81,10 @@ class AppState extends ChangeNotifier {
         model: info['model'],
         osVersion: info['os_version'],
       );
+    } on ApiException catch (e) {
+      // Signed out remotely (admin removed a device): leave instead of
+      // retrying with dead keys.
+      if (e.status == 401 || e.deviceRevoked) await _signedOut(e);
     } catch (_) {
       // Best effort: telemetry must never get in the way of the tunnel.
     }
@@ -148,6 +153,7 @@ class AppState extends ChangeNotifier {
       _deviceId = _newDeviceId();
       await prefs.setString('mvpn_device_id', _deviceId!);
     }
+    ApiClient.deviceId = _deviceId;
     _token = prefs.getString('mvpn_token');
     identifier = prefs.getString('mvpn_identifier');
     api.token = _token;
@@ -192,6 +198,41 @@ class AppState extends ChangeNotifier {
     await prefs.setString('mvpn_token', _token!);
     await prefs.setString('mvpn_identifier', identifier!);
     await refreshSubscription();
+  }
+
+  /// Shown once on the sign-in screen after a remote sign-out.
+  String? signOutNotice;
+
+  Future<void> _signedOut(ApiException e) async {
+    signOutNotice = e.deviceRevoked
+        ? e.message
+        : 'You were signed out. Please sign in again.';
+    if (vpn.status != VpnStatus.disconnected) await vpn.disconnect();
+    await logout();
+  }
+
+  // ---- connect straight after an online payment -----------------------
+
+  bool _connectOnResume = false;
+
+  /// Paid: bring the VPN up. The customer may still be in the browser, and
+  /// Android only shows the VPN permission prompt to a foreground app, so
+  /// wait for the app to come back if needed.
+  void connectAfterPayment() {
+    final fg = WidgetsBinding.instance.lifecycleState;
+    if (fg == null || fg == AppLifecycleState.resumed) {
+      unawaited(vpn.connect());
+    } else {
+      _connectOnResume = true;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _connectOnResume) {
+      _connectOnResume = false;
+      if (subStatus == 'active') unawaited(vpn.connect());
+    }
   }
 
   Future<void> logout() async {
@@ -296,8 +337,8 @@ class AppState extends ChangeNotifier {
         gate = AuthGate.needsPlan;
       }
     } on ApiException catch (e) {
-      if (e.status == 401) {
-        await logout();
+      if (e.status == 401 || e.deviceRevoked) {
+        await _signedOut(e);
         return;
       }
       rethrow;

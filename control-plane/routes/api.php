@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Middleware\RejectRevokedDevice;
+use App\Http\Middleware\VerifyPartnerSignature;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Route;
 
@@ -17,7 +19,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('auth')->group(function () {
+Route::prefix('auth')->middleware(RejectRevokedDevice::class)->group(function () {
     Route::post('otp/request', [AuthController::class, 'requestOtp'])->middleware('throttle:10,1');
     Route::post('otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:10,1');
 });
@@ -25,7 +27,7 @@ Route::prefix('auth')->group(function () {
 Route::get('plans', [PlanController::class, 'index']);
 Route::get('payment-methods', [PaymentController::class, 'methods']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', RejectRevokedDevice::class])->group(function () {
     Route::get('me', [AuthController::class, 'me']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
 
@@ -62,7 +64,7 @@ Route::prefix('node')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('partner')
-    ->middleware([\App\Http\Middleware\VerifyPartnerSignature::class, 'throttle:120,1'])
+    ->middleware([VerifyPartnerSignature::class, 'throttle:120,1'])
     ->group(function () {
         Route::get('stats', [PartnerController::class, 'stats']);
         Route::get('customers/{eduhubUserId}', [PartnerController::class, 'customer'])->whereNumber('eduhubUserId');

@@ -16,6 +16,13 @@ class ApiClient {
       : _bases = baseUrl != null ? [baseUrl] : MvpnConfig.apiBases,
         _http = httpClient ?? http.Client();
 
+  /// This install's id, sent as X-Mvpn-Device so an admin can block a
+  /// device the customer doesn't recognise.
+  static String? deviceId;
+
+  static Map<String, String> get deviceHeaders =>
+      {'X-Mvpn-Device': ?deviceId};
+
   final List<String> _bases;
   int _active = 0;
   String? token;
@@ -81,6 +88,7 @@ class ApiClient {
         'POST', Uri.parse('$baseUrl/api/invoices/$invoiceId/proof'))
       ..headers['Accept'] = 'application/json'
       ..headers['Authorization'] = 'Bearer $token'
+      ..headers.addAll(deviceHeaders)
       ..files.add(await http.MultipartFile.fromPath('proof', image.path));
     if (note != null && note.isNotEmpty) req.fields['note'] = note;
 
@@ -132,6 +140,7 @@ class ApiClient {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
+        ...deviceHeaders,
       };
 
   Future<Map<String, dynamic>> _get(String path) => _send(
@@ -186,6 +195,9 @@ class ApiException implements Exception {
   ApiException(this.status, this.body);
   final int status;
   final Map<String, dynamic> body;
+
+  /// An admin removed this device from the account.
+  bool get deviceRevoked => status == 403 && body['error'] == 'device_revoked';
 
   String get message {
     if (body['message'] is String) return body['message'] as String;

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import '../../models.dart';
+import '../api_client.dart';
 import 'tunnel_engine.dart';
 
 /// Real tunnel for Windows / Linux / macOS.
@@ -218,9 +219,12 @@ class SingboxEngine implements TunnelEngine {
 
     final res = await _http.get(
       uri,
-      headers: {'Authorization': 'Bearer $token'},
+      headers: {'Authorization': 'Bearer $token', ...ApiClient.deviceHeaders},
     );
     if (res.statusCode != 200) {
+      if (res.statusCode == 403 && res.body.contains('device_revoked')) {
+        throw StateError('This device was removed from the account. Contact support@mbuniehub.com.');
+      }
       throw StateError('Could not get the VPN config (HTTP ${res.statusCode})');
     }
     // Decode as UTF-8 explicitly: res.body falls back to latin1 and mangles

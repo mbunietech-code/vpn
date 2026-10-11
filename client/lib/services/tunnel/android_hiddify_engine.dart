@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import '../../models.dart';
+import '../api_client.dart';
 import 'tunnel_engine.dart';
 
 class AndroidHiddifyEngine implements TunnelEngine {
@@ -140,7 +141,10 @@ class AndroidHiddifyEngine implements TunnelEngine {
       res = await _http
           .get(
             uri,
-            headers: {if (token.isNotEmpty) 'Authorization': 'Bearer $token'},
+            headers: {
+              if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+              ...ApiClient.deviceHeaders,
+            },
           )
           .timeout(const Duration(seconds: 25));
     } on TimeoutException {
@@ -150,6 +154,9 @@ class AndroidHiddifyEngine implements TunnelEngine {
       );
     }
     if (res.statusCode != 200) {
+      if (res.statusCode == 403 && res.body.contains('device_revoked')) {
+        throw StateError('This device was removed from the account. Contact support@mbuniehub.com.');
+      }
       throw StateError('Could not get the VPN config (HTTP ${res.statusCode})');
     }
     final decoded = jsonDecode(res.body);

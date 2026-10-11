@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Http;
 class StripeGateway implements PaymentGateway
 {
     private string $secret;
+
     private string $webhookSecret;
 
     public function __construct()
@@ -38,8 +39,8 @@ class StripeGateway implements PaymentGateway
 
         $payload = [
             'mode' => 'payment',
-            'success_url' => config('app.url') . '/pay/return?invoice=' . $invoice->id . '&status=ok',
-            'cancel_url' => config('app.url') . '/pay/return?invoice=' . $invoice->id . '&status=cancel',
+            'success_url' => config('app.url').'/pay/return?invoice='.$invoice->id.'&status=ok',
+            'cancel_url' => config('app.url').'/pay/return?invoice='.$invoice->id.'&status=cancel',
             'client_reference_id' => (string) $invoice->id,
             'payment_method_types' => $methods,
             'line_items' => [[
@@ -47,7 +48,7 @@ class StripeGateway implements PaymentGateway
                 'price_data' => [
                     'currency' => $invoice->currency,
                     'unit_amount' => $invoice->amount_cents,
-                    'product_data' => ['name' => 'Mbunie VPN - ' . $invoice->plan_code],
+                    'product_data' => ['name' => 'Mbunie VPN - '.$invoice->plan_code],
                 ],
             ]],
             'metadata' => ['invoice_id' => (string) $invoice->id],
@@ -72,6 +73,7 @@ class StripeGateway implements PaymentGateway
         $parts = collect(explode(',', $header))
             ->mapWithKeys(function ($p) {
                 [$k, $v] = array_pad(explode('=', $p, 2), 2, null);
+
                 return [$k => $v];
             });
 
@@ -86,7 +88,7 @@ class StripeGateway implements PaymentGateway
             return false;
         }
 
-        $expected = hash_hmac('sha256', $timestamp . '.' . $request->getContent(), $this->webhookSecret);
+        $expected = hash_hmac('sha256', $timestamp.'.'.$request->getContent(), $this->webhookSecret);
 
         return hash_equals($expected, $signature);
     }
@@ -104,9 +106,18 @@ class StripeGateway implements PaymentGateway
             'charge.refunded' => 'refunded',
         ];
 
+        $mapped = $map[$type] ?? 'ignored';
+
+        // A completed Checkout Session is not necessarily paid: delayed methods
+        // finish with payment_status "unpaid" and settle later through
+        // checkout.session.async_payment_succeeded. Only activate on money in.
+        if ($type === 'checkout.session.completed' && ($object['payment_status'] ?? null) !== 'paid') {
+            $mapped = 'ignored';
+        }
+
         return [
             'event_id' => $event['id'] ?? null,
-            'type' => $map[$type] ?? 'ignored',
+            'type' => $mapped,
             'provider_ref' => $object['id'] ?? null,
             'amount_cents' => isset($object['amount_total']) ? (int) $object['amount_total'] : null,
             'currency' => isset($object['currency']) ? strtolower($object['currency']) : null,
@@ -128,6 +139,7 @@ class StripeGateway implements PaymentGateway
                 $out[$name] = $value;
             }
         }
+
         return $out;
     }
 }
