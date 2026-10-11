@@ -138,6 +138,12 @@ class StripePaymentTest extends TestCase
         $this->assertNull($user->activeSubscription());
     }
 
+    public function test_return_page_tells_paid_from_cancelled(): void
+    {
+        $this->get('/pay/return?status=ok')->assertOk()->assertSee('Payment received');
+        $this->get('/pay/return?status=cancel')->assertOk()->assertSee('Payment cancelled');
+    }
+
     public function test_stripe_is_offered_to_the_app_once_the_secret_is_set(): void
     {
         $this->getJson('/api/payment-methods')->assertOk()->assertJsonFragment(['provider' => 'stripe']);
