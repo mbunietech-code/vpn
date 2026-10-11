@@ -37,6 +37,9 @@ class OverviewStats extends StatsOverviewWidget
         $onlineNow = Device::online()->whereNull('revoked_at')->count();
         $onlineUsers = Device::online()->whereNull('revoked_at')->distinct('subscription_id')->count('subscription_id');
 
+        $lastRun = \Illuminate\Support\Facades\Cache::get('scheduler:last_run');
+        $schedulerOk = $lastRun && \Illuminate\Support\Carbon::parse($lastRun)->gt(now()->subMinutes(5));
+
         $expiringSoon = Subscription::where('status', 'active')
             ->whereBetween('expires_at', [now(), now()->addDays(3)])->count();
 
@@ -61,6 +64,13 @@ class OverviewStats extends StatsOverviewWidget
                 ->description('Makadirio ya USD')
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success'),
+
+            Stat::make('Cron (scheduler)', $schedulerOk ? 'Inafanya kazi' : 'Haifanyi kazi!')
+                ->description($lastRun
+                    ? 'Mwisho: ' . \Illuminate\Support\Carbon::parse($lastRun)->diffForHumans()
+                    : 'Haijawahi kuendeshwa — weka cron kwenye hPanel')
+                ->descriptionIcon($schedulerOk ? 'heroicon-m-check-circle' : 'heroicon-m-exclamation-triangle')
+                ->color($schedulerOk ? 'success' : 'danger'),
 
             Stat::make('Nodes online', "$nodesOnline / $nodesTotal")
                 ->description($nodesOnline < $nodesTotal ? 'Kuna node chini!' : 'Zote hai')
