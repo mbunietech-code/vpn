@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Devices\Tables;
 
 use App\Models\Device;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -43,6 +44,7 @@ class DevicesTable
                     ->color(fn ($state) => $state ? 'danger' : 'success'),
             ])
             ->recordActions([
+                ActionGroup::make([
                 Action::make('revoke')
                     ->label('Revoke')
                     ->icon('heroicon-m-no-symbol')
@@ -53,6 +55,7 @@ class DevicesTable
                         $r->update(['revoked_at' => now()]);
                         Notification::make()->success()->title('Device revoked')->send();
                     }),
+                ]),
             ]);
     }
 }

@@ -65,6 +65,10 @@ class AdminPanelProvider extends PanelProvider
                     @media (max-width: 640px) {
                         .fi-ta-cell { padding-left: .6rem; padding-right: .35rem; }
                         .fi-ta-cell:last-child { padding-right: .5rem; }
+                        /* Secondary lines under a cell (e.g. "seen 2 min ago") may wrap. */
+                        .fi-ta-cell .fi-ta-col,
+                        .fi-ta-cell .fi-ta-text,
+                        .fi-ta-cell .fi-ta-text-description { white-space: normal; }
                         /* Only the first column (customer/name) wraps, with a
                            readable minimum width; numbers and dates stay intact. */
                         .fi-ta-row .fi-ta-cell:first-child { min-width: 8.5rem; max-width: 11.5rem; }
