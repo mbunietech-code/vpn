@@ -16,11 +16,12 @@ class DevicesTable
             ->defaultSort('last_seen_at', 'desc')
             ->poll('30s')
             ->columns([
+                // Phone model + OS under the customer, so phones show Customer + VPN now.
                 TextColumn::make('subscription.user.email')->label('Customer')->searchable()
-                    ->description(fn (Device $r) => $r->subscription?->user?->phone),
+                    ->description(fn (Device $r) => trim(($r->model ?? '') . ' · ' . ($r->os_version ?? ''), ' ·')
+                        ?: $r->subscription?->user?->phone),
                 TextColumn::make('name')->visibleFrom('md')->placeholder('—'),
-                TextColumn::make('platform')->badge()->placeholder('—')
-                    ->description(fn (Device $r) => trim(($r->model ?? '') . ' ' . ($r->os_version ?? '')) ?: null),
+                TextColumn::make('platform')->visibleFrom('md')->badge()->placeholder('—'),
                 TextColumn::make('vpn_connected')->label('VPN now')
                     ->badge()
                     ->getStateUsing(fn (Device $r) => $r->isOnline() ? 'online' : 'offline')
