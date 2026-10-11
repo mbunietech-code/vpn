@@ -18,7 +18,7 @@ class AlertsTable
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('severity')->badge()
-                    ->color(fn ($s) => match ($s) {
+                    ->color(fn ($state) => match ($state) {
                         'critical' => 'danger', 'warn' => 'warning', default => 'gray',
                     }),
                 TextColumn::make('source')->visibleFrom('md')->badge()->color('gray'),
@@ -26,7 +26,7 @@ class AlertsTable
                 TextColumn::make('ai_summary')->visibleFrom('md')->label('AI')->wrap()->placeholder('—')->toggleable(),
                 TextColumn::make('acknowledged_at')->visibleFrom('md')->label('Resolved')
                     ->since()->placeholder('—')
-                    ->badge()->color(fn ($s) => $s ? 'success' : 'danger'),
+                    ->badge()->color(fn ($state) => $state ? 'success' : 'danger'),
                 TextColumn::make('created_at')->since(),
             ])
             ->filters([

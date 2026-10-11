@@ -28,7 +28,7 @@ class SubscriptionsTable
                 TextColumn::make('plan_code')->visibleFrom('md')->label('Plan')->badge(),
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn ($s) => match ($s) {
+                    ->color(fn ($state) => match ($state) {
                         'active' => 'success',
                         'pending' => 'gray',
                         'suspended' => 'danger',
@@ -45,7 +45,7 @@ class SubscriptionsTable
                     ->sortable(),
                 TextColumn::make('devices_count')->visibleFrom('md')->label('Devices')->counts('devices'),
                 TextColumn::make('data_used_mb')->visibleFrom('md')->label('Data')
-                    ->formatStateUsing(fn ($s) => number_format($s) . ' MB'),
+                    ->formatStateUsing(fn ($state) => number_format($state) . ' MB'),
             ])
             ->filters([
                 SelectFilter::make('status')->options([

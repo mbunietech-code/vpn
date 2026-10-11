@@ -20,6 +20,24 @@ class AdminPlanFormTest extends TestCase
         $this->actingAs(User::factory()->create(['is_admin' => true]));
     }
 
+    public function test_table_cells_show_real_values(): void
+    {
+        Plan::where('code', 'm3')->update(['price_usd_cents' => 999, 'price_tzs_cents' => 5000000]);
+
+        // Filament injects closure args by name: fn ($state) — fn ($s) got null and showed $0.00.
+        Livewire::test(\App\Filament\Resources\Plans\Pages\ListPlans::class)
+            ->assertSee('$9.99')
+            ->assertSee('TSh 50,000');
+
+        $sub = User::factory()->create()->subscriptions()->create([
+            'plan_code' => 'm1', 'status' => 'active', 'max_devices' => 2,
+            'started_at' => now(), 'expires_at' => now()->addDays(5),
+        ]);
+        $sub->devices()->create(['fingerprint' => 'x', 'platform' => 'android', 'vpn_connected' => true, 'last_seen_at' => now()]);
+
+        Livewire::test(\App\Filament\Resources\Devices\Pages\ListDevices::class)->assertSee('Online');
+    }
+
     public function test_prices_are_typed_in_normal_amounts_and_stored_in_cents(): void
     {
         $plan = Plan::where('code', 'm1')->firstOrFail();

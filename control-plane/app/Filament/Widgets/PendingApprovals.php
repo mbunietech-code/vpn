@@ -45,12 +45,12 @@ class PendingApprovals extends TableWidget
                 TextColumn::make('payment_method')->label('Method')->placeholder('—'),
                 TextColumn::make('amount_cents')
                     ->label('Amount')
-                    ->formatStateUsing(fn ($s, Invoice $r) => number_format($s / 100, 2) . ' ' . strtoupper($r->currency)),
+                    ->formatStateUsing(fn ($state, Invoice $r) => number_format($state / 100, 2) . ' ' . strtoupper($r->currency)),
                 TextColumn::make('proof_path')
                     ->label('Proof')
                     ->badge()
-                    ->formatStateUsing(fn ($s) => $s ? 'Ipo' : 'Haipo')
-                    ->color(fn ($s) => $s ? 'success' : 'gray'),
+                    ->formatStateUsing(fn ($state) => $state ? 'Ipo' : 'Haipo')
+                    ->color(fn ($state) => $state ? 'success' : 'gray'),
                 TextColumn::make('created_at')->label('Time')->since(),
             ])
             ->recordActions([

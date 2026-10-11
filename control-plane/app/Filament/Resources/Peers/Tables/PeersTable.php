@@ -16,9 +16,9 @@ class PeersTable
                 TextColumn::make('node.name')->visibleFrom('md')->label('Node')->badge(),
                 TextColumn::make('protocol')->badge()->color('gray'),
                 TextColumn::make('status')->badge()
-                    ->color(fn ($s) => $s === 'active' ? 'success' : 'gray'),
+                    ->color(fn ($state) => $state === 'active' ? 'success' : 'gray'),
                 TextColumn::make('bytes_down')->visibleFrom('md')->label('Down')
-                    ->formatStateUsing(fn ($s) => number_format($s / 1048576, 1) . ' MB'),
+                    ->formatStateUsing(fn ($state) => number_format($state / 1048576, 1) . ' MB'),
                 TextColumn::make('updated_at')->visibleFrom('md')->since(),
             ])
             ->filters([

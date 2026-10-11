@@ -18,7 +18,7 @@ class NodesTable
                 TextColumn::make('public_host')->visibleFrom('md')->color('gray')->copyable(),
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn ($s) => match ($s) {
+                    ->color(fn ($state) => match ($state) {
                         'online' => 'success',
                         'degraded' => 'warning',
                         'provisioning' => 'info',

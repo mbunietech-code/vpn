@@ -24,8 +24,8 @@ class DevicesTable
                 TextColumn::make('vpn_connected')->label('VPN now')
                     ->badge()
                     ->getStateUsing(fn (Device $r) => $r->isOnline() ? 'online' : 'offline')
-                    ->formatStateUsing(fn ($s) => $s === 'online' ? 'Online' : 'Offline')
-                    ->color(fn ($s) => $s === 'online' ? 'success' : 'gray'),
+                    ->formatStateUsing(fn ($state) => $state === 'online' ? 'Online' : 'Offline')
+                    ->color(fn ($state) => $state === 'online' ? 'success' : 'gray'),
                 TextColumn::make('connected_at')->visibleFrom('md')->label('Connected')->since()->placeholder('—')
                     ->getStateUsing(fn (Device $r) => $r->isOnline() ? $r->connected_at : null),
                 TextColumn::make('protocol')->visibleFrom('md')->placeholder('—')->toggleable(),
@@ -37,8 +37,8 @@ class DevicesTable
                 TextColumn::make('last_seen_at')->label('Last seen')->since()->placeholder('never'),
                 TextColumn::make('revoked_at')->visibleFrom('md')->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn ($s) => $s ? 'Revoked' : 'Active')
-                    ->color(fn ($s) => $s ? 'danger' : 'success'),
+                    ->formatStateUsing(fn ($state) => $state ? 'Revoked' : 'Active')
+                    ->color(fn ($state) => $state ? 'danger' : 'success'),
             ])
             ->recordActions([
                 Action::make('revoke')

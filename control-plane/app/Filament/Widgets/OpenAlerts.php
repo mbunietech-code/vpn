@@ -33,7 +33,7 @@ class OpenAlerts extends TableWidget
             ->columns([
                 TextColumn::make('severity')
                     ->badge()
-                    ->color(fn ($s) => match ($s) {
+                    ->color(fn ($state) => match ($state) {
                         'critical' => 'danger',
                         'warn' => 'warning',
                         default => 'gray',

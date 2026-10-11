@@ -27,7 +27,7 @@ class UsersTable
                 TextColumn::make('phone')->visibleFrom('md')->searchable()->placeholder('—'),
                 IconColumn::make('is_admin')->visibleFrom('md')->label('Admin')->boolean(),
                 TextColumn::make('status')->badge()
-                    ->color(fn ($s) => $s === 'active' ? 'success' : 'danger'),
+                    ->color(fn ($state) => $state === 'active' ? 'success' : 'danger'),
                 TextColumn::make('subscriptions_count')->visibleFrom('md')->label('Subs')->counts('subscriptions'),
                 TextColumn::make('created_at')->visibleFrom('md')->since()->label('Joined'),
             ])
