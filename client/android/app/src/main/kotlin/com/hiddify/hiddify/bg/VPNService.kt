@@ -138,14 +138,26 @@ class VPNService : VpnService(), PlatformInterfaceWrapper {
                     builder.addRoute("::", 0)
                 }
 
+                // Android rejects some prefixes in excludeRoute (e.g. loopback ::1 ->
+                // "Bad address"); one bad entry must not stop the whole tunnel.
                 val inet4RouteExcludeAddress = options.inet4RouteExcludeAddress
                 while (inet4RouteExcludeAddress.hasNext()) {
-                    builder.excludeRoute(inet4RouteExcludeAddress.next().toIpPrefix())
+                    val prefix = inet4RouteExcludeAddress.next().toIpPrefix()
+                    try {
+                        builder.excludeRoute(prefix)
+                    } catch (e: IllegalArgumentException) {
+                        Log.w("VPNService", "skip excluded route $prefix: ${e.message}")
+                    }
                 }
 
                 val inet6RouteExcludeAddress = options.inet6RouteExcludeAddress
                 while (inet6RouteExcludeAddress.hasNext()) {
-                    builder.excludeRoute(inet6RouteExcludeAddress.next().toIpPrefix())
+                    val prefix = inet6RouteExcludeAddress.next().toIpPrefix()
+                    try {
+                        builder.excludeRoute(prefix)
+                    } catch (e: IllegalArgumentException) {
+                        Log.w("VPNService", "skip excluded route $prefix: ${e.message}")
+                    }
                 }
             } else {
                 val inet4RouteAddress = options.inet4RouteRange

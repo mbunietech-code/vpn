@@ -187,6 +187,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
       // IPv4 TCP connection died and only UDP/QUIC got through.
       inbound['stack'] = 'gvisor';
       inbound['auto_route'] = true;
+      // No loopback (::1/128): Android 13+ excludeRoute() throws "Bad address".
       inbound['route_exclude_address'] =
           _mergeStringList(inbound['route_exclude_address'], const [
             '10.0.0.0/8',
@@ -196,11 +197,11 @@ class AndroidHiddifyEngine implements TunnelEngine {
             '192.168.0.0/16',
             '224.0.0.0/4',
             '255.255.255.255/32',
-            '::1/128',
             'fc00::/7',
             'fe80::/10',
             'ff00::/8',
-          ]);
+          ])
+            ..removeWhere((r) => r.startsWith('::1/') || r.startsWith('127.'));
       inbound['exclude_package'] =
           _mergeStringList(inbound['exclude_package'], const [
             'com.mbunie.mvpn',
