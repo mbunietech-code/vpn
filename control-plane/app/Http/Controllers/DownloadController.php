@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use chillerlan\QRCode\Output\QROutputInterface;
+use chillerlan\QRCode\QRCode;
+use chillerlan\QRCode\QROptions;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 /**
- * Public "get the app" page. Its QR code (/download/qr.svg) only ever
- * encodes this page's own URL — never an account, token or VPN config.
+ * Public "get the app" page. Its QR codes only ever encode public download
+ * links (this page, the APK) — never an account, token or VPN config.
  */
 class DownloadController extends Controller
 {
@@ -17,17 +20,41 @@ class DownloadController extends Controller
             'android' => url(config('services.mvpn.download_android')),
             'windows' => url(config('services.mvpn.download_windows')),
             'version' => config('services.mvpn.app_version'),
+            'androidDate' => $this->releaseDate(config('services.mvpn.download_android')),
+            'windowsDate' => $this->releaseDate(config('services.mvpn.download_windows')),
         ]);
+    }
+
+    /** Upload date of an installer we host ourselves, e.g. 2026-10-12. */
+    private function releaseDate(?string $path): ?string
+    {
+        if (! $path || ! str_starts_with($path, '/storage/downloads/')) {
+            return null;
+        }
+        $file = storage_path('app/public/downloads/'.basename($path));
+
+        return is_file($file) ? date('Y-m-d', filemtime($file)) : null;
+    }
+
+    /** QR of the Android APK link, for scanning the page from a PC. */
+    public function androidQr(): Response
+    {
+        return $this->svg(url(config('services.mvpn.download_android')));
     }
 
     public function qr(): Response
     {
-        $options = new \chillerlan\QRCode\QROptions([
-            'outputType' => \chillerlan\QRCode\Output\QROutputInterface::MARKUP_SVG,
+        return $this->svg(route('download'));
+    }
+
+    private function svg(string $text): Response
+    {
+        $options = new QROptions([
+            'outputType' => QROutputInterface::MARKUP_SVG,
             'outputBase64' => false,
             'addQuietzone' => true,
         ]);
-        $svg = (new \chillerlan\QRCode\QRCode($options))->render(route('download'));
+        $svg = (new QRCode($options))->render($text);
 
         return response($svg, 200, [
             'Content-Type' => 'image/svg+xml',

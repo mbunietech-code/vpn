@@ -11,7 +11,15 @@ class DownloadPageTest extends TestCase
         $this->get('/download')->assertOk()
             ->assertSee('Download APK')
             ->assertSee('Download for Windows')
-            ->assertSee(route('download.qr'), false);
+            ->assertSee(route('download.qr'), false)
+            ->assertSee(route('download.qr.android'), false)
+            ->assertSee('Coming soon');
+    }
+
+    public function test_android_qr_is_an_svg(): void
+    {
+        $res = $this->get('/download/android-qr.svg')->assertOk();
+        $this->assertStringContainsString('<svg', $res->getContent());
     }
 
     public function test_qr_is_an_svg_of_the_download_page_only(): void

@@ -43,6 +43,7 @@ Route::view('/legal/privacy', 'legal.privacy')->name('legal.privacy');
 // Public app download page + a QR of its own URL (linked from MbunieHub).
 Route::get('/download', [DownloadController::class, 'page'])->name('download');
 Route::get('/download/qr.svg', [DownloadController::class, 'qr'])->name('download.qr');
+Route::get('/download/android-qr.svg', [DownloadController::class, 'androidQr'])->name('download.qr.android');
 
 // Lightweight return page the hosted checkout redirects back to
 Route::get('/pay/return', function (Request $request) {
