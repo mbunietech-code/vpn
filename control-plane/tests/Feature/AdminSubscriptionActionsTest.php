@@ -237,4 +237,51 @@ class AdminSubscriptionActionsTest extends TestCase
         $this->assertGreaterThan($version, $this->node->fresh()->peer_version);
         $this->assertTrue(AuditLog::where('action', 'user.deleted')->exists());
     }
+
+    public function test_edit_page_validates_and_protects_admins(): void
+    {
+        User::factory()->create(['email' => 'taken@example.com']);
+        $cust = User::factory()->create(['email' => 'cust2@example.com', 'phone' => null]);
+
+        // Duplicate email is a form error, not a crash.
+        Livewire::test(EditUser::class, ['record' => $cust->getRouteKey()])
+            ->fillForm(['email' => 'taken@example.com'])
+            ->call('save')
+            ->assertHasFormErrors(['email' => 'unique']);
+
+        // Email and phone both empty is not allowed.
+        Livewire::test(EditUser::class, ['record' => $cust->getRouteKey()])
+            ->fillForm(['email' => '', 'phone' => ''])
+            ->call('save')
+            ->assertHasFormErrors(['email']);
+
+        // An admin cannot switch off their own admin access.
+        $me = auth()->user();
+        Livewire::test(EditUser::class, ['record' => $me->getRouteKey()])
+            ->fillForm(['is_admin' => false])
+            ->call('save');
+        $this->assertTrue($me->fresh()->is_admin);
+    }
+
+    public function test_edit_page_suspend_and_delete_use_the_safe_paths(): void
+    {
+        $cust = $this->customer();
+        app(SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
+
+        Livewire::test(EditUser::class, ['record' => $cust->getRouteKey()])
+            ->assertSee('M1 · active')
+            ->callAction('suspend', ['reason' => 'test'])
+            ->assertHasNoActionErrors();
+        $this->assertSame('suspended', $cust->fresh()->status);
+
+        Livewire::test(EditUser::class, ['record' => $cust->getRouteKey()])
+            ->callAction('delete')
+            ->assertRedirect();
+        $this->assertModelMissing($cust);
+        $this->assertSame(0, Peer::count());
+
+        // No delete button for admins.
+        Livewire::test(EditUser::class, ['record' => auth()->user()->getRouteKey()])
+            ->assertActionHidden('delete');
+    }
 }
