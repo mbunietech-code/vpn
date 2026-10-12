@@ -4,14 +4,18 @@ namespace App\Filament\Resources\Subscriptions\Tables;
 
 use App\Models\Subscription;
 use App\Services\SubscriptionAdmin;
+use chillerlan\QRCode\QRCode;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\HtmlString;
 
 class SubscriptionsTable
@@ -23,13 +27,13 @@ class SubscriptionsTable
             ->columns([
                 TextColumn::make('user.email')
                     ->label('Customer')
-                    ->description(fn (Subscription $r) => $r->plan_code . ($r->user?->phone ? ' · ' . $r->user->phone : ''))
+                    ->description(fn (Subscription $r) => $r->plan_code.($r->user?->phone ? ' · '.$r->user->phone : ''))
                     ->searchable(),
                 TextColumn::make('plan_code')->visibleFrom('md')->label('Plan')->badge(),
                 TextColumn::make('status')
                     ->badge()
                     ->description(fn (Subscription $r) => $r->expires_at
-                        ? ($r->expires_at->isPast() ? 'ended ' : 'ends ') . $r->expires_at->diffForHumans()
+                        ? ($r->expires_at->isPast() ? 'ended ' : 'ends ').$r->expires_at->diffForHumans()
                         : null)
                     ->color(fn ($state) => match ($state) {
                         'active' => 'success',
@@ -48,7 +52,7 @@ class SubscriptionsTable
                     ->sortable(),
                 TextColumn::make('devices_count')->visibleFrom('md')->label('Devices')->counts('devices'),
                 TextColumn::make('data_used_mb')->visibleFrom('md')->label('Data')
-                    ->formatStateUsing(fn ($state) => number_format($state) . ' MB'),
+                    ->formatStateUsing(fn ($state) => number_format($state).' MB'),
             ])
             ->filters([
                 SelectFilter::make('status')->options([
@@ -67,9 +71,9 @@ class SubscriptionsTable
                             TextInput::make('note')->label('Note (optional)')->maxLength(200),
                         ])
                         ->action(function (Subscription $r, array $data) {
-                            $sub = app(SubscriptionAdmin::class)->extend($r, (int) $data['days'], 'admin:' . auth()->id(), $data['note'] ?? null);
+                            $sub = app(SubscriptionAdmin::class)->extend($r, (int) $data['days'], 'admin:'.auth()->id(), $data['note'] ?? null);
                             Notification::make()->success()->title('Extended')
-                                ->body('Now expires ' . $sub->expires_at->format('d M Y H:i'))->send();
+                                ->body('Now expires '.$sub->expires_at->format('d M Y H:i'))->send();
                         }),
                     Action::make('suspend')
                         ->label('Suspend')
@@ -80,7 +84,7 @@ class SubscriptionsTable
                         ->modalDescription('The customer is cut off from the VPN within about 15 seconds.')
                         ->schema([TextInput::make('reason')->label('Reason (optional)')->maxLength(200)])
                         ->action(function (Subscription $r, array $data) {
-                            app(SubscriptionAdmin::class)->suspend($r, 'admin:' . auth()->id(), $data['reason'] ?? null);
+                            app(SubscriptionAdmin::class)->suspend($r, 'admin:'.auth()->id(), $data['reason'] ?? null);
                             Notification::make()->success()->title('Suspended')->send();
                         }),
                     Action::make('restore')
@@ -90,7 +94,7 @@ class SubscriptionsTable
                         ->visible(fn (Subscription $r) => $r->status === 'suspended')
                         ->requiresConfirmation()
                         ->action(function (Subscription $r) {
-                            $sub = app(SubscriptionAdmin::class)->restore($r, 'admin:' . auth()->id());
+                            $sub = app(SubscriptionAdmin::class)->restore($r, 'admin:'.auth()->id());
                             Notification::make()->success()
                                 ->title($sub->status === 'active'
                                     ? 'Restored — VPN access is back'
@@ -109,17 +113,46 @@ class SubscriptionsTable
                         ->modalContent(function (Subscription $r) {
                             $link = url("/sub/{$r->sub_token}");
                             // chillerlan/php-qrcode ships with Filament's 2FA deps.
-                            $qr = class_exists(\chillerlan\QRCode\QRCode::class)
-                                ? '<img alt="QR" src="' . (new \chillerlan\QRCode\QRCode)->render($link) . '" style="width:220px;height:220px;margin:0 auto 12px;display:block;background:#fff;padding:8px;border-radius:8px">'
+                            $qr = class_exists(QRCode::class)
+                                ? '<img alt="QR" src="'.(new QRCode)->render($link).'" style="width:220px;height:220px;margin:0 auto 12px;display:block;background:#fff;padding:8px;border-radius:8px">'
                                 : '';
 
                             return new HtmlString($qr
-                                . '<input readonly onclick="this.select()" style="width:100%;font-family:monospace;font-size:13px;padding:8px;border:1px solid #ccc;border-radius:6px" value="'
-                                . e($link) . '">');
+                                .'<input readonly onclick="this.select()" style="width:100%;font-family:monospace;font-size:13px;padding:8px;border:1px solid #ccc;border-radius:6px" value="'
+                                .e($link).'">');
                         })
                         ->modalSubmitAction(false)
                         ->modalCancelActionLabel('Close'),
                     EditAction::make(),
+                    Action::make('delete')
+                        ->label('Delete')
+                        ->icon('heroicon-m-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete this subscription?')
+                        ->modalDescription(fn (Subscription $r) => ($r->isActive() ? 'It is still active: the customer loses VPN access within about 15 seconds. ' : '')
+                            .'Its devices and VPN keys are deleted too (removed devices are forgotten). Payments are kept. This cannot be undone.')
+                        ->modalSubmitActionLabel('Delete')
+                        ->action(function (Subscription $r) {
+                            app(SubscriptionAdmin::class)->delete($r, 'admin:'.auth()->id());
+                            Notification::make()->success()->title('Subscription deleted')->send();
+                        }),
+                ]),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('delete')
+                        ->label('Delete selected')
+                        ->icon('heroicon-m-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete the selected subscriptions?')
+                        ->modalDescription('Active ones lose VPN access within about 15 seconds. Their devices and VPN keys are deleted too; payments are kept. This cannot be undone.')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records) {
+                            $records->each(fn (Subscription $s) => app(SubscriptionAdmin::class)->delete($s, 'admin:'.auth()->id()));
+                            Notification::make()->success()->title('Deleted '.$records->count().' subscription(s)')->send();
+                        }),
                 ]),
             ]);
     }

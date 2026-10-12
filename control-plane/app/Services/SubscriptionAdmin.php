@@ -86,7 +86,7 @@ class SubscriptionAdmin
             'currency' => 'usd',
             'amount_cents' => 0,
             'status' => 'paid',
-            'idempotency_key' => 'admin:' . Str::uuid(),
+            'idempotency_key' => 'admin:'.Str::uuid(),
             'paid_at' => now(),
             'meta' => ['granted_by' => $actor, 'note' => $note],
         ]);
@@ -95,6 +95,25 @@ class SubscriptionAdmin
         $this->audit($actor, 'subscription.granted', $sub, ['plan' => $plan->code, 'invoice_id' => $invoice->id, 'note' => $note]);
 
         return $sub;
+    }
+
+    /**
+     * Delete a subscription for good: its VPN keys (peers) and devices go with
+     * it, so its VPN stops within about 15 seconds. Payments stay, unlinked.
+     */
+    public function delete(Subscription $sub, string $actor): void
+    {
+        DB::transaction(function () use ($sub, $actor) {
+            $nodeIds = $sub->peers()->pluck('node_id')->unique();
+            $this->audit($actor, 'subscription.deleted', $sub, [
+                'user_id' => $sub->user_id,
+                'plan' => $sub->plan_code,
+                'status' => $sub->status,
+                'expires_at' => $sub->expires_at?->toIso8601String(),
+            ]);
+            $sub->delete();
+            Node::whereIn('id', $nodeIds)->get()->each->bumpPeerVersion();
+        });
     }
 
     /** Suspend or restore every subscription of a customer. */

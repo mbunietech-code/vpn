@@ -2,14 +2,23 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\Invoices\Pages\EditInvoice;
+use App\Filament\Resources\Invoices\Pages\ListInvoices;
 use App\Filament\Resources\Subscriptions\Pages\ListSubscriptions;
+use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\AuditLog;
+use App\Models\Device;
+use App\Models\Invoice;
 use App\Models\Node;
+use App\Models\Peer;
 use App\Models\Plan;
-use App\Models\Subscription;
 use App\Models\User;
+use App\Services\SubscriptionAdmin;
+use Database\Seeders\MvpnSeeder;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -23,7 +32,7 @@ class AdminSubscriptionActionsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\MvpnSeeder::class);
+        $this->seed(MvpnSeeder::class);
         $this->node = Node::create([
             'name' => 'KL1', 'region' => 'my', 'public_host' => 'n1.example.com',
             'api_secret' => Str::random(40), 'status' => 'online',
@@ -55,7 +64,7 @@ class AdminSubscriptionActionsTest extends TestCase
     public function test_add_days_suspend_and_restore(): void
     {
         $cust = $this->customer();
-        $sub = app(\App\Services\SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
+        $sub = app(SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
         $before = $sub->expires_at;
 
         Livewire::test(ListSubscriptions::class)
@@ -79,7 +88,7 @@ class AdminSubscriptionActionsTest extends TestCase
     public function test_suspend_customer_cuts_access_and_blocks_login(): void
     {
         $cust = $this->customer();
-        $sub = app(\App\Services\SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
+        $sub = app(SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
         $cust->createToken('app');
 
         Livewire::test(ListUsers::class)->callTableAction('suspend', $cust, ['reason' => 'test']);
@@ -98,7 +107,7 @@ class AdminSubscriptionActionsTest extends TestCase
         $cust = User::factory()->create(['password' => 'secret-pass-123', 'status' => 'active']);
         $hash = $cust->password;
 
-        Livewire::test(\App\Filament\Resources\Users\Pages\EditUser::class, ['record' => $cust->getRouteKey()])
+        Livewire::test(EditUser::class, ['record' => $cust->getRouteKey()])
             ->fillForm(['name' => 'Renamed', 'password' => '', 'status' => 'suspended'])
             ->call('save')
             ->assertHasNoFormErrors();
@@ -112,10 +121,10 @@ class AdminSubscriptionActionsTest extends TestCase
     public function test_invoice_amount_cannot_be_edited(): void
     {
         $cust = $this->customer();
-        app(\App\Services\SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
+        app(SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
         $invoice = $cust->invoices()->firstOrFail();
 
-        Livewire::test(\App\Filament\Resources\Invoices\Pages\EditInvoice::class, ['record' => $invoice->getRouteKey()])
+        Livewire::test(EditInvoice::class, ['record' => $invoice->getRouteKey()])
             ->fillForm(['amount_cents' => 999999, 'status' => 'refunded'])
             ->call('save');
 
@@ -127,13 +136,13 @@ class AdminSubscriptionActionsTest extends TestCase
     public function test_approve_manual_payment_from_the_invoices_menu(): void
     {
         $cust = $this->customer();
-        $invoice = \App\Models\Invoice::create([
+        $invoice = Invoice::create([
             'user_id' => $cust->id, 'plan_code' => 'm1', 'provider' => 'manual',
             'currency' => 'tzs', 'amount_cents' => 2000000, 'status' => 'pending_review',
             'idempotency_key' => (string) Str::uuid(),
         ]);
 
-        Livewire::test(\App\Filament\Resources\Invoices\Pages\ListInvoices::class)
+        Livewire::test(ListInvoices::class)
             ->assertSee('TZS 20,000 · m1')
             ->callTableAction('approve', $invoice, ['note' => 'paid by M-Pesa'])
             ->assertHasNoTableActionErrors();
@@ -149,5 +158,52 @@ class AdminSubscriptionActionsTest extends TestCase
         $this->get('/admin/devices/create')->assertNotFound();
         $this->get('/admin/invoices/create')->assertNotFound();
         $this->get('/admin/alerts/create')->assertNotFound();
+    }
+
+    public function test_delete_subscription_cuts_vpn_and_keeps_payments(): void
+    {
+        $cust = $this->customer();
+        $sub = app(SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
+        $sub->devices()->create(['fingerprint' => 'p1', 'platform' => 'android']);
+        $version = $this->node->fresh()->peer_version;
+
+        Livewire::test(ListSubscriptions::class)
+            ->callAction(TestAction::make('delete')->table($sub))
+            ->assertHasNoActionErrors();
+
+        $this->assertModelMissing($sub);
+        $this->assertSame(0, Peer::count());
+        $this->assertSame(0, Device::count());
+        $this->assertSame(1, $cust->invoices()->count(), 'payment kept');
+        $this->assertNull($cust->invoices()->first()->subscription_id);
+        $this->assertGreaterThan($version, $this->node->fresh()->peer_version);
+        $this->assertTrue(AuditLog::where('action', 'subscription.deleted')->exists());
+    }
+
+    public function test_delete_payments_one_and_many(): void
+    {
+        Storage::fake('local');
+        Storage::put('proofs/a.jpg', 'x');
+        $cust = $this->customer();
+        $mk = fn (array $a = []) => Invoice::create($a + [
+            'user_id' => $cust->id, 'plan_code' => 'm1', 'provider' => 'manual', 'payment_method' => 'alipay',
+            'currency' => 'cny', 'amount_cents' => 5500, 'status' => 'pending_review', 'idempotency_key' => Str::uuid(),
+        ]);
+        $a = $mk(['proof_path' => 'proofs/a.jpg']);
+        $b = $mk();
+        $c = $mk(['status' => 'paid']);
+
+        Livewire::test(ListInvoices::class)
+            ->callAction(TestAction::make('delete')->table($a))
+            ->assertHasNoActionErrors();
+        $this->assertModelMissing($a);
+        Storage::assertMissing('proofs/a.jpg');
+
+        Livewire::test(ListInvoices::class)
+            ->selectTableRecords([$b->id, $c->id])
+            ->callAction(TestAction::make('delete')->table()->bulk())
+            ->assertHasNoActionErrors();
+        $this->assertSame(0, Invoice::count());
+        $this->assertSame(3, AuditLog::where('action', 'invoice.deleted')->count());
     }
 }

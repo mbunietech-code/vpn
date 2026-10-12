@@ -85,7 +85,7 @@ class AdminPanelProvider extends PanelProvider
                         .fi-ta-cell .fi-ta-text-description { white-space: normal; }
                         /* Only the first column (customer/name) wraps, with a
                            readable minimum width; numbers and dates stay intact. */
-                        :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { min-width: 8.5rem; max-width: 11.5rem; }
+                        :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { min-width: 7.75rem; max-width: 11.5rem; }
                         :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-col,
                         :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-text,
                         :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-text-item,

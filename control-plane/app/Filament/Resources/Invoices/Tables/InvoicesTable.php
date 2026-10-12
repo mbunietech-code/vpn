@@ -6,12 +6,15 @@ use App\Models\Invoice;
 use App\Services\ManualPaymentService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Fits the screen on phones and desktops without sideways scrolling:
@@ -24,7 +27,7 @@ class InvoicesTable
     {
         $decimals = $r->currency === 'tzs' ? 0 : 2;
 
-        return strtoupper($r->currency) . ' ' . number_format($r->amount_cents / 100, $decimals);
+        return strtoupper($r->currency).' '.number_format($r->amount_cents / 100, $decimals);
     }
 
     public static function configure(Table $table): Table
@@ -36,7 +39,7 @@ class InvoicesTable
                     ->label('Customer')
                     ->searchable()
                     // Phones: amount + plan under the customer (those columns are hidden there).
-                    ->description(fn (Invoice $r) => self::amount($r) . ' · ' . $r->plan_code),
+                    ->description(fn (Invoice $r) => self::amount($r).' · '.$r->plan_code),
                 TextColumn::make('amount_cents')->visibleFrom('md')
                     ->label('Amount')
                     ->formatStateUsing(fn ($state, Invoice $r) => self::amount($r))
@@ -61,7 +64,7 @@ class InvoicesTable
                 TextColumn::make('created_at')->visibleFrom('md')
                     ->label('Date')
                     ->since()
-                    ->description(fn (Invoice $r) => $r->paid_at ? 'paid ' . $r->paid_at->format('d M H:i') : null)
+                    ->description(fn (Invoice $r) => $r->paid_at ? 'paid '.$r->paid_at->format('d M H:i') : null)
                     ->sortable(),
             ])
             ->filters([
@@ -100,7 +103,7 @@ class InvoicesTable
                         ])
                         ->action(function (Invoice $r, array $data) {
                             app(ManualPaymentService::class)->approve(
-                                $r, 'admin:' . auth()->id(), $data['note'] ?? null);
+                                $r, 'admin:'.auth()->id(), $data['note'] ?? null);
                             Notification::make()->success()
                                 ->title('Approved — subscription activated')->send();
                         }),
@@ -115,11 +118,42 @@ class InvoicesTable
                         ])
                         ->action(function (Invoice $r, array $data) {
                             app(ManualPaymentService::class)->reject(
-                                $r, 'admin:' . auth()->id(), $data['reason']);
+                                $r, 'admin:'.auth()->id(), $data['reason']);
                             Notification::make()->warning()->title('Rejected')->send();
                         }),
 
                     ViewAction::make(),
+
+                    Action::make('delete')
+                        ->label('Delete')
+                        ->icon('heroicon-m-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete this payment?')
+                        ->modalDescription(fn (Invoice $r) => ($r->status === 'paid'
+                            ? "It is a paid payment: it disappears from revenue and the customer's history. The VPN days already given stay. "
+                            : '').'The screenshot is deleted too. This cannot be undone.')
+                        ->modalSubmitActionLabel('Delete')
+                        ->action(function (Invoice $r) {
+                            app(ManualPaymentService::class)->delete($r, 'admin:'.auth()->id());
+                            Notification::make()->success()->title('Payment deleted')->send();
+                        }),
+                ]),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('delete')
+                        ->label('Delete selected')
+                        ->icon('heroicon-m-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete the selected payments?')
+                        ->modalDescription('Paid ones disappear from revenue and history; VPN days already given stay. Screenshots are deleted too. This cannot be undone.')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records) {
+                            $records->each(fn (Invoice $i) => app(ManualPaymentService::class)->delete($i, 'admin:'.auth()->id()));
+                            Notification::make()->success()->title('Deleted '.$records->count().' payment(s)')->send();
+                        }),
                 ]),
             ]);
     }
