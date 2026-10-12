@@ -33,10 +33,10 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->brandName('Mbunie VPN')
-            ->brandLogo(asset('images/mvpn-logo-light.svg').'?v=3')
-            ->darkModeBrandLogo(asset('images/mvpn-logo-dark.svg').'?v=3')
+            ->brandLogo(asset('images/mvpn-logo-light.svg').'?v=4')
+            ->darkModeBrandLogo(asset('images/mvpn-logo-dark.svg').'?v=4')
             ->brandLogoHeight('2.25rem')
-            ->favicon(asset('images/favicon-64.png'))
+            ->favicon(asset('images/favicon-64.png').'?v=4')
             ->login()
             // Brand look for the sign-in page (no theme build needed).
             ->renderHook(PanelsRenderHook::HEAD_END, fn (): string => <<<'HTML'

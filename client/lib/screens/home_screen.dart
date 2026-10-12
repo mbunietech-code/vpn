@@ -35,15 +35,7 @@ class HomeScreen extends StatelessWidget {
         titleSpacing: 20,
         title: Row(
           children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                gradient: c.brandGradient,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(Icons.shield_rounded, color: c.onBrand, size: 17),
-            ),
+            const BrandMark(size: 30),
             const SizedBox(width: 10),
             const Text('Mbunie VPN'),
           ],

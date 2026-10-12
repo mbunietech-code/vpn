@@ -9,6 +9,7 @@ import 'screens/settings_screen.dart';
 import 'services/app_state.dart';
 import 'services/mvpn_scope.dart';
 import 'theme/mvpn_theme.dart';
+import 'widgets/common.dart';
 
 void main() => runApp(const MvpnApp());
 
@@ -90,21 +91,12 @@ class _Splash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.mvpn;
     return Scaffold(
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                gradient: c.brandGradient,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Icon(Icons.shield_rounded, color: c.onBrand, size: 32),
-            ),
+            const BrandMark(size: 64),
             const SizedBox(height: 20),
             const CircularProgressIndicator(),
           ],

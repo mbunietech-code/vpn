@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Download Mbunie VPN</title>
+<link rel="icon" href="{{ asset('images/favicon-64.png') }}?v=4">
 <style>
   :root { color-scheme: light dark; --blue: #2563eb; --card: #fff; --line: #e3e8f2; --muted: #5b6478; }
   body { font: 15px/1.6 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif; margin: 0; color: #141b2d; background: #f6f8fc; }
@@ -17,13 +18,20 @@
   .btn { display: inline-block; margin-top: 12px; background: var(--blue); color: #fff; text-decoration: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; }
   ol { padding-left: 20px; margin: 8px 0 0; }
   .qr { background: #fff; padding: 8px; border-radius: 12px; width: 170px; height: 170px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img { width: 56px; height: 56px; border-radius: 14px; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
   .row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Mbunie VPN</h1>
-  <p class="muted">Version {{ $version }} · Fast, private access that works in China.</p>
+  <div class="brand">
+    <img src="{{ asset('images/mvpn-icon.png') }}?v=4" alt="Mbunie">
+    <div>
+      <h1>Mbunie VPN</h1>
+      <p class="muted" style="margin:0">Version {{ $version }} · Fast, private access that works in China.</p>
+    </div>
+  </div>
 
   <div class="grid">
     <div class="card">
@@ -42,7 +50,7 @@
     <h2>How to connect</h2>
     <ol>
       <li>Install the app. On Android allow “Install unknown apps”; on Windows choose “More info → Run anyway”.</li>
-      <li>Open it and sign in with your <strong>MbunieHub</strong> email and password (or an email code).</li>
+      <li>Open it and sign in with your email or phone number. We send you a one-time code.</li>
       <li>Tap <strong>Connect</strong>. Protocol <strong>Auto</strong> picks the best route for your network.</li>
     </ol>
     <p class="muted">No plan yet? Buy one at <a href="https://mbuniehub.com">mbuniehub.com</a> or inside the app.</p>

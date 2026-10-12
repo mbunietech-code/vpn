@@ -99,22 +99,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 children: [
                   const SizedBox(height: 12),
                   Center(
-                    child: Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        gradient: c.brandGradient,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                              color: c.brand.withValues(alpha: 0.35),
-                              blurRadius: 28,
-                              offset: const Offset(0, 12)),
-                        ],
-                      ),
-                      child: Icon(Icons.shield_rounded,
-                          color: c.onBrand, size: 34),
-                    ),
+                    child: const BrandMark(size: 68, shadow: true),
                   ),
                   const SizedBox(height: 20),
                   Text('Mbunie VPN',

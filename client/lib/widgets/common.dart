@@ -334,3 +334,34 @@ String formatDuration(Duration d) {
   String two(int n) => n.toString().padLeft(2, '0');
   return '${two(d.inHours)}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
 }
+
+/// The Mbunie "M" on a white rounded tile — the brand mark used across
+/// every Mbunie app.
+class BrandMark extends StatelessWidget {
+  const BrandMark({super.key, this.size = 64, this.shadow = false});
+  final double size;
+  final bool shadow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(size * 0.14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(size * 0.28),
+        boxShadow: shadow
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ]
+            : null,
+      ),
+      child: Image.asset('assets/brand/mark.png', fit: BoxFit.contain),
+    );
+  }
+}
