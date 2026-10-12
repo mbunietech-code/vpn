@@ -20,8 +20,13 @@ class ApiClient {
   /// device the customer doesn't recognise.
   static String? deviceId;
 
-  static Map<String, String> get deviceHeaders =>
-      {'X-Mvpn-Device': ?deviceId};
+  /// The id this install used before ids were tied to the hardware.
+  static String? previousDeviceId;
+
+  static Map<String, String> get deviceHeaders => {
+        'X-Mvpn-Device': ?deviceId,
+        'X-Mvpn-Device-Prev': ?previousDeviceId,
+      };
 
   final List<String> _bases;
   int _active = 0;
@@ -112,6 +117,7 @@ class ApiClient {
   }) =>
       _post('/api/subscription/device', {
         'fingerprint': fingerprint,
+        'previous_fingerprint': ?previousDeviceId,
         'platform': platform,
         'name': ?name,
         'connected': ?connected,

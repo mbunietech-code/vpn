@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -107,6 +109,38 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     return _deviceInfo = info;
   }
 
+  Future<void> _useHardwareId(String legacy) async {
+    final hw = await _hardwareId();
+    if (hw == null) return;
+    _deviceId = _hash(hw);
+    ApiClient.deviceId = _deviceId;
+    ApiClient.previousDeviceId = legacy;
+  }
+
+  /// ANDROID_ID on Android (survives reinstall), MachineGuid on Windows.
+  Future<String?> _hardwareId() async {
+    try {
+      if (Platform.isAndroid) {
+        final id = (await _loadDeviceInfo())['hardware_id'];
+        return (id == null || id.isEmpty) ? null : 'android:$id';
+      }
+      if (Platform.isWindows) {
+        final r = await Process.run('reg', [
+          'query',
+          r'HKLM\SOFTWARE\Microsoft\Cryptography',
+          '/v',
+          'MachineGuid',
+        ]);
+        final m = RegExp(r'MachineGuid\s+REG_SZ\s+(\S+)').firstMatch('${r.stdout}');
+        return m == null ? null : 'windows:${m.group(1)}';
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static String _hash(String hw) =>
+      sha256.convert(utf8.encode('mvpn-device:$hw')).toString().substring(0, 32);
+
   static String _newDeviceId() {
     final r = Random.secure();
     return List.generate(16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
@@ -148,12 +182,18 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     await vpn.loadPrefs();
     final prefs = await SharedPreferences.getInstance();
     localeOverride = prefs.getString('mvpn_locale');
-    _deviceId = prefs.getString('mvpn_device_id');
-    if (_deviceId == null) {
-      _deviceId = _newDeviceId();
-      await prefs.setString('mvpn_device_id', _deviceId!);
+    // The random per-install id changed on every reinstall, so one phone
+    // showed up as several devices. Prefer an id tied to the hardware and
+    // keep the old one so the server can merge the existing row.
+    var legacy = prefs.getString('mvpn_device_id');
+    if (legacy == null) {
+      legacy = _newDeviceId();
+      await prefs.setString('mvpn_device_id', legacy);
     }
-    ApiClient.deviceId = _deviceId;
+    _deviceId = legacy;
+    ApiClient.deviceId = legacy;
+    // Looked up in the background so start-up never waits on it.
+    unawaited(_useHardwareId(legacy));
     _token = prefs.getString('mvpn_token');
     identifier = prefs.getString('mvpn_identifier');
     api.token = _token;

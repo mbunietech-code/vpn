@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 class MethodHandler(private val scope: CoroutineScope) : FlutterPlugin,
     MethodChannel.MethodCallHandler {
     private var channel: MethodChannel? = null
+    private var appContext: android.content.Context? = null
 
     companion object {
         const val TAG = "A/MethodHandler"
@@ -39,6 +40,7 @@ class MethodHandler(private val scope: CoroutineScope) : FlutterPlugin,
             channelName,
         )
         channel!!.setMethodCallHandler(this)
+        appContext = flutterPluginBinding.applicationContext
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -53,6 +55,14 @@ class MethodHandler(private val scope: CoroutineScope) : FlutterPlugin,
                     mapOf(
                         "model" to "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
                         "os_version" to "Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
+                        // Stable across reinstalls (per signing key + phone), so
+                        // one phone stays one device in the admin.
+                        "hardware_id" to (appContext?.let {
+                            android.provider.Settings.Secure.getString(
+                                it.contentResolver,
+                                android.provider.Settings.Secure.ANDROID_ID,
+                            )
+                        } ?: ""),
                     )
                 )
             }
