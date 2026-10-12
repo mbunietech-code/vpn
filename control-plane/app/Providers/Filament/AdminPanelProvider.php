@@ -60,6 +60,19 @@ class AdminPanelProvider extends PanelProvider
                     .fi-ta-header-toolbar .fi-ta-actions:not(:has(*)) {
                         display: none;
                     }
+                    /* All screens: the first column (customer/name) and second
+                       lines wrap, so a long email never pushes the table
+                       sideways next to the sidebar on tablets and laptops. */
+                    .fi-ta-cell .fi-ta-text-description { white-space: normal; }
+                    .fi-ta-row .fi-ta-cell:first-child { max-width: 18rem; }
+                    .fi-ta-row .fi-ta-cell:first-child .fi-ta-col,
+                    .fi-ta-row .fi-ta-cell:first-child .fi-ta-text,
+                    .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item,
+                    .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item-label,
+                    .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-description {
+                        white-space: normal;
+                        overflow-wrap: anywhere;
+                    }
                     /* Phones: let long emails/names wrap instead of pushing the
                        table sideways. */
                     @media (max-width: 640px) {

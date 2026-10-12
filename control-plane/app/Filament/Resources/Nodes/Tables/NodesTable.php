@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Nodes\Tables;
 
-use App\Models\Node;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -13,9 +12,10 @@ class NodesTable
     {
         return $table
             ->columns([
-                TextColumn::make('name')->weight('bold')->searchable(),
-                TextColumn::make('region')->visibleFrom('md')->badge(),
-                TextColumn::make('public_host')->visibleFrom('md')->color('gray')->copyable(),
+                // Host and region under the name; health under status - keeps
+                // the table inside the screen next to the sidebar.
+                TextColumn::make('name')->weight('bold')->searchable()
+                    ->description(fn ($record) => trim(strtoupper((string) $record->region).' · '.$record->public_host, ' ·')),
                 TextColumn::make('status')
                     ->badge()
                     ->color(fn ($state) => match ($state) {
@@ -23,21 +23,19 @@ class NodesTable
                         'degraded' => 'warning',
                         'provisioning' => 'info',
                         default => 'danger',
-                    }),
+                    })
+                    ->description(fn ($record) => $record->last_health_at
+                        ? 'health '.$record->last_health_at->diffForHumans()
+                        : 'no health yet'),
                 TextColumn::make('peers_count')->visibleFrom('md')
                     ->label('Peers')
-                    ->counts('peers'),
-                TextColumn::make('priority')->visibleFrom('md')
+                    ->counts('peers')
+                    ->description(fn ($record) => 'config v'.$record->peer_version),
+                TextColumn::make('priority')->visibleFrom('lg')
                     ->label('Priority')
                     ->sortable()
                     ->badge()
                     ->color('gray'),
-                TextColumn::make('peer_version')->visibleFrom('md')->label('v')->badge()->color('gray'),
-                TextColumn::make('last_health_at')->visibleFrom('md')
-                    ->label('Health')
-                    ->since()
-                    ->placeholder('never')
-                    ->color(fn ($state) => $state && $state->gt(now()->subMinutes(5)) ? 'success' : 'danger'),
             ])
             ->recordActions([EditAction::make()]);
     }
