@@ -13,6 +13,7 @@ use App\Models\Invoice;
 use App\Models\Node;
 use App\Models\Peer;
 use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Services\SubscriptionAdmin;
 use Database\Seeders\MvpnSeeder;
@@ -20,6 +21,7 @@ use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\PersonalAccessToken;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -205,5 +207,34 @@ class AdminSubscriptionActionsTest extends TestCase
             ->assertHasNoActionErrors();
         $this->assertSame(0, Invoice::count());
         $this->assertSame(3, AuditLog::where('action', 'invoice.deleted')->count());
+    }
+
+    public function test_delete_customer_removes_everything_and_skips_admins(): void
+    {
+        Storage::fake('local');
+        Storage::put('proofs/c.jpg', 'x');
+        $cust = $this->customer();
+        $sub = app(SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
+        $sub->devices()->create(['fingerprint' => 'p1', 'platform' => 'android']);
+        $cust->invoices()->first()->update(['proof_path' => 'proofs/c.jpg']);
+        $cust->createToken('app');
+        $version = $this->node->fresh()->peer_version;
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        Livewire::test(ListUsers::class)
+            ->selectTableRecords([$cust->id, $admin->id])
+            ->callAction(TestAction::make('delete')->table()->bulk())
+            ->assertHasNoActionErrors();
+
+        $this->assertModelMissing($cust);
+        $this->assertModelExists($admin);
+        $this->assertSame(0, Subscription::count());
+        $this->assertSame(0, Peer::count());
+        $this->assertSame(0, Device::count());
+        $this->assertSame(0, Invoice::count());
+        $this->assertSame(0, PersonalAccessToken::where('tokenable_id', $cust->id)->count());
+        Storage::assertMissing('proofs/c.jpg');
+        $this->assertGreaterThan($version, $this->node->fresh()->peer_version);
+        $this->assertTrue(AuditLog::where('action', 'user.deleted')->exists());
     }
 }

@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\Node;
+use App\Models\Peer;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -114,6 +116,44 @@ class SubscriptionAdmin
             $sub->delete();
             Node::whereIn('id', $nodeIds)->get()->each->bumpPeerVersion();
         });
+    }
+
+    /**
+     * Delete a customer and everything of theirs: subscriptions, VPN keys,
+     * devices, payments (and screenshots), app sessions. Admins can't be
+     * deleted here. If they buy again later they start as a new customer.
+     */
+    public function deleteCustomer(User $user, string $actor): bool
+    {
+        if ($user->is_admin) {
+            return false;
+        }
+
+        DB::transaction(function () use ($user, $actor) {
+            $subIds = $user->subscriptions()->pluck('id');
+            $nodeIds = Peer::whereIn('subscription_id', $subIds)->pluck('node_id')->unique();
+            $proofs = $user->invoices()->whereNotNull('proof_path')->pluck('proof_path');
+
+            AuditLog::create([
+                'actor' => $actor,
+                'action' => 'user.deleted',
+                'target' => "user:{$user->id}",
+                'meta' => array_filter([
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'eduhub_user_id' => $user->eduhub_user_id,
+                    'subscriptions' => $subIds->count(),
+                    'invoices' => $user->invoices()->count(),
+                ]),
+            ]);
+
+            $user->tokens()->delete();
+            $user->delete(); // subscriptions, peers, devices and invoices cascade
+            Node::whereIn('id', $nodeIds)->get()->each->bumpPeerVersion();
+            DB::afterCommit(fn () => Storage::delete($proofs->all()));
+        });
+
+        return true;
     }
 
     /** Suspend or restore every subscription of a customer. */
