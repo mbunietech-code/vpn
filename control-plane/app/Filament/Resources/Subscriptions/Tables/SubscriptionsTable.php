@@ -111,15 +111,23 @@ class SubscriptionsTable
                         ->modalHeading('Subscription link')
                         ->modalDescription('Copy it into a compatible client (Add profile → from clipboard). This link is private to this customer.')
                         ->modalContent(function (Subscription $r) {
-                            $link = url("/sub/{$r->sub_token}");
-                            // chillerlan/php-qrcode ships with Filament's 2FA deps.
-                            $qr = class_exists(QRCode::class)
-                                ? '<img alt="QR" src="'.(new QRCode)->render($link).'" style="width:220px;height:220px;margin:0 auto 12px;display:block;background:#fff;padding:8px;border-radius:8px">'
-                                : '';
+                            $block = function (string $title, string $link): string {
+                                // chillerlan/php-qrcode ships with Filament's 2FA deps.
+                                $qr = class_exists(QRCode::class)
+                                    ? '<img alt="QR" src="'.(new QRCode)->render($link).'" style="width:220px;height:220px;margin:0 auto 12px;display:block;background:#fff;padding:8px;border-radius:8px">'
+                                    : '';
 
-                            return new HtmlString($qr
-                                .'<input readonly onclick="this.select()" style="width:100%;font-family:monospace;font-size:13px;padding:8px;border:1px solid #ccc;border-radius:6px" value="'
-                                .e($link).'">');
+                                return '<p style="font-weight:600;margin:0 0 8px">'.e($title).'</p>'.$qr
+                                    .'<input readonly onclick="this.select()" style="width:100%;font-family:monospace;font-size:13px;padding:8px;border:1px solid #ccc;border-radius:6px" value="'
+                                    .e($link).'">';
+                            };
+                            $link = url("/sub/{$r->sub_token}");
+
+                            // The iPhone app is not out yet: the official sing-box app
+                            // (non-China App Store) imports this as a remote profile.
+                            return new HtmlString($block('Other clients (Hiddify, v2rayN)', $link)
+                                .'<div style="height:20px"></div>'
+                                .$block('iPhone — sing-box app (Profiles → New → Remote)', $link.'?format=singbox&platform=ios&protocol=auto'));
                         })
                         ->modalSubmitAction(false)
                         ->modalCancelActionLabel('Close'),

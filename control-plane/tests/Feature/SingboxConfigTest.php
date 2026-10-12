@@ -111,6 +111,35 @@ class SingboxConfigTest extends TestCase
         $this->assertContains('com.android.shell', $tun['exclude_package']);
     }
 
+    public function test_ios_gets_a_mobile_tun_not_the_windows_config(): void
+    {
+        $sub = $this->activeSub();
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=ios&protocol=auto")->assertOk()->json();
+        $tun = $cfg['inbounds'][0];
+
+        $this->assertSame('gvisor', $tun['stack']);
+        $this->assertArrayNotHasKey('interface_name', $tun);
+        $this->assertArrayNotHasKey('strict_route', $tun);
+        $this->assertArrayNotHasKey('exclude_package', $tun);
+
+        $auto = collect($cfg['outbounds'])->firstWhere('tag', 'auto');
+        $this->assertStringContainsString('Hysteria2', $auto['outbounds'][0]);
+        $this->assertSame(300, $auto['tolerance']);
+    }
+
+    public function test_macos_tun_has_no_interface_name(): void
+    {
+        $sub = $this->activeSub();
+
+        $tun = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=macos")->assertOk()->json('inbounds.0');
+
+        // macOS rejects anything but utunN ("bad tun name: mvpn0").
+        $this->assertArrayNotHasKey('interface_name', $tun);
+        $this->assertSame('system', $tun['stack']);
+        $this->assertTrue($tun['strict_route']);
+    }
+
     public function test_openvpn_protocol_returns_endpoint_config(): void
     {
         $sub = $this->activeSub();

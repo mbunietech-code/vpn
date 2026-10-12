@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  *   (default)          → base64 share-link bundle (Hiddify / v2rayN / sing-box import)
  *   ?format=singbox    → full sing-box client config JSON (MVPN desktop engine)
- *       &platform=windows|linux|macos|android
+ *       &platform=windows|linux|macos|android|ios
  */
 class SubscriptionLinkController extends Controller
 {
@@ -32,7 +32,7 @@ class SubscriptionLinkController extends Controller
         );
 
         if ($request->query('format') === 'singbox') {
-            $platform = in_array($request->query('platform'), ['windows', 'linux', 'macos', 'android'], true)
+            $platform = in_array($request->query('platform'), ['windows', 'linux', 'macos', 'android', 'ios'], true)
                 ? $request->query('platform') : 'windows';
             $protocol = in_array($request->query('protocol'), ['reality', 'hysteria2', 'openvpn', 'auto'], true)
                 ? $request->query('protocol') : 'auto';

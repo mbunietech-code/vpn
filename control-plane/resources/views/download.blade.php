@@ -56,7 +56,7 @@
 
   <div class="platforms">
     {{-- macOS --}}
-    <div class="tile soon" aria-label="macOS, coming soon">
+    <a class="tile" href="{{ $macos }}" aria-label="Download for macOS">
       <div class="disc">
         <svg class="os" viewBox="0 0 64 64" fill="none" aria-hidden="true">
           <rect x="11" y="13" width="42" height="29" rx="3" stroke="#5f6675" stroke-width="3.5"/>
@@ -68,8 +68,8 @@
         </span>
       </div>
       <div class="name">macOS</div>
-      <div class="meta">Intel / Apple chip<br><span class="pill">Coming soon</span></div>
-    </div>
+      <div class="meta">Version {{ $version }}@if ($macosDate)<br>{{ $macosDate }}@endif</div>
+    </a>
 
     {{-- Windows --}}
     <a class="tile" href="{{ $windows }}" aria-label="Download for Windows">
@@ -133,7 +133,8 @@
   <div class="card">
     <h2>How to connect</h2>
     <ol>
-      <li>Install the app. On Android allow “Install unknown apps”; on Windows choose “More info → Run anyway”.</li>
+      <li>Install the app. On Android allow “Install unknown apps”; on Windows choose “More info → Run anyway”;
+        on Mac drag it into Applications, open it once, then System Settings → Privacy &amp; Security → <strong>Open Anyway</strong>.</li>
       <li>Open it and sign in with your email or phone number. We send you a one-time code.</li>
       <li>Tap <strong>Connect</strong>. Protocol <strong>Auto</strong> picks the best route for your network.</li>
     </ol>

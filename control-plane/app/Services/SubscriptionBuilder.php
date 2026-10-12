@@ -71,7 +71,7 @@ class SubscriptionBuilder
 
     /**
      * Full sing-box client config. `stack` differs per platform:
-     *   windows/linux/android → "mixed",  macos → "system".
+     *   windows/linux → "mixed",  macos → "system",  android/ios → "gvisor".
      *
      * @return array<string,mixed>
      */
@@ -159,7 +159,7 @@ class SubscriptionBuilder
         // phones REALITY often wins the latency probe by a few ms yet browses
         // much slower; urltest keeps the earlier member unless another beats
         // it by more than `tolerance`.
-        $preferHysteria = $platform === 'android';
+        $preferHysteria = in_array($platform, ['android', 'ios'], true);
         if ($preferHysteria) {
             // Within each node only — node priority order is kept.
             $nodeOrder = [];
@@ -190,13 +190,17 @@ class SubscriptionBuilder
                 'fe80::/10',
                 'ff00::/8',
             ],
-            'stack' => match ($platform) { 'macos' => 'system', 'android' => 'gvisor', default => 'mixed' },
+            'stack' => match ($platform) { 'macos' => 'system', 'android', 'ios' => 'gvisor', default => 'mixed' },
         ];
 
-        if ($platform !== 'android') {
-            $tunInbound['interface_name'] = 'mvpn0';
+        // iOS: the Network Extension owns the interface; desktop-only options break it.
+        if (! in_array($platform, ['android', 'ios'], true)) {
+            // macOS only accepts utunN names; sing-box picks a free one.
+            if ($platform !== 'macos') {
+                $tunInbound['interface_name'] = 'mvpn0';
+            }
             $tunInbound['strict_route'] = true;
-        } else {
+        } elseif ($platform === 'android') {
             $tunInbound['exclude_package'] = [
                 'com.mbunie.mvpn',
                 'com.android.shell',
@@ -312,13 +316,17 @@ class SubscriptionBuilder
                 'fe80::/10',
                 'ff00::/8',
             ],
-            'stack' => match ($platform) { 'macos' => 'system', 'android' => 'gvisor', default => 'mixed' },
+            'stack' => match ($platform) { 'macos' => 'system', 'android', 'ios' => 'gvisor', default => 'mixed' },
         ];
 
-        if ($platform !== 'android') {
-            $tunInbound['interface_name'] = 'mvpn0';
+        // iOS: the Network Extension owns the interface; desktop-only options break it.
+        if (! in_array($platform, ['android', 'ios'], true)) {
+            // macOS only accepts utunN names; sing-box picks a free one.
+            if ($platform !== 'macos') {
+                $tunInbound['interface_name'] = 'mvpn0';
+            }
             $tunInbound['strict_route'] = true;
-        } else {
+        } elseif ($platform === 'android') {
             $tunInbound['exclude_package'] = [
                 'com.mbunie.mvpn',
                 'com.android.shell',

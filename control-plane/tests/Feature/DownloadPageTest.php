@@ -11,6 +11,8 @@ class DownloadPageTest extends TestCase
         $this->get('/download')->assertOk()
             ->assertSee('Download APK')
             ->assertSee('Download for Windows')
+            ->assertSee('Download for macOS')
+            ->assertSee('Mbunie-VPN-1.0.13-macos.dmg', false)
             ->assertSee(route('download.qr'), false)
             ->assertSee(route('download.qr.android'), false)
             ->assertSee('Coming soon');

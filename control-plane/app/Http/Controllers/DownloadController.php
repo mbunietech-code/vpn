@@ -20,9 +20,11 @@ class DownloadController extends Controller
         return view('download', [
             'android' => url(config('services.mvpn.download_android')),
             'windows' => url(config('services.mvpn.download_windows')),
+            'macos' => url(config('services.mvpn.download_macos')),
             'version' => config('services.mvpn.app_version'),
             'androidDate' => $this->releaseDate(config('services.mvpn.download_android')),
             'windowsDate' => $this->releaseDate(config('services.mvpn.download_windows')),
+            'macosDate' => $this->releaseDate(config('services.mvpn.download_macos')),
         ]);
     }
 
@@ -48,6 +50,7 @@ class DownloadController extends Controller
             'min_supported' => config('services.mvpn.min_app_version') ?: null,
             'android' => url(config('services.mvpn.download_android')),
             'windows' => url(config('services.mvpn.download_windows')),
+            'macos' => url(config('services.mvpn.download_macos')),
             'page' => route('download'),
         ])->header('Cache-Control', 'public, max-age=300');
     }
