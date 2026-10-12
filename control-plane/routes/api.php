@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\DevController;
 use App\Http\Controllers\Api\NodeController;
+use App\Http\Controllers\Api\PartnerAdminController;
 use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PlanController;
@@ -69,4 +70,24 @@ Route::prefix('partner')
         Route::get('stats', [PartnerController::class, 'stats']);
         Route::get('customers/{eduhubUserId}', [PartnerController::class, 'customer'])->whereNumber('eduhubUserId');
         Route::post('activations', [PartnerController::class, 'activate']);
+
+        // VPN management from the EduHub admin (see PartnerAdminController).
+        Route::prefix('admin')->controller(PartnerAdminController::class)->group(function () {
+            Route::get('customers', 'customers');
+            Route::get('customers/{user}', 'customer')->whereNumber('user');
+            Route::post('customers/{user}/status', 'setCustomerStatus')->whereNumber('user');
+            Route::post('customers/{user}/grant', 'grant')->whereNumber('user');
+            Route::post('subscriptions/{subscription}/extend', 'extend')->whereNumber('subscription');
+            Route::post('subscriptions/{subscription}/suspend', 'suspend')->whereNumber('subscription');
+            Route::post('subscriptions/{subscription}/restore', 'restore')->whereNumber('subscription');
+            Route::get('devices', 'devices');
+            Route::post('devices/{device}/remove', 'removeDevice')->whereNumber('device');
+            Route::post('devices/{device}/allow', 'allowDevice')->whereNumber('device');
+            Route::get('invoices', 'invoices');
+            Route::get('invoices/{invoice}/proof', 'proof')->whereNumber('invoice');
+            Route::post('invoices/{invoice}/approve', 'approve')->whereNumber('invoice');
+            Route::post('invoices/{invoice}/reject', 'reject')->whereNumber('invoice');
+            Route::get('plans', 'plans');
+            Route::put('plans/{plan}', 'updatePlan')->whereNumber('plan');
+        });
     });
