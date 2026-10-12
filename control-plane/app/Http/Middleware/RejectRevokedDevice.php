@@ -16,11 +16,17 @@ class RejectRevokedDevice
 {
     public const HEADER = 'X-Mvpn-Device';
 
+    /** The install's older id; a removed phone can't escape by switching ids. */
+    public const PREVIOUS_HEADER = 'X-Mvpn-Device-Prev';
+
     public function handle(Request $request, Closure $next): Response
     {
-        $fingerprint = (string) $request->header(self::HEADER, '');
+        $ids = array_values(array_filter([
+            (string) $request->header(self::HEADER, ''),
+            (string) $request->header(self::PREVIOUS_HEADER, ''),
+        ]));
 
-        if ($fingerprint !== '' && Device::where('fingerprint', $fingerprint)->whereNotNull('revoked_at')->exists()) {
+        if ($ids !== [] && Device::whereIn('fingerprint', $ids)->whereNotNull('revoked_at')->exists()) {
             return response()->json([
                 'error' => 'device_revoked',
                 'message' => 'This device was removed from the account. Contact support@mbuniehub.com.',

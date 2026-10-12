@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Device;
+use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -61,6 +63,9 @@ class SubscriptionController extends Controller
     {
         $data = $request->validate([
             'fingerprint' => ['required', 'string', 'max:128'],
+            // The id this install used before (random per install) - lets one
+            // phone keep one row when the app moves to its hardware id.
+            'previous_fingerprint' => ['nullable', 'string', 'max:128'],
             'platform' => ['nullable', 'in:android,windows,macos,linux,ios'],
             'name' => ['nullable', 'string', 'max:80'],
             'connected' => ['nullable', 'boolean'],
@@ -77,7 +82,7 @@ class SubscriptionController extends Controller
             return response()->json(['error' => 'no_active_subscription'], 403);
         }
 
-        $device = $sub->devices()->firstOrNew(['fingerprint' => $data['fingerprint']]);
+        $device = $this->findDevice($sub, $data);
 
         // An admin-revoked device stays revoked; it must not lift its own block.
         if ($device->exists && $device->revoked_at !== null) {
@@ -116,5 +121,32 @@ class SubscriptionController extends Controller
         }
 
         return response()->json(['status' => 'ok', 'device_id' => $device->id]);
+    }
+
+    /**
+     * One phone = one row. Match by id, then by the install's previous id,
+     * then (for a reinstall) the same platform + model on this subscription.
+     */
+    private function findDevice(Subscription $sub, array $data): Device
+    {
+        $device = $sub->devices()->where('fingerprint', $data['fingerprint'])->first();
+
+        if (! $device && filled($data['previous_fingerprint'] ?? null)) {
+            $device = $sub->devices()->where('fingerprint', $data['previous_fingerprint'])->first();
+        }
+
+        if (! $device && filled($data['model'] ?? null)) {
+            $device = $sub->devices()
+                ->whereNull('revoked_at')
+                ->where('platform', $data['platform'] ?? null)
+                ->where('model', $data['model'])
+                ->latest('last_seen_at')
+                ->first();
+        }
+
+        $device ??= $sub->devices()->make();
+        $device->fingerprint = $data['fingerprint'];
+
+        return $device;
     }
 }

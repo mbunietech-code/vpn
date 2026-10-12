@@ -10,3 +10,4 @@ Schedule::call(fn () => Cache::forever('scheduler:last_run', now()->toIso8601Str
 Schedule::command('mvpn:sweep-expired')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('mvpn:scan-anomalies')->everyMinute()->withoutOverlapping();
 Schedule::command('auth:clear-resets')->daily();
+Schedule::command('mvpn:dedupe-devices')->hourly()->withoutOverlapping();
