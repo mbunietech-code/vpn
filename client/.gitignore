@@ -46,3 +46,6 @@ app.*.map.json
 
 # Bundled sing-box engine for Windows builds (large binary, fetched at build time)
 /windows/engine/
+
+# Bundled sing-box engine for macOS builds (macos/engine-scripts/fetch-engine.sh)
+/macos/engine/

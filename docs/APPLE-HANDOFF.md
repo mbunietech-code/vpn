@@ -8,7 +8,7 @@ Read this first. Everything here is the state of the `main` branch at that date.
 | Part | Where | State |
 |---|---|---|
 | Control plane (Laravel 13 + Filament 4) | `control-plane/` | Live at https://vpn.mbuniehub.com |
-| Flutter app | `client/` | Android + Windows shipped (v1.0.13); `macos/` folder exists, never built; **no `ios/` folder** |
+| Flutter app | `client/` | Android + Windows shipped (v1.0.13); macOS 1.0.13 DMG on /download (ad-hoc signed, Option A below); **no `ios/` folder** |
 | VPN node KL1 | Hostinger KL VPS, shared with EduHub LiveKit | VLESS-REALITY + Hysteria2 via Xray / sing-box |
 | EduHub integration | separate repo `edu/prod` | Sells VPN plans, manages VPN via signed partner API |
 
@@ -36,6 +36,26 @@ Engines in the app (`client/lib/services/tunnel/`):
   (`app_version` + download links) together for every release; the app's update notice reads `/api/app/version`.
 
 ## macOS — the quicker one
+
+**Status (2026-10-13, on the Mac):** Option A works and 1.0.13 is on the download page as an
+**ad-hoc signed** DMG (users allow it once: Privacy & Security → Open Anyway). Signing with a
+Developer ID + notarizing (step 4) still needs the Apple Developer account. How it works now:
+- Release: `cd client && sh macos/engine-scripts/make-dmg.sh` → `build/macos/Mbunie-VPN-<ver>-macos.dmg`,
+  upload it to `control-plane/storage/app/public/downloads/` on the server
+  (`services.mvpn.download_macos`, bump it with the other download links).
+- `bash client/macos/engine-scripts/fetch-engine.sh 1.14.0` (same as Windows) → universal `client/macos/engine/sing-box`
+  (not in git). The Xcode build phase "Embed VPN Engine" (`embed-engine.sh`) copies it to
+  `Mbunie VPN.app/Contents/MacOS/sing-box` and the helper scripts to `Contents/Resources/engine/`.
+- First Connect: the app shows the macOS admin password dialog once and runs `install-helper.sh`
+  as root → `/Library/PrivilegedHelperTools/com.mbunie.mvpn/{sing-box,mvpn-engine,VERSION}` plus
+  `/etc/sudoers.d/mvpn-<user>` (NOPASSWD for `mvpn-engine` only). Later connects run
+  `sudo -n mvpn-engine run <config>`; it is reinstalled when the engine or scripts change (hash in `VERSION`).
+- Quitting the app stops the engine (`AppDelegate.applicationWillTerminate`).
+- App sandbox is off (not needed outside the App Store). Hardened runtime is NOT set in the project:
+  with ad-hoc signing it stops the Flutter plugin frameworks loading (different Team IDs). Turn it
+  on when signing for release: `flutter build macos` then re-sign, or build with
+  `ENABLE_HARDENED_RUNTIME=YES` and a Developer ID identity (needed for notarization).
+- To remove everything on a test Mac: `sudo rm -rf /Library/PrivilegedHelperTools/com.mbunie.mvpn /etc/sudoers.d/mvpn-* /var/run/mvpn`.
 
 Option A (fast, outside the App Store, same as Windows):
 1. `cd client && flutter build macos`.
@@ -73,10 +93,8 @@ then the Dart side. Reference implementation: the official sing-box Apple client
   and import their personal subscription link
   `https://vpn.mbuniehub.com/sub/<token>?format=singbox&platform=ios&protocol=auto`
   (admin → Subscriptions → ⋮ → Subscription link shows it with a QR code).
-  **Not ready yet:** `SubscriptionLinkController` only accepts `windows|linux|macos|android` and
-  falls back to the Windows config for anything else. Add `ios` there and in
-  `SubscriptionBuilder::buildSingbox()` (treat it like `android`: mobile TUN, `gvisor` stack, no
-  desktop-only route options), then test with the sing-box app before telling customers.
+  `platform=ios` is supported (mobile TUN, `gvisor`, Hysteria2 first) and the admin modal shows
+  the iPhone link + QR. Test with the sing-box app before telling customers.
 
 ## Mac setup checklist
 

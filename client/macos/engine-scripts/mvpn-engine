@@ -1,0 +1,56 @@
+#!/bin/sh
+# Mbunie VPN engine helper (macOS). install-helper.sh puts it, root-owned, in
+# /Library/PrivilegedHelperTools/com.mbunie.mvpn and allows it in sudoers
+# (NOPASSWD) for the user who set it up, so connecting needs no password.
+#
+#   mvpn-engine run <config.json>   runs sing-box in the foreground (TUN needs root)
+#   mvpn-engine stop                stops it
+#   mvpn-engine check               exits 0 (tests the sudoers rule)
+set -eu
+
+HERE=/Library/PrivilegedHelperTools/com.mbunie.mvpn
+RUN=/var/run/mvpn
+PID="$RUN/sing-box.pid"
+
+stop() {
+  [ -f "$PID" ] || return 0
+  p=$(cat "$PID")
+  case "$(ps -p "$p" -o comm= 2>/dev/null || true)" in
+    *sing-box)
+      kill -TERM "$p" 2>/dev/null || true
+      i=0
+      while kill -0 "$p" 2>/dev/null && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+      kill -KILL "$p" 2>/dev/null || true
+      ;;
+  esac
+  rm -f "$PID"
+}
+
+case "${1:-}" in
+  check)
+    exit 0
+    ;;
+  stop)
+    stop
+    ;;
+  run)
+    [ -f "${2:-}" ] || { echo "usage: mvpn-engine run <config.json>" >&2; exit 2; }
+    stop
+    mkdir -p "$RUN"
+    chmod 755 "$RUN"
+    # Our own copy: the caller cannot swap it while sing-box reads it.
+    cp "$2" "$RUN/config.json"
+    chmod 600 "$RUN/config.json"
+    # sing-box runs as root here: refuse configs that point it at files.
+    if grep -Eq '"(output|external_ui|external_ui_download_url|[a-z_]*_path)"' "$RUN/config.json"; then
+      echo "mvpn-engine: config not allowed (file options)" >&2
+      exit 3
+    fi
+    echo $$ > "$PID"
+    exec "$HERE/sing-box" run -c "$RUN/config.json" -D "$RUN" --disable-color
+    ;;
+  *)
+    echo "usage: mvpn-engine run <config.json> | stop | check" >&2
+    exit 2
+    ;;
+esac

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -16,6 +18,10 @@ import 'tunnel_engine.dart';
 /// from sing-box's Clash API. Needs elevated privileges to create the TUN
 /// device (Administrator on Windows; root / CAP_NET_ADMIN on Linux; root on
 /// macOS) — a permission failure is surfaced as an [EngineStatus.error].
+///
+/// macOS: sing-box runs through a small root helper (`mvpn-engine`, see
+/// `macos/engine-scripts/`). The first connect asks for the admin password
+/// once to install it; after that `sudo -n` starts it without a prompt.
 class SingboxEngine implements TunnelEngine {
   @override
   bool get isReal => true;
@@ -24,6 +30,10 @@ class SingboxEngine implements TunnelEngine {
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   static const _clashApi = 'http://127.0.0.1:9095';
+
+  static const _macHelperDir = '/Library/PrivilegedHelperTools/com.mbunie.mvpn';
+  static const _macHelper = '$_macHelperDir/mvpn-engine';
+  String? _macStamp; // engine + helper hash, computed once per session
 
   final _reports = StreamController<EngineReport>.broadcast();
   final _traffic = StreamController<EngineTraffic>.broadcast();
@@ -68,20 +78,29 @@ class SingboxEngine implements TunnelEngine {
 
     final bin = await _ensureBinary(apiBase, dir);
     final cfg = await _fetchConfig(subUrl, apiToken, dir, pref);
+    if (Platform.isMacOS) await _ensureMacHelper(bin);
 
     _errBuf.clear();
     _up = false;
     await _logSink?.close();
-    _logSink = File('${dir.path}${Platform.pathSeparator}engine.log')
-        .openWrite(mode: FileMode.write);
-    final proc = await Process.start(bin.path, [
-      'run',
-      '-c',
-      cfg.path,
-      '-D',
-      dir.path,
-      '--disable-color',
-    ], workingDirectory: dir.path);
+    _logSink = File(
+      '${dir.path}${Platform.pathSeparator}engine.log',
+    ).openWrite(mode: FileMode.write);
+    final proc = Platform.isMacOS
+        ? await Process.start('/usr/bin/sudo', [
+            '-n',
+            _macHelper,
+            'run',
+            cfg.path,
+          ], workingDirectory: dir.path)
+        : await Process.start(bin.path, [
+            'run',
+            '-c',
+            cfg.path,
+            '-D',
+            dir.path,
+            '--disable-color',
+          ], workingDirectory: dir.path);
     _proc = proc;
 
     proc.stdout
@@ -127,6 +146,10 @@ class SingboxEngine implements TunnelEngine {
     _stopPolling();
     final p = _proc;
     _proc = null;
+    // macOS: the engine is root's; the helper stops it (also an orphan).
+    if (Platform.isMacOS) {
+      await _macHelperStop();
+    }
     if (p != null) {
       p.kill(ProcessSignal.sigterm);
       try {
@@ -144,6 +167,7 @@ class SingboxEngine implements TunnelEngine {
   @override
   void dispose() {
     _stopPolling();
+    if (Platform.isMacOS && _proc != null) unawaited(_macHelperStop());
     _proc?.kill(ProcessSignal.sigkill);
     _logSink?.close();
     _http.close();
@@ -168,10 +192,13 @@ class SingboxEngine implements TunnelEngine {
   Future<File> _ensureBinary(String apiBase, Directory dir) async {
     final name = Platform.isWindows ? 'sing-box.exe' : 'sing-box';
 
-    // Prefer the engine shipped inside the installer (<app>/engine/).
+    // Prefer the engine shipped inside the installer (<app>/engine/;
+    // macOS: Mbunie VPN.app/Contents/MacOS/sing-box).
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
     final bundled = File(
-      '${File(Platform.resolvedExecutable).parent.path}'
-      '${Platform.pathSeparator}engine${Platform.pathSeparator}$name',
+      Platform.isMacOS
+          ? '$exeDir/$name'
+          : '$exeDir${Platform.pathSeparator}engine${Platform.pathSeparator}$name',
     );
     if (bundled.existsSync()) return bundled;
 
@@ -191,6 +218,89 @@ class SingboxEngine implements TunnelEngine {
       await Process.run('chmod', ['+x', file.path]);
     }
     return file;
+  }
+
+  // ---- macOS root helper ---------------------------------------------
+
+  /// Installs (or updates) the root helper when it is missing, stale or not
+  /// allowed for this user. Shows the macOS admin password dialog.
+  Future<void> _ensureMacHelper(File bin) async {
+    final res = Directory(
+      '${File(Platform.resolvedExecutable).parent.parent.path}/Resources/engine',
+    );
+    final helper = File('${res.path}/mvpn-engine');
+    final installer = File('${res.path}/install-helper.sh');
+    if (!helper.existsSync() || !installer.existsSync()) {
+      throw StateError('VPN helper not found. Please reinstall Mbunie VPN.');
+    }
+
+    final binPath = bin.path,
+        helperPath = helper.path,
+        installerPath = installer.path;
+    _macStamp ??= await compute((_) {
+      final bytes = <int>[
+        ...File(binPath).readAsBytesSync(),
+        ...File(helperPath).readAsBytesSync(),
+        ...File(installerPath).readAsBytesSync(),
+      ];
+      return sha256.convert(bytes).toString();
+    }, null);
+
+    final installed = File('$_macHelperDir/VERSION');
+    final current =
+        installed.existsSync() &&
+        installed.readAsStringSync().trim() == _macStamp &&
+        (await Process.run('/usr/bin/sudo', [
+              '-n',
+              _macHelper,
+              'check',
+            ])).exitCode ==
+            0;
+    if (current) return;
+
+    final user = (await Process.run('/usr/bin/id', [
+      '-un',
+    ])).stdout.toString().trim();
+    final r = await Process.run('/usr/bin/osascript', [
+      '-e',
+      'on run argv',
+      '-e',
+      'do shell script "/bin/sh " & quoted form of item 1 of argv & " " & '
+          'quoted form of item 2 of argv & " " & quoted form of item 3 of argv & " " & '
+          'quoted form of item 4 of argv & " " & quoted form of item 5 of argv '
+          'with prompt "Mbunie VPN needs your password once to set up its VPN engine." '
+          'with administrator privileges',
+      '-e',
+      'end run',
+      installer.path,
+      bin.path,
+      res.path,
+      user,
+      _macStamp!,
+    ]);
+    if (r.exitCode != 0) {
+      final err = r.stderr.toString();
+      if (err.contains('-128')) {
+        throw StateError(
+          'Mbunie VPN needs your Mac password once to create the VPN connection. '
+          'Press Connect and enter it.',
+        );
+      }
+      throw StateError('Could not set up the VPN engine: ${err.trim()}');
+    }
+  }
+
+  Future<void> _macHelperStop() async {
+    if (!File(_macHelper).existsSync()) return;
+    try {
+      await Process.run('/usr/bin/sudo', [
+        '-n',
+        _macHelper,
+        'stop',
+      ]).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      /* best effort */
+    }
   }
 
   // ---- config -------------------------------------------------------
@@ -223,14 +333,30 @@ class SingboxEngine implements TunnelEngine {
     );
     if (res.statusCode != 200) {
       if (res.statusCode == 403 && res.body.contains('device_revoked')) {
-        throw StateError('This device was removed from the account. Contact support@mbuniehub.com.');
+        throw StateError(
+          'This device was removed from the account. Contact support@mbuniehub.com.',
+        );
       }
       throw StateError('Could not get the VPN config (HTTP ${res.statusCode})');
     }
     // Decode as UTF-8 explicitly: res.body falls back to latin1 and mangles
     // outbound tags ("·" became "Â·").
-    final body = utf8.decode(res.bodyBytes);
-    jsonDecode(body); // sanity check it's valid JSON
+    var body = utf8.decode(res.bodyBytes);
+    final json = jsonDecode(body); // sanity check it's valid JSON
+
+    // macOS only accepts utunN tun names; older servers sent "mvpn0"
+    // ("bad tun name"). Without a name sing-box picks a free utun.
+    if (Platform.isMacOS && json is Map && json['inbounds'] is List) {
+      var changed = false;
+      for (final ib in json['inbounds'] as List) {
+        final name = ib is Map ? ib['interface_name'] : null;
+        if (name is String && !name.startsWith('utun')) {
+          ib.remove('interface_name');
+          changed = true;
+        }
+      }
+      if (changed) body = jsonEncode(json);
+    }
 
     final f = File('${dir.path}${Platform.pathSeparator}config.json');
     await f.writeAsString(body, flush: true);
@@ -331,6 +457,10 @@ class SingboxEngine implements TunnelEngine {
   String _privilegeHint() {
     if (Platform.isWindows) {
       return 'Run Mbunie VPN as Administrator (right-click → Run as administrator).';
+    }
+    if (Platform.isMacOS) {
+      return 'The VPN engine was not allowed to start. Quit Mbunie VPN, open it again '
+          'and enter your Mac password when asked.';
     }
     return 'Run with root privileges (sudo): the TUN device needs CAP_NET_ADMIN.';
   }
