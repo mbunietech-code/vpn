@@ -59,6 +59,9 @@ class ApiClient {
 
   Future<Map<String, dynamic>> plans() => _get('/api/plans');
 
+  /// Newest app version and where to download it (public).
+  Future<Map<String, dynamic>> appVersion() => _get('/api/app/version');
+
   Future<Map<String, dynamic>> checkout({
     required String plan,
     required String provider,

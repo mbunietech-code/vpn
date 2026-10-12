@@ -83,9 +83,9 @@ return [
         'default_currency' => env('MVPN_DEFAULT_CURRENCY', 'usd'),
         'provision_timeout' => (int) env('MVPN_PROVISION_TIMEOUT', 60),
         // Public installers shown on /download (files under storage/app/public/downloads).
-        'download_android' => env('MVPN_DOWNLOAD_ANDROID', '/storage/downloads/Mbunie-VPN-1.0.12.apk'),
-        'download_windows' => env('MVPN_DOWNLOAD_WINDOWS', '/storage/downloads/Mbunie-VPN-Setup-1.0.12.exe'),
-        'app_version' => env('MVPN_APP_VERSION', '1.0.12'),
+        'download_android' => env('MVPN_DOWNLOAD_ANDROID', '/storage/downloads/Mbunie-VPN-1.0.13.apk'),
+        'download_windows' => env('MVPN_DOWNLOAD_WINDOWS', '/storage/downloads/Mbunie-VPN-Setup-1.0.13.exe'),
+        'app_version' => env('MVPN_APP_VERSION', '1.0.13'),
         // Apps older than this must update before they can be used (null = never forced).
         'min_app_version' => env('MVPN_MIN_APP_VERSION'),
         // Who gets "payment to review" emails (comma separated). Empty = every VPN admin.

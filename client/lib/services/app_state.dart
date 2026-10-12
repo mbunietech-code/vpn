@@ -194,6 +194,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     ApiClient.deviceId = legacy;
     // Looked up in the background so start-up never waits on it.
     unawaited(_useHardwareId(legacy));
+    unawaited(checkForUpdate());
     _token = prefs.getString('mvpn_token');
     identifier = prefs.getString('mvpn_identifier');
     api.token = _token;
@@ -267,8 +268,52 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  // ---- app updates -----------------------------------------------------
+
+  /// Newer version on the server, and where to get it for this platform.
+  String? updateVersion;
+  String? updateUrl;
+
+  /// This build is below the server's minimum: it must update.
+  bool updateRequired = false;
+  DateTime? _lastUpdateCheck;
+
+  Future<void> checkForUpdate() async {
+    final last = _lastUpdateCheck;
+    if (last != null && DateTime.now().difference(last) < const Duration(hours: 6)) return;
+    _lastUpdateCheck = DateTime.now();
+    try {
+      final r = await api.appVersion();
+      final latest = r['latest'] as String?;
+      final min = r['min_supported'] as String?;
+      final url = (Platform.isAndroid
+          ? r['android']
+          : Platform.isWindows
+          ? r['windows']
+          : r['page']) as String?;
+      updateVersion = latest != null && isNewerVersion(latest, MvpnConfig.appVersion) ? latest : null;
+      updateUrl = url;
+      updateRequired = min != null && isNewerVersion(min, MvpnConfig.appVersion);
+      notifyListeners();
+    } catch (_) {
+      // Offline or older server: try again next time.
+    }
+  }
+
+  /// "1.0.13" > "1.0.9" (numeric, part by part).
+  static bool isNewerVersion(String a, String b) {
+    List<int> parts(String v) => v.split(RegExp(r'[.+-]')).map((p) => int.tryParse(p) ?? 0).toList();
+    final x = parts(a), y = parts(b);
+    for (var i = 0; i < 3; i++) {
+      final xi = i < x.length ? x[i] : 0, yi = i < y.length ? y[i] : 0;
+      if (xi != yi) return xi > yi;
+    }
+    return false;
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(checkForUpdate());
     if (state == AppLifecycleState.resumed && _connectOnResume) {
       _connectOnResume = false;
       if (subStatus == 'active') unawaited(vpn.connect());

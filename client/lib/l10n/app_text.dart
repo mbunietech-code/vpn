@@ -316,6 +316,11 @@ const _map = <String, Map<String, String>>{
     'zh': '您的账户已被暂停。请联系客服。',
   },
   'home.renew': {'en': 'Renew', 'sw': 'Renew', 'zh': '续订'},
+  'home.endsInDays': {'en': 'Your plan ends in {} days. Renew to stay connected.'},
+  'home.endsInHours': {'en': 'Your plan ends in {} hours. Renew to stay connected.'},
+  'home.updateAvailable': {'en': 'A new version ({}) is available with fixes and better speed.'},
+  'home.updateRequired': {'en': 'This version is no longer supported. Update to keep using Mbunie VPN.'},
+  'home.update': {'en': 'Update'},
   'home.pendingProof': {
     'en':
         'Your payment is awaiting admin approval. Access unlocks once approved.',

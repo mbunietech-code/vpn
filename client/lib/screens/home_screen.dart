@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_text.dart';
 import '../models.dart';
@@ -29,6 +30,15 @@ class HomeScreen extends StatelessWidget {
     };
 
     final daysLeft = state.expiresAt?.difference(DateTime.now()).inDays;
+    final left = state.expiresAt?.difference(DateTime.now());
+    final endsSoon = state.subStatus == 'active' && left != null && !left.isNegative && left.inHours < 72;
+    void openUpdate() {
+      final url = state.updateUrl;
+      if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    }
+    void openPlans() => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const PlansScreen()),
+        );
 
     return Scaffold(
       appBar: AppBar(
@@ -59,6 +69,30 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
         children: [
+          if (state.updateRequired || state.updateVersion != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: InlineNotice(
+                text: state.updateRequired
+                    ? tr.t('home.updateRequired')
+                    : tr.p('home.updateAvailable', state.updateVersion!),
+                tone: state.updateRequired ? NoticeTone.danger : NoticeTone.info,
+                action: tr.t('home.update'),
+                onAction: openUpdate,
+              ),
+            ),
+          if (endsSoon)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: InlineNotice(
+                text: left.inHours < 24
+                    ? tr.p('home.endsInHours', left.inHours < 1 ? 1 : left.inHours)
+                    : tr.p('home.endsInDays', (left.inHours / 24).ceil()),
+                tone: NoticeTone.warning,
+                action: tr.t('home.renew'),
+                onAction: openPlans,
+              ),
+            ),
           if (state.pendingInvoice != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
@@ -102,7 +136,8 @@ class HomeScreen extends StatelessWidget {
           Center(
             child: ConnectOrb(
               status: vpn.status,
-              onTap: vpn.toggle,
+              // An unsupported build must update first.
+              onTap: state.updateRequired ? openUpdate : vpn.toggle,
             ),
           ),
           const SizedBox(height: 22),
