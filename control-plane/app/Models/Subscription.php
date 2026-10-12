@@ -15,6 +15,8 @@ class Subscription extends Model
         'started_at' => 'datetime',
         'expires_at' => 'datetime',
         'last_synced_at' => 'datetime',
+        'reminded_3d_for' => 'datetime',
+        'reminded_1d_for' => 'datetime',
     ];
 
     protected static function booted(): void

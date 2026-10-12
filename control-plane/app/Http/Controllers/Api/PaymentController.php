@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\PaymentMethod;
 use App\Models\Plan;
 use App\Payments\PaymentManager;
+use App\Services\PaymentAlerts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -105,6 +106,8 @@ class PaymentController extends Controller
                 'proof_uploaded_at' => now()->toIso8601String(),
             ]),
         ]);
+
+        app(PaymentAlerts::class)->proofUploaded($invoice->refresh());
 
         return response()->json(['status' => 'submitted']);
     }

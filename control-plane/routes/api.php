@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\DownloadController;
 use App\Http\Middleware\RejectRevokedDevice;
 use App\Http\Middleware\VerifyPartnerSignature;
 use Illuminate\Support\Facades\App;
@@ -27,6 +28,7 @@ Route::prefix('auth')->middleware(RejectRevokedDevice::class)->group(function ()
 
 Route::get('plans', [PlanController::class, 'index']);
 Route::get('payment-methods', [PaymentController::class, 'methods']);
+Route::get('app/version', [DownloadController::class, 'appVersion']);
 
 Route::middleware(['auth:sanctum', RejectRevokedDevice::class])->group(function () {
     Route::get('me', [AuthController::class, 'me']);

@@ -8,7 +8,6 @@ use App\Services\Sms\SmsSender;
 use App\Services\Sms\TwilioSmsSender;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * Delivers an OTP code over the right channel.
@@ -22,36 +21,16 @@ class OtpDelivery
     {
         if ($channel === 'email') {
             $this->email($identifier, $code);
+
             return;
         }
 
-        $this->smsSender()->send($identifier, "Mbunie VPN code: {$code} (dakika 10)");
+        $this->smsSender()->send($identifier, "Mbunie VPN code: {$code} (valid 10 minutes)");
     }
 
     private function email(string $to, string $code): void
     {
-        $brevoKey = config('services.brevo.key');
-
-        if ($brevoKey) {
-            $html = (new OtpMail($code))->render();
-            $resp = Http::withHeaders(['api-key' => $brevoKey, 'accept' => 'application/json'])
-                ->post('https://api.brevo.com/v3/smtp/email', [
-                    'sender' => [
-                        'email' => config('mail.from.address'),
-                        'name' => config('mail.from.name', 'Mbunie VPN'),
-                    ],
-                    'to' => [['email' => $to]],
-                    'subject' => "Mbunie VPN — your login code: {$code}",
-                    'htmlContent' => $html,
-                ]);
-
-            if ($resp->failed()) {
-                throw new \RuntimeException('Brevo send failed: ' . $resp->body());
-            }
-            return;
-        }
-
-        Mail::to($to)->send(new OtpMail($code));
+        app(Mailer::class)->send($to, new OtpMail($code));
     }
 
     private function smsSender(): SmsSender

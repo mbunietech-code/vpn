@@ -86,6 +86,10 @@ return [
         'download_android' => env('MVPN_DOWNLOAD_ANDROID', '/storage/downloads/Mbunie-VPN-1.0.12.apk'),
         'download_windows' => env('MVPN_DOWNLOAD_WINDOWS', '/storage/downloads/Mbunie-VPN-Setup-1.0.12.exe'),
         'app_version' => env('MVPN_APP_VERSION', '1.0.12'),
+        // Apps older than this must update before they can be used (null = never forced).
+        'min_app_version' => env('MVPN_MIN_APP_VERSION'),
+        // Who gets "payment to review" emails (comma separated). Empty = every VPN admin.
+        'payment_alert_emails' => env('MVPN_PAYMENT_ALERT_EMAILS'),
     ],
 
     // MbunieEduHub (mbuniehub.com): signed partner API (EduHub sells/activates VPN plans).

@@ -38,6 +38,7 @@ class SettingsSeeder extends Seeder
             ['alerts', 'anthropic_api_key', 'Anthropic API key (AI alerts)', true],
             ['alerts', 'telegram_bot_token', 'Telegram bot token', true],
             ['alerts', 'telegram_chat_id', 'Telegram chat ID', false],
+            ['alerts', 'payment_alert_emails', 'Emails for "payment to review" alerts, comma separated (empty = all VPN admins)', false],
 
             ['app', 'android_download_url', 'Android engine APK / release URL', false],
         ];
