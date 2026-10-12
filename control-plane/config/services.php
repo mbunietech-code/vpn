@@ -88,6 +88,12 @@ return [
         'app_version' => env('MVPN_APP_VERSION', '1.0.13'),
         // Apps older than this must update before they can be used (null = never forced).
         'min_app_version' => env('MVPN_MIN_APP_VERSION'),
+        // Units of each currency per 1 USD, for rough revenue totals on the dashboard.
+        'usd_rate' => [
+            'usd' => 1,
+            'cny' => (float) env('MVPN_CNY_PER_USD', 7.1),
+            'tzs' => (float) env('MVPN_TZS_PER_USD', 2640),
+        ],
         // Who gets "payment to review" emails (comma separated). Empty = every VPN admin.
         'payment_alert_emails' => env('MVPN_PAYMENT_ALERT_EMAILS'),
     ],

@@ -33,7 +33,7 @@ class RevenueChart extends ChartWidget
         $series = $days->map(function ($day) use ($paid) {
             return $paid
                 ->filter(fn (Invoice $i) => $i->paid_at?->isSameDay($day))
-                ->sum(fn (Invoice $i) => ($i->currency === 'cny' ? $i->amount_cents / 7.2 : $i->amount_cents) / 100);
+                ->sum(fn (Invoice $i) => $i->usdCents() / 100);
         });
 
         return [

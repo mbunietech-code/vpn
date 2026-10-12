@@ -28,6 +28,17 @@ class Invoice extends Model
         return Plan::where('code', $this->plan_code)->first();
     }
 
+    /**
+     * Rough amount in US cents, only for headline totals across currencies
+     * (rates in config services.mvpn.usd_rate; edit there if they drift).
+     */
+    public function usdCents(): float
+    {
+        $perUsd = (float) (config('services.mvpn.usd_rate.'.$this->currency) ?: 1);
+
+        return $this->amount_cents / $perUsd;
+    }
+
     public function isPayable(): bool
     {
         return $this->status === 'pending'
