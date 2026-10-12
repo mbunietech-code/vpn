@@ -64,12 +64,12 @@ class AdminPanelProvider extends PanelProvider
                        lines wrap, so a long email never pushes the table
                        sideways next to the sidebar on tablets and laptops. */
                     .fi-ta-cell .fi-ta-text-description { white-space: normal; }
-                    .fi-ta-row .fi-ta-cell:first-child { max-width: 18rem; }
-                    .fi-ta-row .fi-ta-cell:first-child .fi-ta-col,
-                    .fi-ta-row .fi-ta-cell:first-child .fi-ta-text,
-                    .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item,
-                    .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item-label,
-                    .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-description {
+                    :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { max-width: 18rem; }
+                    :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-col,
+                    :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-text,
+                    :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-text-item,
+                    :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-text-item-label,
+                    :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-text-description {
                         white-space: normal;
                         overflow-wrap: anywhere;
                     }
@@ -78,18 +78,19 @@ class AdminPanelProvider extends PanelProvider
                     @media (max-width: 640px) {
                         .fi-ta-cell { padding-left: .6rem; padding-right: .35rem; }
                         .fi-ta-cell:last-child { padding-right: .5rem; }
+                        .fi-ta-selection-cell { padding-left: .5rem; padding-right: .1rem; width: 1%; }
                         /* Secondary lines under a cell (e.g. "seen 2 min ago") may wrap. */
                         .fi-ta-cell .fi-ta-col,
                         .fi-ta-cell .fi-ta-text,
                         .fi-ta-cell .fi-ta-text-description { white-space: normal; }
                         /* Only the first column (customer/name) wraps, with a
                            readable minimum width; numbers and dates stay intact. */
-                        .fi-ta-row .fi-ta-cell:first-child { min-width: 8.5rem; max-width: 11.5rem; }
-                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-col,
-                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-text,
-                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item,
-                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item-label,
-                        .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-description {
+                        :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { min-width: 8.5rem; max-width: 11.5rem; }
+                        :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-col,
+                        :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-text,
+                        :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-text-item,
+                        :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-text-item-label,
+                        :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) .fi-ta-text-description {
                             white-space: normal;
                             overflow-wrap: anywhere;
                         }
@@ -97,7 +98,7 @@ class AdminPanelProvider extends PanelProvider
                     /* Very small phones (≤ 359px): tighter still. */
                     @media (max-width: 359px) {
                         .fi-ta-cell { padding-left: .45rem; padding-right: .25rem; }
-                        .fi-ta-row .fi-ta-cell:first-child { min-width: 7rem; }
+                        :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { min-width: 7rem; }
                         .fi-ta-cell .fi-ta-text-description { font-size: .72rem; }
                     }
                 </style>

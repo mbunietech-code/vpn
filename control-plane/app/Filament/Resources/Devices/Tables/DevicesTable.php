@@ -6,10 +6,13 @@ use App\Models\Device;
 use App\Services\DeviceAdmin;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 
 class DevicesTable
 {
@@ -76,6 +79,42 @@ class DevicesTable
                         ->action(function (Device $r) {
                             $r->update(['revoked_at' => null]);
                             Notification::make()->success()->title('Device allowed again')->send();
+                        }),
+                    Action::make('delete')
+                        ->label('Delete')
+                        ->icon('heroicon-m-trash')
+                        ->color('gray')
+                        ->visible(fn (Device $r) => $r->revoked_at === null)
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete this device?')
+                        ->modalDescription('Takes it off the list and frees a place in the customer\'s device limit. '
+                            .'It is not blocked: if the app is still installed, it appears again the next time it connects. '
+                            .'To block a device, use Remove device.')
+                        ->modalSubmitActionLabel('Delete')
+                        ->action(function (Device $r) {
+                            app(DeviceAdmin::class)->delete($r, auth()->user()?->email ?? 'admin');
+                            Notification::make()->success()->title('Device deleted')->send();
+                        }),
+                ]),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('delete')
+                        ->label('Delete selected')
+                        ->icon('heroicon-m-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete the selected devices?')
+                        ->modalDescription('They come off the list and free places in the device limits. Removed (blocked) devices are kept so they stay blocked.')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records) {
+                            $actor = auth()->user()?->email ?? 'admin';
+                            $done = $records->filter(fn (Device $d) => app(DeviceAdmin::class)->delete($d, $actor))->count();
+                            $kept = $records->count() - $done;
+                            Notification::make()->success()
+                                ->title("Deleted {$done} device(s)")
+                                ->body($kept ? "{$kept} removed (blocked) device(s) kept." : null)
+                                ->send();
                         }),
                 ]),
             ]);

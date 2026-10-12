@@ -88,4 +88,27 @@ class DeviceRemovalTest extends TestCase
 
         $this->assertNull($device->fresh()->revoked_at);
     }
+
+    public function test_admin_can_delete_devices_but_blocked_ones_are_kept(): void
+    {
+        $cust = User::factory()->create();
+        $sub = app(SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
+        $old = $sub->devices()->create(['fingerprint' => 'old', 'platform' => 'android']);
+        $other = $sub->devices()->create(['fingerprint' => 'other', 'platform' => 'android']);
+        $blocked = $sub->devices()->create(['fingerprint' => 'bad', 'platform' => 'android', 'revoked_at' => now()]);
+
+        $this->actingAs(User::factory()->create(['is_admin' => true]));
+        Livewire::test(ListDevices::class)
+            ->callAction(TestAction::make('delete')->table($old))
+            ->assertHasNoActionErrors();
+        $this->assertModelMissing($old);
+        $this->assertTrue(AuditLog::where('action', 'device.deleted')->exists());
+
+        Livewire::test(ListDevices::class)
+            ->selectTableRecords([$other->id, $blocked->id])
+            ->callAction(TestAction::make('delete')->table()->bulk())
+            ->assertHasNoActionErrors();
+        $this->assertModelMissing($other);
+        $this->assertModelExists($blocked); // stays, so it stays blocked
+    }
 }

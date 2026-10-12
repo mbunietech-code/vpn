@@ -17,6 +17,33 @@ use Illuminate\Support\Str;
  */
 class DeviceAdmin
 {
+    /**
+     * Take a device off the list (old phone, test install) and free its place
+     * in the device limit. Not a block: a blocked device keeps its row, so it
+     * stays blocked, and must be allowed again before it can be deleted.
+     */
+    public function delete(Device $device, string $actor): bool
+    {
+        if ($device->revoked_at !== null) {
+            return false;
+        }
+
+        AuditLog::create([
+            'actor' => $actor,
+            'action' => 'device.deleted',
+            'target' => "device:{$device->id}",
+            'meta' => array_filter([
+                'subscription_id' => $device->subscription_id,
+                'model' => $device->model,
+                'platform' => $device->platform,
+                'last_seen_at' => $device->last_seen_at?->toIso8601String(),
+            ]),
+        ]);
+        $device->delete();
+
+        return true;
+    }
+
     public function remove(Device $device, string $actor, ?string $reason = null): void
     {
         DB::transaction(function () use ($device, $actor, $reason) {
