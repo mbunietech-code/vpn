@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\RejectRevokedDevice;
+use App\Models\Device;
 use chillerlan\QRCode\Output\QROutputInterface;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 
@@ -22,6 +25,7 @@ class DownloadController extends Controller
             'windows' => url(config('services.mvpn.download_windows')),
             'macos' => url(config('services.mvpn.download_macos')),
             'version' => config('services.mvpn.app_version'),
+            'androidVersion' => config('services.mvpn.android_version') ?: config('services.mvpn.app_version'),
             'androidDate' => $this->releaseDate(config('services.mvpn.download_android')),
             'windowsDate' => $this->releaseDate(config('services.mvpn.download_windows')),
             'macosDate' => $this->releaseDate(config('services.mvpn.download_macos')),
@@ -42,17 +46,27 @@ class DownloadController extends Controller
     /**
      * What the app checks on start: the newest version and where to get it.
      * Apps below `min_supported` must update before connecting.
+     *
+     * Older apps only read `latest`, so the platform comes from the device the
+     * app identifies itself as: Android can be ahead of the desktop builds
+     * without telling desktop users to update to an installer that isn't out.
      */
-    public function appVersion(): JsonResponse
+    public function appVersion(Request $request): JsonResponse
     {
+        $deviceId = (string) $request->header(RejectRevokedDevice::HEADER, '');
+        $platform = $deviceId !== '' ? Device::where('fingerprint', $deviceId)->value('platform') : null;
+        $latest = $platform === 'android'
+            ? (config('services.mvpn.android_version') ?: config('services.mvpn.app_version'))
+            : config('services.mvpn.app_version');
+
         return response()->json([
-            'latest' => (string) config('services.mvpn.app_version'),
+            'latest' => (string) $latest,
             'min_supported' => config('services.mvpn.min_app_version') ?: null,
             'android' => url(config('services.mvpn.download_android')),
             'windows' => url(config('services.mvpn.download_windows')),
             'macos' => url(config('services.mvpn.download_macos')),
             'page' => route('download'),
-        ])->header('Cache-Control', 'public, max-age=300');
+        ])->header('Cache-Control', 'private, max-age=300'); // differs per device
     }
 
     /** QR of the Android APK link, for scanning the page from a PC. */

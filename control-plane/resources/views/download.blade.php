@@ -118,7 +118,7 @@
           </svg>
         </div>
         <div class="name">Android</div>
-        <div class="meta">Version {{ $version }}@if ($androidDate)<br>{{ $androidDate }}@endif</div>
+        <div class="meta">Version {{ $androidVersion }}@if ($androidDate)<br>{{ $androidDate }}@endif</div>
       </a>
       <button class="badge" type="button" aria-label="Show QR code for the Android app" aria-expanded="false" aria-controls="android-qr" onclick="toggleQr(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5z"/></svg>
