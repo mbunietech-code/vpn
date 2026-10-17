@@ -45,6 +45,7 @@ class SingboxEngine implements TunnelEngine {
   DateTime _lastPoll = DateTime.now();
   final _errBuf = <String>[];
   bool _up = false;
+  int? _exitCode; // last engine exit code, for the start-up error
 
   /// Full engine output of the current run: <support>/engine/engine.log.
   IOSink? _logSink;
@@ -82,6 +83,7 @@ class SingboxEngine implements TunnelEngine {
 
     _errBuf.clear();
     _up = false;
+    _exitCode = null;
     await _logSink?.close();
     _logSink = File(
       '${dir.path}${Platform.pathSeparator}engine.log',
@@ -117,6 +119,7 @@ class SingboxEngine implements TunnelEngine {
         _logSink?.writeln('--- engine exited with code $code');
         // A newer engine has replaced this one; its exit is not news.
         if (!identical(_proc, proc)) return;
+        _exitCode = code;
         _proc = null;
         _stopPolling();
         if (code == 0) {
@@ -386,7 +389,10 @@ class SingboxEngine implements TunnelEngine {
     final deadline = DateTime.now().add(const Duration(seconds: 30));
     while (DateTime.now().isBefore(deadline)) {
       if (_proc == null) {
-        throw StateError(_diagnose(-1));
+        // The exit can arrive before the last stderr lines: let them land so
+        // the error says why (it was a bare "code -1" on macOS).
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        throw StateError(_diagnose(_exitCode ?? -1));
       }
       try {
         final r = await _http

@@ -126,6 +126,7 @@ class BoxService(
                 return
             }
             try {
+                Application.application.ensureLibbox()
                 val server = commandServer ?: CommandServer(this, platformInterface).also {
                     it.start()
                     commandServer = it

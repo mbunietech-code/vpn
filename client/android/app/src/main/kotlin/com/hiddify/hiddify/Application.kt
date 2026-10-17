@@ -39,8 +39,31 @@ class Application : Application() {
         })
     }
 
+    @Volatile
+    private var libboxReady = false
+
     fun setupLibbox(baseDir: String, workingDir: String, tempDir: String, debug: Boolean) {
         Libbox.setup(createSetupOptions(File(baseDir), File(workingDir), File(tempDir), debug))
+        libboxReady = true
+    }
+
+    /**
+     * Android can start the VPN service without the Flutter UI (always-on VPN,
+     * boot, the Quick Settings tile, or a restart after the process was
+     * killed). Then the Flutter "setup" call never ran, libbox kept its "./"
+     * defaults and the command server failed with "bind: read-only file
+     * system". Set it up here from the saved dirs, or from app dirs.
+     */
+    @Synchronized
+    fun ensureLibbox() {
+        if (libboxReady) return
+        fun saved(path: String) = path.takeUnless { it.isBlank() || it == "./" }
+        val base = saved(Settings.baseDir) ?: filesDir.path
+        val working = saved(Settings.workingDir)
+            ?: File(getExternalFilesDir(null) ?: filesDir, "data").path
+        val temp = saved(Settings.tempDir) ?: cacheDir.path
+        File(working).mkdirs()
+        setupLibbox(base, working, temp, Settings.debugMode)
     }
 
     private fun createSetupOptions(baseDir: File, workingDir: File, tempDir: File, debug: Boolean): SetupOptions =
