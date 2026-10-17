@@ -267,7 +267,10 @@ jq -n \
         shortIds: [$sid]
       }
     },
-    sniffing: { enabled: true, destOverride: ["http", "tls", "quic"], routeOnly: true }
+    # routeOnly must stay false: clients in China often send IPs from
+    # GFW-poisoned DNS (0.0.0.1, 2001::1, ...). Dialing the sniffed domain
+    # instead makes those connections work.
+    sniffing: { enabled: true, destOverride: ["http", "tls", "quic"], routeOnly: false }
   }],
   outbounds: [
     { protocol: "freedom", tag: "direct" },
@@ -292,6 +295,12 @@ jq -n \
     listen: "::",
     listen_port: $port,
     users: $users,
+    # Dial the sniffed domain, not the client-supplied IP (GFW-poisoned DNS).
+    # Legacy inbound fields: fine on 1.11.x, removed in 1.13 - move to route
+    # rule actions when SINGBOX_VERSION is bumped.
+    sniff: true,
+    sniff_override_destination: true,
+    domain_strategy: "prefer_ipv4",
     masquerade: ("https://" + $sni),
     tls: { enabled: true, alpn: ["h3"], certificate_path: $crt, key_path: $key }
   }],

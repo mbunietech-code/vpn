@@ -298,6 +298,12 @@ func applyPeers(cfg config, peers []peer) (int, error) {
 			return fmt.Errorf("inbound vless-reality has no settings")
 		}
 		settings["clients"] = vless
+		// Dial the sniffed domain: China clients send GFW-poisoned IPs.
+		in["sniffing"] = map[string]any{
+			"enabled":      true,
+			"destOverride": []any{"http", "tls", "quic"},
+			"routeOnly":    false,
+		}
 		return nil
 	}, func(path string) error {
 		return runCheck(cfg.XrayBin, "run", "-test", "-config", path)
@@ -312,6 +318,10 @@ func applyPeers(cfg config, peers []peer) (int, error) {
 			return err
 		}
 		in["users"] = hy2
+		// Same fix as Xray above; legacy fields, valid up to sing-box 1.12.
+		in["sniff"] = true
+		in["sniff_override_destination"] = true
+		in["domain_strategy"] = "prefer_ipv4"
 		return nil
 	}, func(path string) error {
 		return runCheck(cfg.SingboxBin, "check", "-c", path)

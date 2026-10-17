@@ -83,6 +83,29 @@ class SingboxConfigTest extends TestCase
         $this->assertFalse(collect($cfg['dns']['rules'])->contains(fn ($rule) => ($rule['domain_suffix'] ?? null) === ['.cn']));
     }
 
+    public function test_china_traffic_goes_direct_from_our_own_rule_sets(): void
+    {
+        $sub = $this->activeSub();
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android")->assertOk()->json();
+
+        $sets = collect($cfg['route']['rule_set'])->keyBy('tag');
+        $this->assertSame(url('/rules/geosite-cn.srs'), $sets['geosite-cn']['url']);
+        $this->assertSame(url('/rules/geoip-cn.srs'), $sets['geoip-cn']['url']);
+        $this->assertSame('direct', $sets['geoip-cn']['download_detour']);
+        $this->assertFileExists(public_path('rules/geosite-cn.srs'));
+        $this->assertFileExists(public_path('rules/geoip-cn.srs'));
+
+        $this->assertContains(
+            ['rule_set' => ['geosite-cn', 'geoip-cn'], 'outbound' => 'direct'],
+            $cfg['route']['rules'],
+        );
+        $this->assertContains(['rule_set' => ['geosite-cn'], 'server' => 'direct-dns'], $cfg['dns']['rules']);
+        // Everything else still resolves through the tunnel (no GFW poisoning).
+        $this->assertSame('proxy-dns', $cfg['dns']['final']);
+        $this->assertSame('proxy', $cfg['dns']['servers'][0]['detour']);
+    }
+
     public function test_android_auto_prefers_hysteria2_desktop_unchanged(): void
     {
         $sub = $this->activeSub();

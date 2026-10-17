@@ -227,7 +227,12 @@ class SubscriptionBuilder
                         'path' => '/dns-query',
                     ],
                 ],
-                'rules' => $bootstrapDnsRules,
+                // Chinese domains resolve locally (fast, correct CDN answers);
+                // everything else goes through the tunnel so the GFW cannot
+                // poison it.
+                'rules' => array_merge($bootstrapDnsRules, [
+                    ['rule_set' => ['geosite-cn'], 'server' => 'direct-dns'],
+                ]),
                 'final' => 'proxy-dns',
                 'strategy' => 'prefer_ipv4',
             ],
@@ -256,7 +261,11 @@ class SubscriptionBuilder
                     ['protocol' => 'dns', 'action' => 'hijack-dns'],
                 ], $bootstrapRouteRules, [
                     ['ip_is_private' => true, 'outbound' => 'direct'],
+                    // Mainland China sites go direct: they are slow or
+                    // unreachable from the foreign node.
+                    ['rule_set' => ['geosite-cn', 'geoip-cn'], 'outbound' => 'direct'],
                 ]),
+                'rule_set' => $this->chinaRuleSets(),
                 'final' => 'proxy',
                 'auto_detect_interface' => true,
                 // sing-box >= 1.14 refuses to start without a resolver for
@@ -390,6 +399,24 @@ class SubscriptionBuilder
                 'cache_file' => ['enabled' => true],
             ],
         ];
+    }
+
+    /**
+     * China rule sets, served from our own host: GitHub is often blocked in
+     * China, and a remote rule set that cannot load stops sing-box starting.
+     * Refresh public/rules/ with control-plane/scripts/fetch-rulesets.sh.
+     *
+     * @return array<int,array<string,string>>
+     */
+    private function chinaRuleSets(): array
+    {
+        return array_map(fn (string $tag) => [
+            'type' => 'remote',
+            'tag' => $tag,
+            'format' => 'binary',
+            'url' => url("/rules/{$tag}.srs"),
+            'download_detour' => 'direct',
+        ], ['geosite-cn', 'geoip-cn']);
     }
 
     /** @return array<string,mixed>|null */
