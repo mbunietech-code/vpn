@@ -4,23 +4,34 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Laravel 13 needs PHP 8.4+. Hostinger's default CLI `php` can be older than
+# the site's web PHP, so pick a new enough binary (override with PHP_BIN).
+PHP="${PHP_BIN:-php}"
+if ! "$PHP" -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);'; then
+  for alt in /opt/alt/php84/usr/bin/php /opt/alt/php85/usr/bin/php; do
+    [ -x "$alt" ] && PHP="$alt" && break
+  done
+fi
+"$PHP" -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);' || { echo "need PHP >= 8.4 (set PHP_BIN)" >&2; exit 1; }
+echo "==> using $("$PHP" -r 'echo PHP_BINARY, " ", PHP_VERSION;')"
+
 echo "==> composer"
-composer install --no-dev --optimize-autoloader --no-interaction
+"$PHP" "$(command -v composer)" install --no-dev --optimize-autoloader --no-interaction
 
 echo "==> migrate"
-php artisan migrate --force
+"$PHP" artisan migrate --force
 
 echo "==> sync setting rows (idempotent)"
-php artisan db:seed --class=SettingsSeeder --force
+"$PHP" artisan db:seed --class=SettingsSeeder --force
 
 echo "==> caches"
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan event:cache || true
+"$PHP" artisan config:cache
+"$PHP" artisan route:cache
+"$PHP" artisan view:cache
+"$PHP" artisan event:cache || true
 
 echo "==> storage link"
-php artisan storage:link 2>/dev/null || {
+"$PHP" artisan storage:link 2>/dev/null || {
   # Hostinger disables exec()/symlink() from PHP — do it in the shell.
   [ -e public/storage ] || ln -sfn ../storage/app/public public/storage
 }
