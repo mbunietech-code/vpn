@@ -40,7 +40,7 @@ class MvpnConfig {
   }
 
   /// Keep in sync with pubspec.yaml `version` (reported in device heartbeats).
-  static const appVersion = '1.0.13';
+  static const appVersion = '1.0.14';
 
   /// Payment providers surfaced in the app (control plane also enforces).
   static const providers = <String, String>{
