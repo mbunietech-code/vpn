@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-const version = "0.2.1"
+const version = "0.3.0"
 
 type config struct {
 	ControlPlane  string
@@ -39,6 +39,7 @@ type config struct {
 	SingboxConfig string
 	XrayBin       string
 	SingboxBin    string
+	Openvpn       ovpnConfig
 }
 
 func envConfig() config {
@@ -51,6 +52,11 @@ func envConfig() config {
 		SingboxConfig: os.Getenv("MVPN_SINGBOX_CONFIG"),
 		XrayBin:       getenv("MVPN_XRAY_BIN", "xray"),
 		SingboxBin:    getenv("MVPN_SINGBOX_BIN", "sing-box"),
+		Openvpn: ovpnConfig{
+			PKIDir:    getenv("MVPN_OPENVPN_PKI", "/etc/openvpn/mbunie-easy-rsa"),
+			ServerDir: getenv("MVPN_OPENVPN_SERVER_DIR", "/etc/openvpn/server"),
+			Host:      getenv("MVPN_OPENVPN_HOST", os.Getenv("MVPN_DOMAIN")),
+		},
 	}
 }
 
@@ -64,10 +70,11 @@ func getenv(k, def string) string {
 // ---- control-plane API types ------------------------------------------------
 
 type peer struct {
-	RemoteID string `json:"remote_id"` // UUID for VLESS, username for hysteria2
-	Protocol string `json:"protocol"`  // "vless-reality" | "hysteria2"
-	Secret   string `json:"secret"`    // password for hysteria2; unused for vless
-	Status   string `json:"status"`    // "active" | "disabled"
+	RemoteID      string `json:"remote_id"`      // UUID for VLESS, username for hysteria2
+	Protocol      string `json:"protocol"`       // "vless-reality" | "hysteria2" | "openvpn"
+	Secret        string `json:"secret"`         // password for hysteria2; unused for vless
+	OpenvpnSerial string `json:"openvpn_serial"` // cert serial the control plane holds a profile for
+	Status        string `json:"status"`         // "active" | "disabled"
 }
 
 type peerListResp struct {
@@ -94,6 +101,9 @@ func main() {
 		log.Fatal("MVPN_CONTROL_PLANE and MVPN_NODE_TOKEN are required")
 	}
 	log.Printf("mvpn-agent %s starting for node %s -> %s", version, cfg.Domain, cfg.ControlPlane)
+	if cfg.Openvpn.enabled() {
+		log.Printf("openvpn: per-subscription certificates from %s for %s", cfg.Openvpn.PKIDir, cfg.Openvpn.Host)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -129,6 +139,14 @@ func main() {
 			log.Printf("applyPeers: %v", err)
 			return
 		}
+		nOvpn, err := applyOpenvpn(ctx, cfg, list.Peers)
+		if err != nil {
+			// Xray/sing-box are applied; retry the OpenVPN part next tick.
+			lastError = err.Error()
+			log.Printf("applyOpenvpn: %v", err)
+			return
+		}
+		n += nOvpn
 		lastError = ""
 		appliedVersion = list.Version
 		activePeers = n
@@ -151,6 +169,10 @@ func main() {
 			Traffic:   map[string]int64{},
 			LastError: lastError,
 			NodeInfo:  readNodeInfo(cfg.NodeInfo),
+		}
+		refreshCRL(cfg.Openvpn)
+		if s := ovpnEngineState(cfg.Openvpn); s != "" {
+			rep.Engines["openvpn"] = s
 		}
 		if err := postHealth(ctx, cfg, rep); err != nil {
 			log.Printf("postHealth: %v (retry in %s)", err, bo.fail(err))

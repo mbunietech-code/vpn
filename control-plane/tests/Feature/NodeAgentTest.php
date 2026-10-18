@@ -90,13 +90,13 @@ class NodeAgentTest extends TestCase
         $this->assertSame('0.2.0', $node->agent_version);
         $this->assertSame('n1.mbuniehub.com', $node->public_host, 'admin-set host is kept');
 
-        // The subscriber who paid before the node existed now has both peers.
-        $this->assertSame(2, $sub->peers()->where('node_id', $node->id)->where('status', 'active')->count());
+        // The subscriber who paid before the node existed now has all peers.
+        $this->assertSame(3, $sub->peers()->where('node_id', $node->id)->where('status', 'active')->count());
 
         $res = $this->withToken(self::TOKEN)->getJson('/api/node/peers')->assertOk();
-        $this->assertCount(2, $res->json('peers'));
+        $this->assertCount(3, $res->json('peers'));
         $this->assertGreaterThan(0, $res->json('version'));
-        $this->assertEqualsCanonicalizing(['vless-reality', 'hysteria2'], array_column($res->json('peers'), 'protocol'));
+        $this->assertEqualsCanonicalizing(['vless-reality', 'hysteria2', 'openvpn'], array_column($res->json('peers'), 'protocol'));
 
         // Clients are pointed at the node's own port, not a hard-coded 443.
         $builder = app(\App\Services\SubscriptionBuilder::class);
@@ -114,7 +114,7 @@ class NodeAgentTest extends TestCase
         $this->health(['node_info' => ['reality_pubkey' => 'PUBKEY123', 'reality_short_id' => 'abcd1234']])->assertOk();
 
         $before = $this->withToken(self::TOKEN)->getJson('/api/node/peers')->assertOk();
-        $this->assertCount(2, $before->json('peers'));
+        $this->assertCount(3, $before->json('peers'));
 
         // Lapses, but no cron has run mvpn:sweep-expired yet.
         $sub->update(['expires_at' => now()->subMinute()]);
@@ -159,6 +159,6 @@ class NodeAgentTest extends TestCase
 
         $this->artisan('mvpn:sync-peers')->assertSuccessful();
 
-        $this->assertSame(2, $sub->peers()->where('node_id', $node->id)->count());
+        $this->assertSame(3, $sub->peers()->where('node_id', $node->id)->count());
     }
 }

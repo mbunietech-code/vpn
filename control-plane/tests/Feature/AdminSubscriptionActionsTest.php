@@ -58,7 +58,7 @@ class AdminSubscriptionActionsTest extends TestCase
 
         $sub = $cust->activeSubscription();
         $this->assertNotNull($sub);
-        $this->assertSame(2, $sub->peers()->where('status', 'active')->count());
+        $this->assertSame(3, $sub->peers()->where('status', 'active')->count());
         $this->assertTrue(AuditLog::where('action', 'subscription.granted')->exists());
         $this->assertSame(0, (int) $cust->invoices()->first()->amount_cents);
     }
@@ -84,7 +84,7 @@ class AdminSubscriptionActionsTest extends TestCase
         Livewire::test(ListSubscriptions::class)->callTableAction('restore', $sub);
         $sub->refresh();
         $this->assertSame('active', $sub->status);
-        $this->assertSame(2, $sub->peers()->where('status', 'active')->count());
+        $this->assertSame(3, $sub->peers()->where('status', 'active')->count());
     }
 
     public function test_suspend_customer_cuts_access_and_blocks_login(): void

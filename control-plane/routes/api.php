@@ -59,6 +59,7 @@ Route::middleware(['auth:sanctum', RejectRevokedDevice::class])->group(function 
 Route::prefix('node')->group(function () {
     Route::get('peers', [NodeController::class, 'peers']);
     Route::post('health', [NodeController::class, 'health']);
+    Route::post('openvpn-profile', [NodeController::class, 'openvpnProfile']);
 });
 
 /*

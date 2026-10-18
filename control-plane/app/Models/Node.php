@@ -58,7 +58,8 @@ class Node extends Model
 
     public function hasCapacity(): bool
     {
-        return $this->peers()->where('status', 'active')->count() < $this->capacity;
+        // OpenVPN peers came later; leave them out so capacity means what it did.
+        return $this->peers()->where('status', 'active')->where('protocol', '!=', 'openvpn')->count() < $this->capacity;
     }
 
     public function isUsable(): bool

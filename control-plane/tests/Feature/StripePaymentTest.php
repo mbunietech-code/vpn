@@ -121,7 +121,7 @@ class StripePaymentTest extends TestCase
         $this->assertSame('paid', $invoice->fresh()->status);
         $sub = $user->activeSubscription();
         $this->assertNotNull($sub);
-        $this->assertSame(2, $sub->peers()->where('status', 'active')->count());
+        $this->assertSame(3, $sub->peers()->where('status', 'active')->count());
         $expires = $sub->expires_at;
 
         // Stripe retries the same event: no second extension.

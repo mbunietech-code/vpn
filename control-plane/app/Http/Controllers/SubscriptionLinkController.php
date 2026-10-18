@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
  *   (default)          → base64 share-link bundle (Hiddify / v2rayN / sing-box import)
  *   ?format=singbox    → full sing-box client config JSON (MVPN desktop engine)
  *       &platform=windows|linux|macos|android|ios
+ *   ?format=ovpn       → this subscription's OpenVPN profile (OpenVPN Connect)
  */
 class SubscriptionLinkController extends Controller
 {
@@ -41,6 +42,18 @@ class SubscriptionLinkController extends Controller
                 'Profile-Update-Interval' => '12',
                 'Subscription-Userinfo' => $userinfo,
             ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        }
+
+        // A plain .ovpn for the official OpenVPN Connect app.
+        if ($request->query('format') === 'ovpn') {
+            $first = $builder->openVpnProfiles($sub)[0] ?? null;
+            abort_unless($first, 404);
+
+            return response($first['profile'], 200, [
+                'Content-Type' => 'application/x-openvpn-profile',
+                'Content-Disposition' => 'attachment; filename="mbunie-vpn.ovpn"',
+                'Cache-Control' => 'no-store',
+            ]);
         }
 
         return response($builder->build($sub), 200, [

@@ -42,18 +42,60 @@ class NodeController extends Controller
                 'remote_id' => $p->remote_id,
                 'protocol' => $p->protocol,
                 'secret' => $p->protocol === 'hysteria2' ? $p->secret : null,
+                // Serial of the certificate whose profile we hold; the agent
+                // uploads again when its current certificate differs.
+                'openvpn_serial' => $p->protocol === 'openvpn' ? $p->openvpn_cert_serial : null,
                 'status' => 'active',
             ])->values();
 
         // The agent re-applies only when `version` changes. Fold the actual
         // active set into it so an expiry takes effect on the next sync even
         // if nothing bumped peer_version (e.g. the sweep cron isn't running).
-        $fingerprint = $peers->map(fn ($p) => $p['protocol'] . ':' . $p['remote_id'])->sort()->implode(',');
+        $fingerprint = $peers->map(fn ($p) => $p['protocol'] . ':' . $p['remote_id'] . ':' . $p['openvpn_serial'])->sort()->implode(',');
 
         return response()->json([
             'version' => (int) sprintf('%u', crc32($node->peer_version . '|' . $fingerprint)),
             'peers' => $peers,
         ]);
+    }
+
+    /**
+     * The agent issued a subscription's OpenVPN certificate (the CA stays on
+     * the node) and hands us the client profile to serve to that subscriber.
+     */
+    public function openvpnProfile(Request $request): JsonResponse
+    {
+        $node = $this->node($request);
+        if (! $node) {
+            return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $data = $request->validate([
+            'remote_id' => ['required', 'string', 'max:64'],
+            'serial' => ['required', 'string', 'max:64', 'regex:/^[0-9A-Fa-f]+$/'],
+            'profile' => ['required', 'string', 'max:20000'],
+        ]);
+
+        foreach (['<ca>', '<cert>', '<key>', '<tls-crypt>'] as $block) {
+            if (! str_contains($data['profile'], $block)) {
+                return response()->json(['error' => "profile is missing {$block}"], 422);
+            }
+        }
+
+        $peer = Peer::where('node_id', $node->id)
+            ->where('protocol', 'openvpn')
+            ->where('remote_id', $data['remote_id'])
+            ->first();
+        if (! $peer) {
+            return response()->json(['error' => 'unknown peer'], 404);
+        }
+
+        $peer->update([
+            'openvpn_profile' => $data['profile'],
+            'openvpn_cert_serial' => strtoupper($data['serial']),
+        ]);
+
+        return response()->json(['status' => 'ok']);
     }
 
     public function health(Request $request): JsonResponse

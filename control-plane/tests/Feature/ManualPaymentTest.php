@@ -66,6 +66,6 @@ class ManualPaymentTest extends TestCase
             ->assertJsonPath('status', 'active')
             ->assertJsonStructure(['sub_url']);
 
-        $this->assertSame(2, $user->fresh()->activeSubscription()->peers()->where('status', 'active')->count());
+        $this->assertSame(3, $user->fresh()->activeSubscription()->peers()->where('status', 'active')->count());
     }
 }

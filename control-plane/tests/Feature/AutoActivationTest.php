@@ -63,7 +63,7 @@ class AutoActivationTest extends TestCase
         $this->assertTrue($sub->expires_at->isFuture());
 
         // one vless + one hysteria2 peer on the node
-        $this->assertSame(2, $sub->peers()->where('status', 'active')->count());
+        $this->assertSame(3, $sub->peers()->where('status', 'active')->count());
         $this->assertSame(1, $node->fresh()->peer_version);
     }
 
@@ -82,7 +82,7 @@ class AutoActivationTest extends TestCase
 
         $resp = $this->withToken($node->api_secret)->getJson('/api/node/peers');
 
-        $resp->assertOk()->assertJsonCount(2, 'peers');
+        $resp->assertOk()->assertJsonCount(3, 'peers');
         // version is an opaque change marker (peer_version + active set), stable between polls.
         $this->assertIsInt($resp->json('version'));
         $this->assertSame($resp->json('version'), $this->withToken($node->api_secret)->getJson('/api/node/peers')->json('version'));

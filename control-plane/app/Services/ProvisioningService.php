@@ -89,7 +89,8 @@ class ProvisioningService
         $nodes = $this->eligibleNodes($plan);
 
         foreach ($nodes as $node) {
-            foreach (['vless-reality', 'hysteria2'] as $protocol) {
+            // openvpn: the node agent issues this subscription's own certificate.
+            foreach (['vless-reality', 'hysteria2', 'openvpn'] as $protocol) {
                 $peer = Peer::firstOrNew([
                     'subscription_id' => $sub->id,
                     'node_id' => $node->id,

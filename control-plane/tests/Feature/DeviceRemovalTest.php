@@ -53,7 +53,7 @@ class DeviceRemovalTest extends TestCase
         $this->assertSame(0, $cust->tokens()->count(), 'customer signed out');
         $this->assertNotSame($oldLink, $sub->fresh()->sub_token, 'old /sub link dead');
         $this->assertEmpty(array_intersect($oldIds, $sub->peers()->pluck('remote_id')->all()), 'VPN keys rotated');
-        $this->assertSame(2, $sub->peers()->where('status', 'active')->count(), 'owner keeps the plan');
+        $this->assertSame(3, $sub->peers()->where('status', 'active')->count(), 'owner keeps the plan');
         $this->assertGreaterThan($oldVersion, $this->node->fresh()->peer_version, 'node re-pulls peers');
         $this->assertTrue(AuditLog::where('action', 'device.removed')->exists());
 

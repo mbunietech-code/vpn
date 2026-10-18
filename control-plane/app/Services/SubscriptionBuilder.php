@@ -283,20 +283,39 @@ class SubscriptionBuilder
         return $config;
     }
 
+    /**
+     * OpenVPN profile per node: the subscription's own certificate when the
+     * node agent has issued it, else the node's shared profile (older nodes).
+     *
+     * @return array<int,array{node:\App\Models\Node,profile:string}>
+     */
+    public function openVpnProfiles(Subscription $sub): array
+    {
+        $peers = $this->activePeers($sub);
+        $out = [];
+
+        foreach ($peers as $peer) {
+            if ($peer->protocol === 'openvpn' && filled($peer->openvpn_profile)) {
+                $out[$peer->node_id] ??= ['node' => $peer->node, 'profile' => (string) $peer->openvpn_profile];
+            }
+        }
+        foreach ($peers as $peer) {
+            if (filled($peer->node->openvpn_config)) {
+                $out[$peer->node_id] ??= ['node' => $peer->node, 'profile' => (string) $peer->node->openvpn_config];
+            }
+        }
+
+        return array_values($out);
+    }
+
     /** @return array<string,mixed> */
     private function buildOpenVpnSingbox(Subscription $sub, string $platform): array
     {
-        $nodes = $this->activePeers($sub)
-            ->map(fn ($peer) => $peer->node)
-            ->filter(fn ($node) => filled($node?->openvpn_config))
-            ->unique('id')
-            ->values();
-
         $endpoints = [];
         $nodeHosts = [];
 
-        foreach ($nodes as $node) {
-            $endpoint = $this->openVpnEndpointFromProfile($node);
+        foreach ($this->openVpnProfiles($sub) as ['node' => $node, 'profile' => $profile]) {
+            $endpoint = $this->openVpnEndpointFromProfile($node, $profile);
             if (! $endpoint) {
                 continue;
             }
@@ -420,9 +439,9 @@ class SubscriptionBuilder
     }
 
     /** @return array<string,mixed>|null */
-    private function openVpnEndpointFromProfile($node): ?array
+    private function openVpnEndpointFromProfile($node, string $profile): ?array
     {
-        $directives = $this->parseOpenVpnDirectives((string) $node->openvpn_config);
+        $directives = $this->parseOpenVpnDirectives($profile);
         $remote = $directives['remote'][0] ?? null;
         if (! $remote || count($remote) < 2) {
             return null;
@@ -453,9 +472,9 @@ class SubscriptionBuilder
         if ($auth = $this->firstArg($directives, 'auth')) {
             $endpoint['auth'] = $auth;
         }
-        if ($dataCiphers = $this->firstArg($directives, 'data-ciphers')) {
-            $endpoint['data_ciphers'] = array_values(array_filter(explode(':', $dataCiphers)));
-        }
+        // Old profiles only say `cipher X`; the servers negotiate AES-GCM.
+        $dataCiphers = $this->firstArg($directives, 'data-ciphers') ?? 'AES-256-GCM:AES-128-GCM';
+        $endpoint['data_ciphers'] = array_values(array_filter(explode(':', $dataCiphers)));
         if ($fallback = $this->firstArg($directives, 'data-ciphers-fallback')) {
             $endpoint['data_ciphers_fallback'] = $fallback;
         }

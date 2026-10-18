@@ -11,7 +11,10 @@ class Peer extends Model
 
     protected $casts = [
         'secret' => 'encrypted',
+        'openvpn_profile' => 'encrypted', // holds the client private key
     ];
+
+    protected $hidden = ['openvpn_profile'];
 
     /** @return BelongsTo<Subscription, Peer> */
     public function subscription(): BelongsTo
