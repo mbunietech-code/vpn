@@ -40,7 +40,7 @@ class SettingsScreen extends StatelessWidget {
                 Divider(color: c.border, height: 1),
                 SettingRow(
                   leading: _icon(c, Icons.workspace_premium_rounded),
-                  title: tr.t('settings.planAndPay'),
+                  title: tr.t(MvpnConfig.playStore ? 'plans.statusTitle' : 'settings.planAndPay'),
                   trailing: Icon(
                     Icons.chevron_right_rounded,
                     color: c.textHint,
@@ -160,6 +160,16 @@ class SettingsScreen extends StatelessWidget {
                     color: c.textHint,
                   ),
                   onTap: () => _open('${MvpnConfig.apiBase}/legal/privacy'),
+                ),
+                Divider(color: c.border, height: 1),
+                SettingRow(
+                  title: tr.t('settings.deleteAccount'),
+                  trailing: Icon(
+                    Icons.open_in_new_rounded,
+                    size: 15,
+                    color: c.textHint,
+                  ),
+                  onTap: () => _open('${MvpnConfig.apiBase}/legal/delete-account'),
                 ),
               ],
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config.dart';
 import '../l10n/app_text.dart';
 import '../models.dart';
 import '../services/mvpn_scope.dart';
@@ -89,7 +90,7 @@ class HomeScreen extends StatelessWidget {
                     ? tr.p('home.endsInHours', left.inHours < 1 ? 1 : left.inHours)
                     : tr.p('home.endsInDays', (left.inHours / 24).ceil()),
                 tone: NoticeTone.warning,
-                action: tr.t('home.renew'),
+                action: MvpnConfig.playStore ? null : tr.t('home.renew'),
                 onAction: openPlans,
               ),
             ),
@@ -113,7 +114,7 @@ class HomeScreen extends StatelessWidget {
                     ? tr.t('home.subExpired')
                     : tr.t('home.subSuspended'),
                 tone: NoticeTone.warning,
-                action: tr.t('home.renew'),
+                action: MvpnConfig.playStore ? null : tr.t('home.renew'),
                 onAction: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: (_) => const PlansScreen()),
                 ),

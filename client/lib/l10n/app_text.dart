@@ -120,6 +120,17 @@ const _map = <String, Map<String, String>>{
     'zh': '无法加载套餐，请重试。',
   },
   'plans.choose': {'en': 'Choose plan', 'sw': 'Chagua kifurushi', 'zh': '选择套餐'},
+  'plans.statusTitle': {'en': 'Your plan', 'sw': 'Kifurushi chako', 'zh': '我的套餐'},
+  'plans.noActive': {
+    'en': 'This account has no active plan.',
+    'sw': 'Akaunti hii haina kifurushi kinachotumika.',
+    'zh': '此账户没有有效套餐。',
+  },
+  'plans.active': {
+    'en': 'Your plan is active.',
+    'sw': 'Kifurushi chako kinatumika.',
+    'zh': '您的套餐有效。',
+  },
   'plans.popular': {'en': 'Popular', 'sw': 'Maarufu', 'zh': '热门'},
   'plans.perMonth': {'en': '{} / month', 'sw': '{} / mwezi', 'zh': '{} / 月'},
   'plans.days': {'en': '{} days', 'sw': 'Siku {}', 'zh': '{} 天'},
@@ -469,6 +480,11 @@ const _map = <String, Map<String, String>>{
     'en': 'Privacy Policy',
     'sw': 'Sera ya Faragha',
     'zh': '隐私政策',
+  },
+  'settings.deleteAccount': {
+    'en': 'Delete account',
+    'sw': 'Futa akaunti',
+    'zh': '删除账户',
   },
 
   // ---- nav ----

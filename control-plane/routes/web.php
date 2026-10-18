@@ -39,6 +39,7 @@ Route::get('/admin/invoice/{invoice}/proof', function (Invoice $invoice) {
 // Legal pages (owner MUST review with counsel — these are starting drafts)
 Route::view('/legal/terms', 'legal.terms')->name('legal.terms');
 Route::view('/legal/privacy', 'legal.privacy')->name('legal.privacy');
+Route::view('/legal/delete-account', 'legal.delete-account')->name('legal.delete-account');
 
 // Public app download page + a QR of its own URL (linked from MbunieHub).
 Route::get('/download', [DownloadController::class, 'page'])->name('download');

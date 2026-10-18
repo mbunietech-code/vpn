@@ -42,6 +42,11 @@ class MvpnConfig {
   /// Keep in sync with pubspec.yaml `version` (reported in device heartbeats).
   static const appVersion = '1.0.14';
 
+  /// Google Play build (`--dart-define=MVPN_PLAY=true`): Play's payments
+  /// policy forbids selling the service with our own checkout, so this build
+  /// only shows the account's plan status — no prices, checkout or links.
+  static const playStore = bool.fromEnvironment('MVPN_PLAY');
+
   /// Payment providers surfaced in the app (control plane also enforces).
   static const providers = <String, String>{
     'stripe': 'Alipay · WeChat · Card',

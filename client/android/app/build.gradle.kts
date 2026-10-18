@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -18,6 +20,15 @@ wire {
         srcDir("src/main/protos")
         include("**")
     }
+}
+
+// Play upload key, only for Play Store bundles: set MVPN_KEY_PROPERTIES to the
+// key.properties path. Without it, release builds keep the debug key so the
+// sideloaded APKs on the download page still update in place.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = System.getenv("MVPN_KEY_PROPERTIES")?.let { file(it) }
+if (keystorePropertiesFile != null && keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
 android {
@@ -48,11 +59,20 @@ android {
         }
     }
 
+    signingConfigs {
+        if (keystoreProperties.containsKey("storeFile")) {
+            create("upload") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
         }
     }
 

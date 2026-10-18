@@ -1,5 +1,4 @@
 <x-legal.layout title="Privacy Policy">
-  <p><strong>Draft — the owner must review this with a lawyer before relying on it.</strong></p>
 
   <h2>1. We do not log your traffic</h2>
   <p>We do not keep records of the websites you visit, your DNS queries or the

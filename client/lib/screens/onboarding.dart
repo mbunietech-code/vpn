@@ -342,6 +342,8 @@ class _PlansScreenState extends State<PlansScreen> {
     final c = context.mvpn;
     final canPop = Navigator.of(context).canPop();
 
+    if (MvpnConfig.playStore) return _PlanStatus(canPop: canPop);
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: canPop,
@@ -955,6 +957,63 @@ class _MethodTile extends StatelessWidget {
               size: 20,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Play Store build stand-in for the plans list: plan status only.
+class _PlanStatus extends StatelessWidget {
+  const _PlanStatus({required this.canPop});
+  final bool canPop;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = MvpnScope.of(context);
+    final c = context.mvpn;
+    final tr = context.tr;
+    final active = state.subStatus == 'active';
+
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: canPop,
+        title: Text(tr.t('plans.statusTitle')),
+        actions: [
+          if (!canPop)
+            TextButton(onPressed: state.logout, child: Text(tr.t('plans.logout'))),
+        ],
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                active ? Icons.verified_rounded : Icons.workspace_premium_outlined,
+                size: 48,
+                color: active ? c.success : c.textHint,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                active ? tr.t('plans.active') : tr.t('plans.noActive'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w700, color: c.textPrimary),
+              ),
+              if (state.identifier != null) ...[
+                const SizedBox(height: 6),
+                Text(state.identifier!,
+                    style: TextStyle(fontSize: 13, color: c.textSecondary)),
+              ],
+              const SizedBox(height: 18),
+              OutlinedButton(
+                onPressed: state.refreshSubscription,
+                child: Text(tr.t('common.check')),
+              ),
+            ],
+          ),
         ),
       ),
     );

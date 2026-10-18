@@ -279,6 +279,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   DateTime? _lastUpdateCheck;
 
   Future<void> checkForUpdate() async {
+    // Play builds update through Google Play only (Play policy).
+    if (MvpnConfig.playStore) return;
     final last = _lastUpdateCheck;
     if (last != null && DateTime.now().difference(last) < const Duration(hours: 6)) return;
     _lastUpdateCheck = DateTime.now();
