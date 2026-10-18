@@ -110,6 +110,7 @@ func main() {
 
 	start := time.Now()
 	appliedVersion := -1
+	appliedTa := "" // tls-crypt key stamp the OpenVPN profiles were built with
 	activePeers := 0
 	lastError := ""
 	var bo backoff
@@ -129,7 +130,10 @@ func main() {
 			return
 		}
 		bo.ok()
-		if list.Version == appliedVersion {
+		// A new tls-crypt key (rotation) needs every profile rebuilt even
+		// though the peer list itself did not change.
+		ta, _ := ovpnTaStamp(cfg.Openvpn)
+		if list.Version == appliedVersion && ta == appliedTa {
 			return
 		}
 		n, err := applyPeers(cfg, list.Peers)
@@ -149,6 +153,7 @@ func main() {
 		n += nOvpn
 		lastError = ""
 		appliedVersion = list.Version
+		appliedTa = ta
 		activePeers = n
 		log.Printf("applied peer list version %d (%d active peers)", list.Version, n)
 	}

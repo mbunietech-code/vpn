@@ -26,8 +26,11 @@ echo "==> backup: /root/openvpn-backup-$TS"
 cd "$PKI_DIR"
 export EASYRSA_BATCH=1
 
-# Revoke every currently valid client cert (anything that isn't the server).
-OLD=$(awk -F'\t' '$1=="V"{sub(/.*CN=/,"",$6); print $6}' pki/index.txt | grep -v -x "$HOST" || true)
+# Revoke the shared client cert(s): anything valid that isn't the server or a
+# per-subscription "mvpn-" cert. The node agent owns those, and the new
+# tls-crypt key below makes it rebuild and re-upload every one of their
+# profiles on its next sync (the profile stamp includes a hash of ta.key).
+OLD=$(awk -F'\t' '$1=="V"{sub(/.*CN=/,"",$6); print $6}' pki/index.txt | grep -v -x "$HOST" | grep -v '^mvpn-' || true)
 for cn in $OLD; do
   ./easyrsa revoke "$cn" >/dev/null 2>&1 && echo "==> revoked $cn"
 done

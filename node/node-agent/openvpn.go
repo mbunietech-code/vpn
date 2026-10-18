@@ -15,6 +15,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -199,6 +201,11 @@ func applyOpenvpn(ctx context.Context, cfg config, peers []peer) (int, error) {
 		return 0, fmt.Errorf("openvpn index: %w", err)
 	}
 
+	taStamp, err := ovpnTaStamp(o)
+	if err != nil {
+		return 0, err
+	}
+
 	var errs []string
 	for cn, p := range want {
 		cert := index[cn]
@@ -213,19 +220,23 @@ func applyOpenvpn(ctx context.Context, cfg config, peers []peer) (int, error) {
 			}
 			cert = index[cn]
 		}
-		if cert.Serial == "" || strings.EqualFold(cert.Serial, p.OpenvpnSerial) {
-			continue // the control plane already has this certificate
+		if cert.Serial == "" {
+			continue
+		}
+		stamp := cert.Serial + taStamp
+		if strings.EqualFold(stamp, p.OpenvpnSerial) {
+			continue // the control plane already has this profile
 		}
 		profile, err := ovpnProfile(o, cn)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("profile %s: %v", cn, err))
 			continue
 		}
-		if err := postOvpnProfile(ctx, cfg, p.RemoteID, cert.Serial, profile); err != nil {
+		if err := postOvpnProfile(ctx, cfg, p.RemoteID, stamp, profile); err != nil {
 			errs = append(errs, fmt.Sprintf("upload %s: %v", cn, err))
 			continue
 		}
-		log.Printf("openvpn: uploaded profile for %s (serial %s)", cn, cert.Serial)
+		log.Printf("openvpn: uploaded profile for %s (%s)", cn, stamp)
 	}
 
 	// An empty peer list while certificates exist looks like a control-plane
@@ -258,6 +269,22 @@ func applyOpenvpn(ctx context.Context, cfg config, peers []peer) (int, error) {
 		return len(want), fmt.Errorf("openvpn: %s", strings.Join(errs, "; "))
 	}
 	return len(want), nil
+}
+
+// ovpnTaStamp is a short hash of the tls-crypt key. Every profile embeds that
+// key, so the stamp we hand the control plane is cert serial + this: rotating
+// the key (rotate-openvpn-client.sh) makes every profile get rebuilt and
+// re-uploaded. "" when OpenVPN is not set up on this node.
+func ovpnTaStamp(o ovpnConfig) (string, error) {
+	if !o.enabled() {
+		return "", nil
+	}
+	ta, err := os.ReadFile(filepath.Join(o.ServerDir, "ta.key"))
+	if err != nil {
+		return "", fmt.Errorf("openvpn ta.key: %w", err)
+	}
+	sum := sha256.Sum256(bytes.TrimSpace(ta))
+	return strings.ToUpper(hex.EncodeToString(sum[:4])), nil
 }
 
 func crlTooOld(o ovpnConfig) bool {
