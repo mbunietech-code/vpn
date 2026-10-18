@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
@@ -10,6 +11,14 @@ import '../services/mvpn_scope.dart';
 import '../theme/mvpn_theme.dart';
 import '../widgets/common.dart';
 import 'onboarding.dart';
+
+/// `<sub link>?format=ovpn`: the subscriber's own OpenVPN profile.
+Uri ovpnProfileUri(String subUrl) {
+  final uri = Uri.parse(subUrl);
+  return uri.replace(
+    queryParameters: {...uri.queryParameters, 'format': 'ovpn'},
+  );
+}
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -111,6 +120,17 @@ class SettingsScreen extends StatelessWidget {
                         p == null ? null : vpn.update(() => vpn.protocol = p),
                   ),
                 ),
+                Divider(color: c.border, height: 1),
+                SettingRow(
+                  title: tr.t('settings.ovpn'),
+                  subtitle: tr.t('settings.ovpnSub'),
+                  trailing: Icon(
+                    Icons.download_rounded,
+                    size: 18,
+                    color: c.textHint,
+                  ),
+                  onTap: () => _downloadOvpn(context, vpn.subUrl, tr),
+                ),
               ],
             ),
           ),
@@ -209,6 +229,32 @@ class SettingsScreen extends StatelessWidget {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// Opens this subscription's .ovpn in the browser, which downloads it for
+  /// the OpenVPN Connect app. Checks first so a profile the node hasn't
+  /// issued yet gives a clear message instead of an error page.
+  Future<void> _downloadOvpn(
+    BuildContext context,
+    String? subUrl,
+    AppText tr,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    void say(String key) =>
+        messenger.showSnackBar(SnackBar(content: Text(tr.t(key))));
+
+    if (subUrl == null || subUrl.isEmpty) return say('settings.ovpnNoPlan');
+    final uri = ovpnProfileUri(subUrl);
+    try {
+      final res = await http.head(uri).timeout(const Duration(seconds: 15));
+      if (res.statusCode == 404) return say('settings.ovpnNotReady');
+      if (res.statusCode != 200) return say('settings.ovpnFailed');
+    } catch (_) {
+      return say('settings.ovpnFailed');
+    }
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      say('settings.ovpnFailed');
     }
   }
 

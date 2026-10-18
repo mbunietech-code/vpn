@@ -87,6 +87,33 @@ class AdminSubscriptionActionsTest extends TestCase
         $this->assertSame(3, $sub->peers()->where('status', 'active')->count());
     }
 
+    public function test_admin_downloads_the_customers_openvpn_profile(): void
+    {
+        $sub = app(SubscriptionAdmin::class)->grant($this->customer(), Plan::where('code', 'm1')->first(), 'test');
+
+        // Not issued yet: a warning, no file, nothing audited.
+        Livewire::test(ListSubscriptions::class)
+            ->callTableAction('ovpn', $sub)
+            ->assertNoFileDownloaded()
+            ->assertNotified('No OpenVPN profile yet');
+        $this->assertFalse(AuditLog::where('action', 'subscription.ovpn_downloaded')->exists());
+
+        $sub->peers()->where('protocol', 'openvpn')->first()
+            ->update(['openvpn_profile' => "client\n<ca>A</ca>\n<cert>OWN</cert>\n<key>K</key>\n<tls-crypt>T</tls-crypt>", 'openvpn_cert_serial' => 'AB']);
+
+        Livewire::test(ListSubscriptions::class)
+            ->callTableAction('ovpn', $sub)
+            ->assertFileDownloaded("mbunie-vpn-{$sub->id}.ovpn", "client\n<ca>A</ca>\n<cert>OWN</cert>\n<key>K</key>\n<tls-crypt>T</tls-crypt>");
+        $this->assertTrue(AuditLog::where('action', 'subscription.ovpn_downloaded')->where('target', "subscription:{$sub->id}")->exists());
+    }
+
+    public function test_non_admins_cannot_reach_the_subscriptions_page(): void
+    {
+        $this->actingAs(User::factory()->create(['is_admin' => false]));
+
+        $this->get('/admin/subscriptions')->assertForbidden();
+    }
+
     public function test_suspend_customer_cuts_access_and_blocks_login(): void
     {
         $cust = $this->customer();

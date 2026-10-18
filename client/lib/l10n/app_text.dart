@@ -458,6 +458,31 @@ const _map = <String, Map<String, String>>{
     'sw': 'Fallback imara China (OpenVPN)',
     'zh': '中国稳定备用线路 (OpenVPN)',
   },
+  'settings.ovpn': {
+    'en': 'OpenVPN profile (.ovpn)',
+    'sw': 'Profile ya OpenVPN (.ovpn)',
+    'zh': 'OpenVPN 配置文件 (.ovpn)',
+  },
+  'settings.ovpnSub': {
+    'en': 'Use with the OpenVPN Connect app',
+    'sw': 'Itumie kwenye app ya OpenVPN Connect',
+    'zh': '用于 OpenVPN Connect 应用',
+  },
+  'settings.ovpnNotReady': {
+    'en': 'Your OpenVPN profile is not ready yet. Try again in a minute.',
+    'sw': 'Profile yako ya OpenVPN bado haijawa tayari. Jaribu tena baada ya dakika moja.',
+    'zh': '您的 OpenVPN 配置文件尚未就绪，请一分钟后再试。',
+  },
+  'settings.ovpnNoPlan': {
+    'en': 'You need an active plan to get an OpenVPN profile.',
+    'sw': 'Unahitaji plan iliyo hai ili kupata profile ya OpenVPN.',
+    'zh': '需要有效套餐才能获取 OpenVPN 配置文件。',
+  },
+  'settings.ovpnFailed': {
+    'en': 'Could not download the OpenVPN profile. Check your connection and try again.',
+    'sw': 'Imeshindikana kupakua profile ya OpenVPN. Angalia mtandao wako, kisha jaribu tena.',
+    'zh': '无法下载 OpenVPN 配置文件，请检查网络后重试。',
+  },
   'settings.language': {'en': 'Language', 'sw': 'Lugha', 'zh': '语言'},
   'settings.about': {'en': 'About', 'sw': 'Kuhusu', 'zh': '关于'},
   'settings.version': {'en': 'Version', 'sw': 'Toleo', 'zh': '版本'},

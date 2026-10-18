@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\Subscriptions\Tables;
 
+use App\Models\AuditLog;
 use App\Models\Subscription;
 use App\Services\SubscriptionAdmin;
+use App\Services\SubscriptionBuilder;
 use chillerlan\QRCode\QRCode;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -131,6 +133,35 @@ class SubscriptionsTable
                         })
                         ->modalSubmitAction(false)
                         ->modalCancelActionLabel('Close'),
+                    // The customer's own OpenVPN profile, for the OpenVPN Connect
+                    // app. It holds their private key: the download is audited
+                    // and the contents are never shown on screen.
+                    Action::make('ovpn')
+                        ->label('OpenVPN profile (.ovpn)')
+                        ->icon('heroicon-m-arrow-down-tray')
+                        ->color('gray')
+                        ->visible(fn (Subscription $r) => $r->isActive())
+                        ->action(function (Subscription $r) {
+                            $profile = app(SubscriptionBuilder::class)->openVpnProfiles($r)[0]['profile'] ?? null;
+                            if (! $profile) {
+                                Notification::make()->warning()->title('No OpenVPN profile yet')
+                                    ->body('The node issues it within a minute of the plan becoming active.')->send();
+
+                                return null;
+                            }
+                            AuditLog::create([
+                                'actor' => 'admin:'.auth()->id(),
+                                'action' => 'subscription.ovpn_downloaded',
+                                'target' => "subscription:{$r->id}",
+                                'meta' => [],
+                            ]);
+
+                            return response()->streamDownload(
+                                fn () => print $profile,
+                                "mbunie-vpn-{$r->id}.ovpn",
+                                ['Content-Type' => 'application/x-openvpn-profile'],
+                            );
+                        }),
                     EditAction::make(),
                     Action::make('delete')
                         ->label('Delete')
