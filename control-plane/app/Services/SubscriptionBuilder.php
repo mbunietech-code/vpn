@@ -146,6 +146,28 @@ class SubscriptionBuilder
                 $outbounds[] = $hy;
             }
         }
+
+        // OpenVPN as one more server the user can pick ("Kuala Lumpur 1 ·
+        // OpenVPN"). Only in the selector, not in `auto`: Auto keeps choosing
+        // between REALITY and Hysteria2. An unreachable OpenVPN endpoint just
+        // stays "not ready" and does not stop sing-box. The iPhone sing-box
+        // app may be older than 1.14 (no openvpn-client), so it is left out.
+        $openVpnEndpoints = [];
+        if ($protocol === 'auto' && $platform !== 'ios') {
+            foreach ($this->openVpnProfiles($sub) as ['node' => $node, 'profile' => $profile]) {
+                $endpoint = $this->openVpnEndpointFromProfile($node, $profile);
+                if (! $endpoint) {
+                    continue;
+                }
+                // Route only through the selector: redirect_gateway would pull
+                // all IPv4 traffic onto OpenVPN whatever the user picked.
+                $endpoint['redirect_gateway'] = false;
+                unset($endpoint['redirect_gateway_flags']);
+                $nodeHosts[] = $endpoint['server'];
+                $openVpnEndpoints[] = $endpoint;
+            }
+        }
+
         $nodeHosts = array_values(array_unique(array_filter($nodeHosts)));
         $bootstrapDnsRules = $nodeHosts
             ? [['domain' => $nodeHosts, 'server' => 'direct-dns']]
@@ -171,7 +193,7 @@ class SubscriptionBuilder
         }
 
         // Selector + auto (urltest) sit in front of the peers.
-        $selectorMembers = array_merge(['auto'], $proxyOutbounds);
+        $selectorMembers = array_merge(['auto'], $proxyOutbounds, array_column($openVpnEndpoints, 'tag'));
 
         $tunInbound = [
             'type' => 'tun',
@@ -279,6 +301,9 @@ class SubscriptionBuilder
                 'cache_file' => ['enabled' => true],
             ],
         ];
+        if ($openVpnEndpoints) {
+            $config['endpoints'] = $openVpnEndpoints;
+        }
 
         return $config;
     }
@@ -493,16 +518,18 @@ class SubscriptionBuilder
         if ($key = $directives['<key>'][0][0] ?? null) {
             $endpoint['tls']['client_key'] = [$key];
         }
+        // sing-box spells these tls_auth / tls_crypt and takes a direction
+        // name; "tls-crypt" made the endpoint refuse to start (seen 2026-10-19).
         if ($ta = $directives['<tls-auth>'][0][0] ?? null) {
             $endpoint['tls']['control_wrap'] = [
-                'type' => 'tls-auth',
+                'type' => 'tls_auth',
                 'key' => [$ta],
-                'direction' => $this->firstArg($directives, 'key-direction') ?? '1',
+                'direction' => ($this->firstArg($directives, 'key-direction') ?? '1') === '0' ? 'server' : 'client',
             ];
         }
         if ($tc = $directives['<tls-crypt>'][0][0] ?? null) {
             $endpoint['tls']['control_wrap'] = [
-                'type' => 'tls-crypt',
+                'type' => 'tls_crypt',
                 'key' => [$tc],
             ];
         }

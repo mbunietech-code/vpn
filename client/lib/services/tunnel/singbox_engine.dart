@@ -145,6 +145,9 @@ class SingboxEngine implements TunnelEngine {
   }
 
   @override
+  Future<bool> selectServer(String tag) => clashSelectServer(tag);
+
+  @override
   Future<void> stop() async {
     final hadEngine = _proc != null;
     await _killEngine();

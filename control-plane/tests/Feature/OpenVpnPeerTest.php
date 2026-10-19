@@ -111,6 +111,44 @@ class OpenVpnPeerTest extends TestCase
         $this->assertSame('tcp', $cfg['endpoints'][0]['network']);
     }
 
+    public function test_auto_config_offers_openvpn_as_a_server_but_not_in_auto(): void
+    {
+        [$node, $sub, $peer] = $this->provision();
+        $peer->update(['openvpn_profile' => $this->profile('own'), 'openvpn_cert_serial' => 'AB']);
+
+        $cfg = $this->getJson('/sub/tokovpn123?format=singbox&platform=windows')->assertOk()->json();
+
+        $ep = $cfg['endpoints'][0];
+        $this->assertSame('openvpn-client', $ep['type']);
+        $this->assertSame('Kuala Lumpur 1 · OpenVPN', $ep['tag']);
+        $this->assertFalse($ep['redirect_gateway'], 'only through the selector');
+        $this->assertArrayNotHasKey('redirect_gateway_flags', $ep);
+        $this->assertSame('tls_crypt', $ep['tls']['control_wrap']['type']);
+
+        $outbounds = collect($cfg['outbounds'])->keyBy('tag');
+        $this->assertContains('Kuala Lumpur 1 · OpenVPN', $outbounds['proxy']['outbounds']);
+        $this->assertNotContains('Kuala Lumpur 1 · OpenVPN', $outbounds['auto']['outbounds']);
+        $this->assertSame('auto', $outbounds['proxy']['default']);
+
+        // iPhone (sing-box app, maybe older than 1.14) and explicit protocols: none.
+        $ios = $this->getJson('/sub/tokovpn123?format=singbox&platform=ios')->json();
+        $this->assertArrayNotHasKey('endpoints', $ios);
+        $hy2 = $this->getJson('/sub/tokovpn123?format=singbox&platform=windows&protocol=hysteria2')->json();
+        $this->assertArrayNotHasKey('endpoints', $hy2);
+    }
+
+    public function test_tls_auth_profiles_map_to_sing_box_names(): void
+    {
+        [$node, $sub, $peer] = $this->provision();
+        $peer->update([
+            'openvpn_profile' => str_replace(['<tls-crypt>', '</tls-crypt>'], ['<tls-auth>', '</tls-auth>'], $this->profile('own'))."\nkey-direction 1",
+            'openvpn_cert_serial' => 'AB',
+        ]);
+
+        $ep = $this->getJson('/sub/tokovpn123?format=singbox&platform=android&protocol=openvpn')->json('endpoints.0');
+        $this->assertSame(['type' => 'tls_auth', 'key' => ['TA'], 'direction' => 'client'], $ep['tls']['control_wrap']);
+    }
+
     public function test_no_profile_anywhere_is_404_and_capacity_ignores_openvpn(): void
     {
         [$node, $sub, $peer] = $this->provision();

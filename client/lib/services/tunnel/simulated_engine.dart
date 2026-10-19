@@ -45,6 +45,9 @@ class SimulatedEngine implements TunnelEngine {
   }
 
   @override
+  Future<bool> selectServer(String tag) async => true;
+
+  @override
   Future<void> stop() async {
     _tick?.cancel();
     _tick = null;

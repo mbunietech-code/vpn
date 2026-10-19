@@ -63,9 +63,14 @@ class SubParser {
       });
     }
 
-    final nodes = seen.values.map((n) => n.toNode()).toList()
+    // Each node also offers OpenVPN (the subscription's own certificate): a
+    // separate entry so it can be picked like any other server.
+    // Sorted before expanding so each OpenVPN entry stays right after its node.
+    final parsed = seen.values.toList()
       ..sort((a, b) => a.region.compareTo(b.region));
-    return nodes;
+    return [
+      for (final n in parsed) ...[n.toNode(), n.toOpenVpnNode()],
+    ];
   }
 
   static String _region(String name) {
@@ -99,4 +104,12 @@ class _ParsedNode {
       latencyMs: 0,
     );
   }
+
+  VpnNode toOpenVpnNode() => VpnNode(
+    id: '$host${VpnNode.openVpnSuffix}',
+    name: '$name · OpenVPN',
+    code: 'OpenVPN',
+    region: region,
+    latencyMs: 0,
+  );
 }

@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
 import '../../models.dart';
 
 enum EngineStatus { down, starting, up, error }
@@ -45,5 +49,27 @@ abstract class TunnelEngine {
 
   Future<void> stop();
 
+  /// Switch the running tunnel's server: a member of the config's "proxy"
+  /// selector ("auto", or e.g. "Kuala Lumpur 1 · OpenVPN"). False when the
+  /// config does not offer it.
+  Future<bool> selectServer(String tag);
+
   void dispose();
+}
+
+/// [TunnelEngine.selectServer] for engines that run sing-box with its Clash
+/// API on 127.0.0.1:9095 (the server-built config sets it).
+Future<bool> clashSelectServer(String tag) async {
+  try {
+    final res = await http
+        .put(
+          Uri.parse('http://127.0.0.1:9095/proxies/proxy'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'name': tag}),
+        )
+        .timeout(const Duration(seconds: 5));
+    return res.statusCode == 204 || res.statusCode == 200;
+  } catch (_) {
+    return false;
+  }
 }

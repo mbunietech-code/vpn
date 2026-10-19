@@ -362,6 +362,11 @@ const _map = <String, Map<String, String>>{
     'sw': 'Unganisha kwenye seva ya haraka zaidi',
     'zh': '连接到最快的服务器',
   },
+  'servers.unavailable': {
+    'en': 'This server is not available right now. Try another one.',
+    'sw': 'Seva hii haipatikani kwa sasa. Jaribu nyingine.',
+    'zh': '此服务器暂时不可用，请换一个。',
+  },
 
   // ---- session stats ----
   'stats.title': {

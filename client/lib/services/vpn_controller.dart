@@ -74,6 +74,8 @@ class VpnController extends ChangeNotifier {
   bool get ipObfuscated => _status == VpnStatus.connected;
 
   static const _protocolKey = 'pref_protocol_v2';
+  static const _serverKey = 'pref_server_v1';
+  String? _savedServerId; // restored once the subscription's nodes load
 
   bool _userWantsConnected = false;
   int _reconnectAttempts = 0;
@@ -96,6 +98,7 @@ class VpnController extends ChangeNotifier {
           orElse: () => ProtocolPref.auto,
         );
       }
+      _savedServerId = p.getString(_serverKey);
       notifyListeners();
     } catch (_) {
       /* defaults */
@@ -207,17 +210,58 @@ class VpnController extends ChangeNotifier {
   void setNodes(List<VpnNode> nodes) {
     if (nodes.isEmpty) return;
     _nodes = nodes;
-    if (!_nodes.any((n) => n.id == _currentNode.id)) {
+    final saved = _nodes.where((n) => n.id == _savedServerId);
+    if (saved.isNotEmpty) {
+      _currentNode = saved.first;
+    } else if (!_nodes.any((n) => n.id == _currentNode.id)) {
       _currentNode = _nodes.first;
     }
     notifyListeners();
   }
 
-  void selectNode(VpnNode node) {
+  /// Picks a server from the list. Switches the running tunnel in place
+  /// (Clash API selector) when connected; otherwise it applies on connect.
+  /// False when the running config does not offer it.
+  Future<bool> selectNode(VpnNode node) async {
+    final previous = _currentNode;
     _currentNode = node;
+    _savedServerId = node.id;
     notifyListeners();
-    // With one node + urltest auto-selection there is nothing to switch.
-    // Multi-node selector switching via the Clash API is a later addition.
+    unawaited(_persistServer(node.id));
+
+    // An explicit protocol (Settings) builds a config without the selector
+    // choices; OpenVPN as a server needs the Auto config.
+    if (node.isOpenVpn && protocol != ProtocolPref.auto) {
+      protocol = ProtocolPref.auto;
+      unawaited(_persist());
+      if (isConnected) {
+        await disconnect();
+        await connect(); // the choice is applied once it is up
+      }
+      return true;
+    }
+    if (!isConnected) return true;
+
+    final ok = await _applyServer();
+    if (!ok) {
+      _currentNode = previous;
+      _savedServerId = previous.id;
+      unawaited(_persistServer(previous.id));
+      notifyListeners();
+    }
+    return ok;
+  }
+
+  Future<bool> _applyServer() async {
+    if (!_engine.isReal || protocol != ProtocolPref.auto) return true;
+    return _engine.selectServer(_currentNode.selectorTag);
+  }
+
+  Future<void> _persistServer(String id) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_serverKey, id);
+    } catch (_) {}
   }
 
   // ---- engine event handling -------------------------------------
@@ -230,6 +274,9 @@ class VpnController extends ChangeNotifier {
         _connectedAt ??= DateTime.now();
         _reconnectAttempts = 0;
         _set(VpnStatus.connected);
+        // Re-apply the picked server: a new engine starts on "auto" (or on
+        // what its cache remembers).
+        unawaited(_applyServer());
       case EngineStatus.down:
         _connectedAt = null;
         _stats = SessionStats.empty;
@@ -261,9 +308,13 @@ class VpnController extends ChangeNotifier {
       downloadedBytes: t.downBytes,
       uploadedBytes: t.upBytes,
       peakMbps: _peakMbps,
-      protocol: _engine.isReal
-          ? (protocol == ProtocolPref.auto ? 'Auto' : protocol.label)
-          : 'Demo',
+      protocol: !_engine.isReal
+          ? 'Demo'
+          : protocol != ProtocolPref.auto
+          ? protocol.label
+          : _currentNode.isOpenVpn
+          ? 'OpenVPN'
+          : 'Auto',
       downSeries: List.of(_down),
       upSeries: List.of(_up),
     );

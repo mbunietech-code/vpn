@@ -89,6 +89,9 @@ class AndroidHiddifyEngine implements TunnelEngine {
   }
 
   @override
+  Future<bool> selectServer(String tag) => clashSelectServer(tag);
+
+  @override
   Future<void> stop() async {
     _watchdog?.cancel();
     _tick?.cancel();

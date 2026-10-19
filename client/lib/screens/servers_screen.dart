@@ -47,7 +47,8 @@ class ServersScreen extends StatelessWidget {
             gradient: c.brandGradient,
             borderColor: Colors.transparent,
             onTap: () {
-              final fastest = vpn.nodes.reduce((a, b) =>
+              // Optimal = an Auto entry; OpenVPN is a deliberate pick.
+              final fastest = vpn.nodes.where((n) => !n.isOpenVpn).reduce((a, b) =>
                   (a.latencyKnown ? a.latencyMs : 9999) <=
                           (b.latencyKnown ? b.latencyMs : 9999)
                       ? a
@@ -91,9 +92,15 @@ class ServersScreen extends StatelessWidget {
                     _NodeRow(
                       node: grouped[region]![i],
                       selected: grouped[region]![i].id == vpn.currentNode.id,
-                      onTap: () {
-                        vpn.selectNode(grouped[region]![i]);
+                      onTap: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final unavailable = context.tt('servers.unavailable');
                         Navigator.of(context).maybePop();
+                        if (!await vpn.selectNode(grouped[region]![i])) {
+                          messenger.showSnackBar(
+                            SnackBar(content: Text(unavailable)),
+                          );
+                        }
                       },
                     ),
                   ],

@@ -13,19 +13,30 @@ void main() {
 
     final nodes = SubParser.parse(bundle);
 
-    expect(nodes.length, 2);
+    // Each node plus its OpenVPN entry, right after it.
+    expect(nodes.length, 4);
     final hk = nodes.firstWhere((n) => n.id == 'hk1.mbunievpn.com');
     expect(hk.name, 'Hong Kong 1');
     expect(hk.region, 'Asia-Pacific');
     expect(hk.code, 'Auto · Hysteria2 + REALITY');
     expect(hk.code, isNot(contains('www.microsoft.com')));
     expect(nodes.firstWhere((n) => n.id == 'fra1.mbunievpn.com').region, 'Europe');
+
+    final hkIndex = nodes.indexOf(hk);
+    final hkOvpn = nodes[hkIndex + 1];
+    expect(hkOvpn.id, 'hk1.mbunievpn.com#openvpn');
+    expect(hkOvpn.name, 'Hong Kong 1 · OpenVPN');
+    expect(hkOvpn.isOpenVpn, isTrue);
+    expect(hkOvpn.selectorTag, 'Hong Kong 1 · OpenVPN');
+    expect(hk.isOpenVpn, isFalse);
+    expect(hk.selectorTag, 'auto');
+    expect(hkOvpn.region, hk.region);
   });
 
   test('tolerates a plain-text (non-base64) body', () {
     const body =
         'vless://u@sg1.example.com:443?sni=x&pbk=k&sid=1#MVPN%20Singapore';
     final nodes = SubParser.parse(body);
-    expect(nodes.single.name, 'Singapore');
+    expect(nodes.map((n) => n.name), ['Singapore', 'Singapore · OpenVPN']);
   });
 }

@@ -35,6 +35,14 @@ class VpnNode {
 
   bool get latencyKnown => latencyMs > 0;
 
+  /// The `<node> · OpenVPN` entry [SubParser] adds next to each node.
+  bool get isOpenVpn => id.endsWith(openVpnSuffix);
+  static const openVpnSuffix = '#openvpn';
+
+  /// Member of the config's "proxy" selector this entry switches to. The
+  /// server tags OpenVPN endpoints `<node name> · OpenVPN`, this name.
+  String get selectorTag => isOpenVpn ? name : 'auto';
+
   /// 0..4 signal bars from latency (0 = unknown → no bars)
   int get bars => switch (latencyMs) {
     <= 0 => 0,
