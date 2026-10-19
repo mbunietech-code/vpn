@@ -26,6 +26,7 @@ class DownloadController extends Controller
             'macos' => url(config('services.mvpn.download_macos')),
             'version' => config('services.mvpn.app_version'),
             'androidVersion' => config('services.mvpn.android_version') ?: config('services.mvpn.app_version'),
+            'windowsVersion' => config('services.mvpn.windows_version') ?: config('services.mvpn.app_version'),
             'androidDate' => $this->releaseDate(config('services.mvpn.download_android')),
             'windowsDate' => $this->releaseDate(config('services.mvpn.download_windows')),
             'macosDate' => $this->releaseDate(config('services.mvpn.download_macos')),
@@ -55,9 +56,11 @@ class DownloadController extends Controller
     {
         $deviceId = (string) $request->header(RejectRevokedDevice::HEADER, '');
         $platform = $deviceId !== '' ? Device::where('fingerprint', $deviceId)->value('platform') : null;
-        $latest = $platform === 'android'
-            ? (config('services.mvpn.android_version') ?: config('services.mvpn.app_version'))
-            : config('services.mvpn.app_version');
+        $latest = match ($platform) {
+            'android' => config('services.mvpn.android_version'),
+            'windows' => config('services.mvpn.windows_version'),
+            default => null,
+        } ?: config('services.mvpn.app_version');
 
         return response()->json([
             'latest' => (string) $latest,

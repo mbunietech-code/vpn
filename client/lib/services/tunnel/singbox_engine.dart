@@ -46,6 +46,7 @@ class SingboxEngine implements TunnelEngine {
   final _errBuf = <String>[];
   bool _up = false;
   int? _exitCode; // last engine exit code, for the start-up error
+  String? _otherVpn; // another VPN adapter that was up when we started
 
   /// Full engine output of the current run: <support>/engine/engine.log.
   IOSink? _logSink;
@@ -72,6 +73,7 @@ class SingboxEngine implements TunnelEngine {
     // adapter and the Clash API port is what made restarts fail.
     await _killEngine();
     _reports.add(const EngineReport(EngineStatus.starting));
+    final otherVpn = _findOtherVpn(); // runs while the config downloads
 
     final support = await getApplicationSupportDirectory();
     final dir = Directory('${support.path}${Platform.pathSeparator}engine')
@@ -84,6 +86,7 @@ class SingboxEngine implements TunnelEngine {
     _errBuf.clear();
     _up = false;
     _exitCode = null;
+    _otherVpn = await otherVpn;
     await _logSink?.close();
     _logSink = File(
       '${dir.path}${Platform.pathSeparator}engine.log',
@@ -117,6 +120,9 @@ class SingboxEngine implements TunnelEngine {
     unawaited(
       proc.exitCode.then((code) {
         _logSink?.writeln('--- engine exited with code $code');
+        // Write it out now: the log was empty when the app closed after a
+        // failed start, which hid the reason.
+        unawaited(_logSink?.flush());
         // A newer engine has replaced this one; its exit is not news.
         if (!identical(_proc, proc)) return;
         _exitCode = code;
@@ -381,7 +387,16 @@ class SingboxEngine implements TunnelEngine {
     if (l.contains('operation not permitted') ||
         l.contains('access is denied') ||
         l.contains('permission denied') && l.contains('tun')) {
-      _reports.add(EngineReport(EngineStatus.error, message: _privilegeHint()));
+      // Keep the engine's own line: "access is denied" is not always a
+      // missing admin right (another VPN's adapter can cause it too), and
+      // this message is what Admin > Devices shows as the last error.
+      final detail = line.length > 200 ? line.substring(0, 200) : line;
+      _reports.add(
+        EngineReport(
+          EngineStatus.error,
+          message: '${_privilegeHint()}\n$detail',
+        ),
+      );
     }
   }
 
@@ -460,7 +475,40 @@ class SingboxEngine implements TunnelEngine {
 
   // ---- diagnostics --------------------------------------------
 
+  /// Windows: the name of another VPN adapter that is up. Its TUN and routes
+  /// make ours fail with "Access is denied" even when we run as
+  /// Administrator (seen with Cloudflare WARP on 2026-10-19).
+  static Future<String?> _findOtherVpn() async {
+    if (!Platform.isWindows) return null;
+    try {
+      final r = await Process.run('powershell', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        r"Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.Name -notlike 'mvpn*' } | ForEach-Object { $_.InterfaceDescription }",
+      ]).timeout(const Duration(seconds: 8));
+      for (final raw in r.stdout.toString().split('\n')) {
+        final name = raw.trim();
+        final l = name.toLowerCase();
+        if (l.contains('cloudflare warp')) return 'Cloudflare WARP';
+        if (l.contains('wireguard') ||
+            l.contains('wintun') ||
+            l.contains('tap-windows') ||
+            l.contains('openvpn') ||
+            l.contains('vpn')) {
+          return name;
+        }
+      }
+    } catch (_) {
+      /* no answer: fall back to the usual hint */
+    }
+    return null;
+  }
+
   String _privilegeHint() {
+    if (Platform.isWindows && _otherVpn != null) {
+      return 'Another VPN is on ($_otherVpn). Turn it off, then press Connect again.';
+    }
     if (Platform.isWindows) {
       return 'Run Mbunie VPN as Administrator (right-click → Run as administrator).';
     }

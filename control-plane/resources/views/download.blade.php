@@ -82,7 +82,7 @@
         </span>
       </div>
       <div class="name">Windows</div>
-      <div class="meta">Version {{ $version }}@if ($windowsDate)<br>{{ $windowsDate }}@endif</div>
+      <div class="meta">Version {{ $windowsVersion }}@if ($windowsDate)<br>{{ $windowsDate }}@endif</div>
     </a>
 
     {{-- iOS --}}

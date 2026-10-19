@@ -106,13 +106,17 @@ class NotificationsTest extends TestCase
 
     public function test_android_devices_see_the_android_version(): void
     {
-        config(['services.mvpn.app_version' => '1.0.13', 'services.mvpn.android_version' => '1.0.14']);
+        config(['services.mvpn.app_version' => '1.0.13', 'services.mvpn.android_version' => '1.0.14', 'services.mvpn.windows_version' => null]);
         $sub = User::factory()->create()->subscriptions()->create(['plan_code' => 'm1', 'sub_token' => 'tok-version']);
         $sub->devices()->create(['fingerprint' => 'phone-1', 'platform' => 'android']);
         $sub->devices()->create(['fingerprint' => 'pc-1', 'platform' => 'windows']);
 
         $this->getJson('/api/app/version', ['X-Mvpn-Device' => 'phone-1'])->assertJsonPath('latest', '1.0.14');
         $this->getJson('/api/app/version', ['X-Mvpn-Device' => 'pc-1'])->assertJsonPath('latest', '1.0.13');
+        $sub->devices()->create(['fingerprint' => 'mac-1', 'platform' => 'macos']);
+        config(['services.mvpn.windows_version' => '1.0.15']);
+        $this->getJson('/api/app/version', ['X-Mvpn-Device' => 'pc-1'])->assertJsonPath('latest', '1.0.15');
+        $this->getJson('/api/app/version', ['X-Mvpn-Device' => 'mac-1'])->assertJsonPath('latest', '1.0.13');
         $this->getJson('/api/app/version')->assertJsonPath('latest', '1.0.13');
         $this->get('/download')->assertOk()->assertSee('Version 1.0.14');
     }
