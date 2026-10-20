@@ -190,7 +190,7 @@ class SingboxConfigTest extends TestCase
 
         // macOS rejects anything but utunN ("bad tun name: mvpn0").
         $this->assertArrayNotHasKey('interface_name', $tun);
-        $this->assertSame('system', $tun['stack']);
+        $this->assertSame('gvisor', $tun['stack']);
         $this->assertTrue($tun['strict_route']);
     }
 

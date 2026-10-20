@@ -78,7 +78,8 @@ class SubscriptionBuilder
 
     /**
      * Full sing-box client config. `stack` differs per platform:
-     *   windows/linux → "mixed",  macos → "system",  android/ios → "gvisor".
+     *   windows/linux → "mixed",  macos/android/ios → "gvisor".
+     *   (macOS "system": IPv4 TCP died, its NAT replies to 172.19.0.2 left via en0.)
      *
      * @return array<string,mixed>
      */
@@ -254,7 +255,7 @@ class SubscriptionBuilder
                 'fe80::/10',
                 'ff00::/8',
             ],
-            'stack' => match ($platform) { 'macos' => 'system', 'android', 'ios' => 'gvisor', default => 'mixed' },
+            'stack' => match ($platform) { 'macos', 'android', 'ios' => 'gvisor', default => 'mixed' },
         ];
 
         // iOS: the Network Extension owns the interface; desktop-only options break it.
@@ -412,7 +413,7 @@ class SubscriptionBuilder
                 'fe80::/10',
                 'ff00::/8',
             ],
-            'stack' => match ($platform) { 'macos' => 'system', 'android', 'ios' => 'gvisor', default => 'mixed' },
+            'stack' => match ($platform) { 'macos', 'android', 'ios' => 'gvisor', default => 'mixed' },
         ];
 
         // iOS: the Network Extension owns the interface; desktop-only options break it.
