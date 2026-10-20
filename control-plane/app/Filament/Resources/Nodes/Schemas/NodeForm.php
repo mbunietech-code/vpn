@@ -74,6 +74,15 @@ class NodeForm
                             ->options(array_combine(Node::STATUSES, Node::STATUSES))
                             ->helperText('draining/disabled are kept as set; other statuses follow the agent health reports.'),
                         TextInput::make('capacity')->required()->numeric()->default(500),
+                        TextInput::make('monthly_quota_gb')
+                            ->label('Monthly data quota (GB)')
+                            ->numeric()->minValue(1)
+                            ->placeholder('8000')
+                            ->helperText('The hosting plan\'s data allowance (Hostinger KVM 2: 8 TB = 8000). Alert at '.config('services.mvpn.quota_alert_percent', 80).'%.'),
+                        TextInput::make('quota_reset_day')
+                            ->label('Quota resets on day')
+                            ->numeric()->minValue(1)->maxValue(28)->default(1)
+                            ->helperText('Day of the month the host\'s billing cycle starts.'),
                         TextInput::make('priority')
                             ->required()
                             ->numeric()

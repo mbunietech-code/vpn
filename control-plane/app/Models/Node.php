@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Services\ProvisioningService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class Node extends Model
 {
@@ -65,5 +67,58 @@ class Node extends Model
     public function isUsable(): bool
     {
         return in_array($this->status, ['online', 'degraded'], true);
+    }
+
+    /** @return HasMany<NodeTraffic> */
+    public function traffic(): HasMany
+    {
+        return $this->hasMany(NodeTraffic::class);
+    }
+
+    /** First day of the current data-quota cycle (the provider's billing day). */
+    public function quotaCycleStart(?Carbon $now = null): Carbon
+    {
+        $now = ($now ?? now())->copy()->startOfDay();
+        $day = max(1, min(28, (int) ($this->quota_reset_day ?: 1)));
+        $start = $now->copy()->day($day);
+
+        return $start->greaterThan($now) ? $start->subMonthNoOverflow() : $start;
+    }
+
+    /**
+     * Bytes in + out this quota cycle. Providers differ on what they count, so
+     * both directions: the conservative reading.
+     */
+    public function cycleBytes(): int
+    {
+        return (int) $this->traffic()
+            ->where('day', '>=', $this->quotaCycleStart()->toDateString())
+            ->sum(DB::raw('rx_bytes + tx_bytes'));
+    }
+
+    /** Share of the monthly quota used this cycle (0-100+), or null without a quota. */
+    public function quotaPercent(): ?float
+    {
+        if (! $this->monthly_quota_gb) {
+            return null;
+        }
+
+        return round($this->cycleBytes() / ($this->monthly_quota_gb * 1e9) * 100, 1);
+    }
+
+    /** Busiest send rate (Mbps) the agent saw today. */
+    public function peakTxMbpsToday(): float
+    {
+        return (float) $this->traffic()->where('day', now()->toDateString())->value('peak_tx_mbps');
+    }
+
+    /** Subscriptions that can use this node right now (active, not expired). */
+    public function activeSubscriptionCount(): int
+    {
+        return $this->peers()
+            ->where('status', 'active')
+            ->whereHas('subscription', fn ($q) => $q->where('status', 'active')->where('expires_at', '>', now()))
+            ->distinct()
+            ->count('subscription_id');
     }
 }
