@@ -309,6 +309,13 @@ jq -n \
 "$SINGBOX_BIN" check -c "${SB_CFG%.json}.next.json" || err "generated sing-box config failed validation"
 mv "${SB_CFG%.json}.next.json" "$SB_CFG"; chmod 600 "$SB_CFG"
 
+# A node that routes YouTube through WARP (enable-warp-youtube.sh) keeps
+# those rules when it is re-installed.
+if ss -ltn | grep -q '127.0.0.1:40000 ' && [[ -f "$SCRIPT_DIR/enable-warp-youtube.sh" ]]; then
+  log "WARP proxy found - keeping YouTube via WARP"
+  bash "$SCRIPT_DIR/enable-warp-youtube.sh" --patch-only
+fi
+
 # ---------- 8. node-info.json (read by the agent, sent to the control plane) --
 jq -n \
   --arg host "$DOMAIN" --arg pub "$REALITY_PUB" --arg sid "$SHORT_ID" \
