@@ -358,12 +358,18 @@ class SingboxEngine implements TunnelEngine {
 
     // macOS only accepts utunN tun names; older servers sent "mvpn0"
     // ("bad tun name"). Without a name sing-box picks a free utun.
+    // Older servers also sent stack "system", where IPv4 TCP never passed
+    // (its NAT replies to 172.19.0.2 left via en0): use gvisor.
     if (Platform.isMacOS && json is Map && json['inbounds'] is List) {
       var changed = false;
       for (final ib in json['inbounds'] as List) {
         final name = ib is Map ? ib['interface_name'] : null;
         if (name is String && !name.startsWith('utun')) {
           ib.remove('interface_name');
+          changed = true;
+        }
+        if (ib is Map && ib['type'] == 'tun' && ib['stack'] == 'system') {
+          ib['stack'] = 'gvisor';
           changed = true;
         }
       }
