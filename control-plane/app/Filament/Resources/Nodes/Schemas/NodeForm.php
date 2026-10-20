@@ -33,6 +33,14 @@ class NodeForm
                             ->regex(self::HOST_REGEX)
                             ->placeholder('n1.mbuniehub.com')
                             ->helperText('DNS A record → the VPS IP, Cloudflare DNS only (grey cloud).'),
+                        // China university networks (CERNET) often reach abroad far
+                        // better over IPv6; clients get an extra "<node> (IPv6)" server.
+                        TextInput::make('public_host_v6')
+                            ->label('IPv6 host (optional)')
+                            ->autocomplete('off')
+                            ->regex(self::HOST_REGEX)
+                            ->placeholder('n1v6.mbuniehub.com')
+                            ->helperText('DNS AAAA record only → the VPS IPv6, Cloudflare DNS only (grey cloud). Adds a "(IPv6)" server for REALITY + Hysteria2.'),
                         // Sits right above the password-type token field, so
                         // browsers autofill the login email here — reject it.
                         TextInput::make('cdn_host')

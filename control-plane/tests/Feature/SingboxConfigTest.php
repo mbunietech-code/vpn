@@ -106,6 +106,34 @@ class SingboxConfigTest extends TestCase
         $this->assertSame('proxy', $cfg['dns']['servers'][0]['detour']);
     }
 
+    public function test_ipv6_host_adds_an_ipv6_server(): void
+    {
+        $sub = $this->activeSub();
+
+        // No IPv6 host: nothing extra.
+        $plain = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=windows")->json();
+        $this->assertFalse(collect($plain['outbounds'])->contains(fn ($o) => str_contains($o['tag'], '(IPv6)')));
+
+        Node::first()->update(['public_host_v6' => 'n1v6.mbuniehub.com']);
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=windows")->assertOk()->json();
+        $ob = collect($cfg['outbounds'])->keyBy('tag');
+
+        $this->assertSame('n1v6.mbuniehub.com', $ob['Tokyo 1 (IPv6) · REALITY']['server']);
+        $this->assertSame('n1v6.mbuniehub.com', $ob['Tokyo 1 (IPv6) · Hysteria2']['server']);
+        $this->assertSame($ob['Tokyo 1 · REALITY']['uuid'], $ob['Tokyo 1 (IPv6) · REALITY']['uuid'], 'same credentials');
+        $this->assertSame('n1.mbuniehub.com', $ob['Tokyo 1 · REALITY']['server'], 'IPv4 one unchanged');
+
+        $this->assertSame('urltest', $ob['Tokyo 1 (IPv6)']['type']);
+        $this->assertEqualsCanonicalizing(['Tokyo 1 (IPv6) · REALITY', 'Tokyo 1 (IPv6) · Hysteria2'], $ob['Tokyo 1 (IPv6)']['outbounds']);
+        $this->assertContains('Tokyo 1 (IPv6)', $ob['proxy']['outbounds']);
+        $this->assertContains('Tokyo 1 (IPv6) · REALITY', $ob['auto']['outbounds'], 'Auto can pick IPv6 when it is faster');
+        $this->assertContains('n1v6.mbuniehub.com', $cfg['dns']['rules'][0]['domain'], 'resolved directly, not through the tunnel');
+
+        $links = base64_decode($this->get("/sub/{$sub->sub_token}")->getContent());
+        $this->assertStringContainsString('@n1v6.mbuniehub.com:', $links);
+        $this->assertStringContainsString('#MVPN%20Tokyo%201%20%28IPv6%29', $links);
+    }
+
     public function test_android_auto_prefers_hysteria2_desktop_unchanged(): void
     {
         $sub = $this->activeSub();

@@ -39,6 +39,7 @@ class SubscriptionBuilder
         foreach ($this->activePeers($sub) as $peer) {
             $node = $peer->node;
             $tag = rawurlencode("MVPN {$node->name}");
+            $tagV6 = rawurlencode("MVPN {$node->name} (IPv6)");
 
             if ($peer->protocol === 'vless-reality') {
                 $host = $node->cdn_host ?: $node->public_host;
@@ -53,6 +54,9 @@ class SubscriptionBuilder
                     'encryption' => 'none',
                 ]);
                 $links[] = "vless://{$peer->remote_id}@{$host}:{$node->reality_port}?{$query}#{$tag}";
+                if ($node->public_host_v6) {
+                    $links[] = "vless://{$peer->remote_id}@{$node->public_host_v6}:{$node->reality_port}?{$query}#{$tagV6}";
+                }
             }
 
             if ($peer->protocol === 'hysteria2') {
@@ -63,6 +67,9 @@ class SubscriptionBuilder
                     'mport' => $node->hysteria_port_range,
                 ]);
                 $links[] = "hysteria2://{$peer->secret}@{$node->public_host}:{$node->hysteria_port}?{$query}#{$tag}";
+                if ($node->public_host_v6) {
+                    $links[] = "hysteria2://{$peer->secret}@{$node->public_host_v6}:{$node->hysteria_port}?{$query}#{$tagV6}";
+                }
             }
         }
 
@@ -84,6 +91,7 @@ class SubscriptionBuilder
         $proxyOutbounds = [];   // per-peer outbound tags
         $outbounds = [];
         $nodeHosts = [];
+        $nodeByTag = [];
 
         foreach ($this->activePeers($sub) as $peer) {
             $node = $peer->node;
@@ -100,6 +108,7 @@ class SubscriptionBuilder
                 $nodeHosts[] = $node->cdn_host ?: $node->public_host;
                 $tag = "{$node->name} · REALITY";
                 $proxyOutbounds[] = $tag;
+                $nodeByTag[$tag] = $node;
                 $outbounds[] = [
                     'type' => 'vless',
                     'tag' => $tag,
@@ -125,6 +134,7 @@ class SubscriptionBuilder
                 $nodeHosts[] = $node->public_host;
                 $tag = "{$node->name} · Hysteria2";
                 $proxyOutbounds[] = $tag;
+                $nodeByTag[$tag] = $node;
                 $hy = [
                     'type' => 'hysteria2',
                     'tag' => $tag,
@@ -145,6 +155,27 @@ class SubscriptionBuilder
                 }
                 $outbounds[] = $hy;
             }
+        }
+
+        // IPv6 copies of the same REALITY / Hysteria2 peers through the node's
+        // AAAA-only host. China university networks (CERNET) lose ~25% of IPv4
+        // packets abroad but often have a far better IPv6 path. They join
+        // `auto` (a client without IPv6 just fails their probe) and get their
+        // own "<node> (IPv6)" group the app can pick from the server list.
+        $v6Groups = [];
+        foreach ($outbounds as $ob) {
+            $node = $nodeByTag[$ob['tag']] ?? null;
+            if (! $node?->public_host_v6 || ! in_array($ob['type'], ['vless', 'hysteria2'], true)) {
+                continue;
+            }
+            $group = "{$node->name} (IPv6)";
+            $v6 = $ob;
+            $v6['tag'] = $group.' · '.($ob['type'] === 'vless' ? 'REALITY' : 'Hysteria2');
+            $v6['server'] = $node->public_host_v6;
+            $outbounds[] = $v6;
+            $proxyOutbounds[] = $v6['tag'];
+            $nodeHosts[] = $node->public_host_v6;
+            $v6Groups[$group][] = $v6['tag'];
         }
 
         // OpenVPN as one more server the user can pick ("Kuala Lumpur 1 ·
@@ -193,7 +224,18 @@ class SubscriptionBuilder
         }
 
         // Selector + auto (urltest) sit in front of the peers.
-        $selectorMembers = array_merge(['auto'], $proxyOutbounds, array_column($openVpnEndpoints, 'tag'));
+        $selectorMembers = array_merge(['auto'], $proxyOutbounds, array_keys($v6Groups), array_column($openVpnEndpoints, 'tag'));
+        $v6GroupOutbounds = [];
+        foreach ($v6Groups as $group => $members) {
+            $v6GroupOutbounds[] = [
+                'type' => 'urltest',
+                'tag' => $group,
+                'outbounds' => $members,
+                'url' => 'https://www.apple.com/library/test/success.html',
+                'interval' => '3m',
+                'tolerance' => $preferHysteria ? 300 : 50,
+            ];
+        }
 
         $tunInbound = [
             'type' => 'tun',
@@ -274,7 +316,7 @@ class SubscriptionBuilder
                     'interval' => '3m',
                     'tolerance' => $preferHysteria ? 300 : 50,
                 ],
-            ], $outbounds, [
+            ], $v6GroupOutbounds, $outbounds, [
                 ['type' => 'direct', 'tag' => 'direct'],
             ]),
             'route' => [

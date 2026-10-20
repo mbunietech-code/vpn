@@ -39,9 +39,13 @@ class VpnNode {
   bool get isOpenVpn => id.endsWith(openVpnSuffix);
   static const openVpnSuffix = '#openvpn';
 
+  /// The `<node> (IPv6)` entry: same node over its AAAA-only host.
+  bool get isIpv6 => name.endsWith('(IPv6)');
+
   /// Member of the config's "proxy" selector this entry switches to. The
-  /// server tags OpenVPN endpoints `<node name> · OpenVPN`, this name.
-  String get selectorTag => isOpenVpn ? name : 'auto';
+  /// server tags OpenVPN endpoints `<node name> · OpenVPN` and the IPv6
+  /// group `<node name> (IPv6)`, this name; everything else is Auto.
+  String get selectorTag => isOpenVpn || isIpv6 ? name : 'auto';
 
   /// 0..4 signal bars from latency (0 = unknown → no bars)
   int get bars => switch (latencyMs) {

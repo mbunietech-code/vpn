@@ -33,6 +33,26 @@ void main() {
     expect(hkOvpn.region, hk.region);
   });
 
+  test('an (IPv6) host is its own entry, without OpenVPN', () {
+    final bundle = base64.encode(utf8.encode([
+      'vless://u@n1.example.com:8443?sni=x&pbk=k&sid=1#MVPN%20Kuala%20Lumpur%201',
+      'vless://u@n1v6.example.com:8443?sni=x&pbk=k&sid=1#MVPN%20Kuala%20Lumpur%201%20%28IPv6%29',
+      'hysteria2://p@n1v6.example.com:8443?sni=x#MVPN%20Kuala%20Lumpur%201%20%28IPv6%29',
+    ].join('\n')));
+
+    final nodes = SubParser.parse(bundle);
+
+    expect(nodes.map((n) => n.name), [
+      'Kuala Lumpur 1',
+      'Kuala Lumpur 1 · OpenVPN',
+      'Kuala Lumpur 1 (IPv6)',
+    ]);
+    final v6 = nodes.last;
+    expect(v6.isIpv6, isTrue);
+    expect(v6.selectorTag, 'Kuala Lumpur 1 (IPv6)');
+    expect(nodes.first.selectorTag, 'auto');
+  });
+
   test('tolerates a plain-text (non-base64) body', () {
     const body =
         'vless://u@sg1.example.com:443?sni=x&pbk=k&sid=1#MVPN%20Singapore';

@@ -253,7 +253,10 @@ class VpnController extends ChangeNotifier {
   }
 
   Future<bool> _applyServer() async {
-    if (!_engine.isReal || protocol != ProtocolPref.auto) return true;
+    if (!_engine.isReal) return true;
+    // Explicit-protocol configs have no OpenVPN (selectNode moves an OpenVPN
+    // pick to Auto first); they do carry "auto" and the IPv6 groups.
+    if (protocol != ProtocolPref.auto && _currentNode.isOpenVpn) return true;
     return _engine.selectServer(_currentNode.selectorTag);
   }
 

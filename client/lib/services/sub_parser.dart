@@ -68,8 +68,12 @@ class SubParser {
     // Sorted before expanding so each OpenVPN entry stays right after its node.
     final parsed = seen.values.toList()
       ..sort((a, b) => a.region.compareTo(b.region));
+    // OpenVPN listens on IPv4 only: no OpenVPN entry for "(IPv6)" hosts.
     return [
-      for (final n in parsed) ...[n.toNode(), n.toOpenVpnNode()],
+      for (final n in parsed) ...[
+        n.toNode(),
+        if (!n.name.endsWith('(IPv6)')) n.toOpenVpnNode(),
+      ],
     ];
   }
 
