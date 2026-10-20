@@ -65,13 +65,18 @@ class AndroidHiddifyEngine implements TunnelEngine {
     final config = await _fetchConfig(subUrl, apiToken, dirs, pref);
     _listen();
     _started = false;
-    await _method.invokeMethod('start', {
-      'path': config.path,
-      'name': 'Mbunie VPN',
-      'grpcPort': _bgPort,
-      'startCore': true,
-      'debug': false,
-    });
+    try {
+      await _method.invokeMethod('start', {
+        'path': config.path,
+        'name': 'Mbunie VPN',
+        'grpcPort': _bgPort,
+        'startCore': true,
+        'debug': false,
+      });
+    } on PlatformException catch (e) {
+      // Show the native message, not "PlatformException(code, ...)".
+      throw StateError(e.message ?? e.code);
+    }
 
     // Never spin forever: if the core hasn't reported Started, surface it.
     _watchdog?.cancel();

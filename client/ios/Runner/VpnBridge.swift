@@ -83,6 +83,15 @@ final class VpnBridge: NSObject {
   // MARK: - Tunnel
 
   private func start(config: String, result: @escaping FlutterResult) {
+    #if targetEnvironment(simulator)
+      // The Simulator has no VPN service (saving fails with "IPC failed").
+      result(
+        FlutterError(
+          code: "simulator",
+          message: "The VPN cannot run in the iOS Simulator. Install Mbunie VPN on an iPhone.",
+          details: nil))
+      return
+    #endif
     // Also on disk for the extension: iOS restarts it without start options
     // (after a crash, or from Settings → VPN).
     if let url = Self.sharedConfigURL {
@@ -103,7 +112,15 @@ final class VpnBridge: NSObject {
       // The first save shows the system "Add VPN Configurations" prompt.
       manager.saveToPreferences { error in
         if let error {
-          result(FlutterError(code: "permission", message: Self.describe(error), details: nil))
+          let denied = (error as NSError).domain == NEVPNErrorDomain
+            && Self.describe(error).localizedCaseInsensitiveContains("denied")
+          result(
+            FlutterError(
+              code: "permission",
+              message: denied
+                ? "VPN permission was not given. Tap Connect again and choose Allow."
+                : "Could not save the VPN configuration: \(Self.describe(error))",
+              details: nil))
           return
         }
         // Apple: reload after saving, or the first start fails.
