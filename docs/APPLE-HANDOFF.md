@@ -70,6 +70,18 @@ Option B (App Store / cleanest): a Network Extension like iOS below, shared with
 
 ## iPhone — needs a Network Extension
 
+**Status (2026-10-21, branch `claude/ios-app`):** `client/ios/` exists and builds (simulator and unsigned
+arm64), but is **not signed or tested on a phone yet**: this Mac has no paid Apple Developer account in
+Xcode and no iPhone connected. What is there:
+- `bash client/ios/scripts/build-libbox.sh 1.14.0` → `client/ios/Frameworks/Libbox.xcframework` (not in git, ~365 MB).
+- `PacketTunnel` extension (`com.mbunie.mvpn.tunnel`, `ios/PacketTunnel/`): runs libbox with the config from
+  `?format=singbox&platform=ios`; sends all DNS into the tun (`NEDNSSettings`, matchDomains `[""]`).
+- App (`com.mbunie.mvpn`): `ios/Runner/VpnBridge.swift` answers `com.hiddify.app/method` (setup/start/stop/
+  device_info) and the status/alerts EventChannels, so `android_hiddify_engine.dart` drives iOS too.
+- Both share App Group `group.com.mbunie.mvpn` (config.json for restarts without start options).
+- Left: sign in to Xcode with the paid account (set the team on both targets), test on a phone, Ad Hoc
+  profiles + `flutter build ipa --export-method ad-hoc`, the OTA manifest and the /download tile.
+
 iOS does not allow a normal app to create a VPN. It needs:
 - a **Packet Tunnel Provider** app extension (NetworkExtension framework),
 - the **Network Extensions** capability (Packet Tunnel) and an **App Group** shared by app + extension,

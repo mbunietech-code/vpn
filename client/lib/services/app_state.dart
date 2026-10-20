@@ -95,7 +95,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<Map<String, String>> _loadDeviceInfo() async {
     if (_deviceInfo != null) return _deviceInfo!;
     var info = <String, String>{'os_version': Platform.operatingSystemVersion};
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isIOS) {
       try {
         final r = await const MethodChannel('com.hiddify.app/method')
             .invokeMapMethod<String, String>('device_info');
@@ -117,12 +117,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     ApiClient.previousDeviceId = legacy;
   }
 
-  /// ANDROID_ID on Android (survives reinstall), MachineGuid on Windows.
+  /// ANDROID_ID on Android (survives reinstall), identifierForVendor on iOS,
+  /// MachineGuid on Windows.
   Future<String?> _hardwareId() async {
     try {
-      if (Platform.isAndroid) {
+      if (Platform.isAndroid || Platform.isIOS) {
         final id = (await _loadDeviceInfo())['hardware_id'];
-        return (id == null || id.isEmpty) ? null : 'android:$id';
+        final os = Platform.isIOS ? 'ios' : 'android';
+        return (id == null || id.isEmpty) ? null : '$os:$id';
       }
       if (Platform.isWindows) {
         final r = await Process.run('reg', [

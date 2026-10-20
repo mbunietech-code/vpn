@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,13 +11,14 @@ import 'tunnel/tunnel_engine.dart';
 
 /// Connection state + live stats, backed by a [TunnelEngine].
 ///
-/// Android uses the embedded Hiddify mobile core; desktop uses the
-/// standalone sing-box process; unsupported platforms fall back to demo mode.
+/// Android and iOS use the mobile engine (Hiddify core / libbox extension);
+/// desktop uses the standalone sing-box process; unsupported platforms fall
+/// back to demo mode.
 class VpnController extends ChangeNotifier {
   VpnController({TunnelEngine? engine})
     : _engine =
           engine ??
-          (Platform.isAndroid
+          (AndroidHiddifyEngine.supported
               ? AndroidHiddifyEngine()
               : SingboxEngine.supported
               ? SingboxEngine()
