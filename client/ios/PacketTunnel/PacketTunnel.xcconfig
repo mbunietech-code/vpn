@@ -1,0 +1,3 @@
+// Flutter build name/number for the extension Info.plist (Generated.xcconfig
+// is written by `flutter pub get` / `flutter build`).
+#include "../Flutter/Generated.xcconfig"
