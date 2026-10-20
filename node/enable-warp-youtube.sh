@@ -16,7 +16,10 @@ set -euo pipefail
 
 CFG=/etc/mvpn/config
 PORT=40000
-YT='["youtube.com","googlevideo.com","ytimg.com","youtu.be","youtube-nocookie.com","youtubei.googleapis.com","youtube.googleapis.com","ggpht.com","yt.be","youtubekids.com","withyoutube.com"]'
+# All of Google, not just YouTube: YouTube's bot check also uses attestation
+# (*.googleapis.com), consent (google.com) and static hosts; if those leave
+# from the node's own IP the player still says "sign in" (seen 2026-10-20).
+YT='["youtube.com","googlevideo.com","ytimg.com","youtu.be","youtube-nocookie.com","ggpht.com","yt.be","youtubekids.com","withyoutube.com","google.com","googleapis.com","gstatic.com","googleusercontent.com","gvt1.com","gvt2.com","1e100.net","google.com.hk","doubleclick.net","googleadservices.com","googlesyndication.com","app-measurement.com"]'
 log(){ printf '==> %s\n' "$*"; }
 
 if [[ "${1:-}" != "--patch-only" ]]; then

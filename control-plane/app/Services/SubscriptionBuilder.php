@@ -269,7 +269,8 @@ class SubscriptionBuilder
                 'com.mbunie.mvpn',
                 'com.android.shell',
                 'com.android.settings',
-                'com.google.android.gms',
+                // Not com.google.android.gms: Play Services outside the tunnel
+                // is blocked in China, and YouTube needs it to verify the device.
             ];
         }
 
@@ -426,7 +427,8 @@ class SubscriptionBuilder
                 'com.mbunie.mvpn',
                 'com.android.shell',
                 'com.android.settings',
-                'com.google.android.gms',
+                // Not com.google.android.gms: Play Services outside the tunnel
+                // is blocked in China, and YouTube needs it to verify the device.
             ];
         }
 

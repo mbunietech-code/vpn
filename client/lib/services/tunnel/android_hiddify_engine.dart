@@ -217,7 +217,8 @@ class AndroidHiddifyEngine implements TunnelEngine {
             'com.mbunie.mvpn',
             'com.android.shell',
             'com.android.settings',
-            'com.google.android.gms',
+            // Not com.google.android.gms: outside the tunnel it is blocked in
+            // China and YouTube/Play need it to verify the device.
           ]);
     }
   }

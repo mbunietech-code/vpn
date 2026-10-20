@@ -160,6 +160,9 @@ class SingboxConfigTest extends TestCase
         $this->assertArrayNotHasKey('strict_route', $tun);
         $this->assertContains('com.mbunie.mvpn', $tun['exclude_package']);
         $this->assertContains('com.android.shell', $tun['exclude_package']);
+        // Play Services must stay in the tunnel: blocked in China otherwise,
+        // and YouTube needs it.
+        $this->assertNotContains('com.google.android.gms', $tun['exclude_package']);
     }
 
     public function test_ios_gets_a_mobile_tun_not_the_windows_config(): void
