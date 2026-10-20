@@ -154,8 +154,9 @@ class VpnController extends ChangeNotifier {
   }
 
   Future<void> connect() async {
-    if (_status == VpnStatus.connecting || _status == VpnStatus.connected)
+    if (_status == VpnStatus.connecting || _status == VpnStatus.connected) {
       return;
+    }
     _userWantsConnected = true;
     _reconnectTimer?.cancel();
 
@@ -197,8 +198,9 @@ class VpnController extends ChangeNotifier {
   }
 
   void _scheduleReconnect() {
-    if (!autoReconnect || !_userWantsConnected || _reconnectAttempts >= 5)
+    if (!autoReconnect || !_userWantsConnected || _reconnectAttempts >= 5) {
       return;
+    }
     _reconnectAttempts++;
     final delay = Duration(seconds: 2 * _reconnectAttempts);
     _reconnectTimer?.cancel();

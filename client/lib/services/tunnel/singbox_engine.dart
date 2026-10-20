@@ -48,7 +48,7 @@ class SingboxEngine implements TunnelEngine {
   int? _exitCode; // last engine exit code, for the start-up error
   String? _otherVpn; // another VPN adapter that was up when we started
 
-  /// Full engine output of the current run: <support>/engine/engine.log.
+  /// Full engine output of the current run: `<support>/engine/engine.log`.
   IOSink? _logSink;
 
   @override
