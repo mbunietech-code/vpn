@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Alert;
 use App\Models\Node;
+use App\Models\NodeTraffic;
 use App\Models\Peer;
+use App\Services\NodeCapacity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -98,6 +100,18 @@ class NodeController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
+    /** Adds the agent's network deltas to today's row; peaks keep the maximum. */
+    private function recordTraffic(Node $node, array $net): void
+    {
+        $day = NodeTraffic::firstOrCreate(['node_id' => $node->id, 'day' => now()->toDateString()]);
+        NodeTraffic::whereKey($day->id)->update([
+            'rx_bytes' => DB::raw('rx_bytes + '.(int) ($net['rx_bytes'] ?? 0)),
+            'tx_bytes' => DB::raw('tx_bytes + '.(int) ($net['tx_bytes'] ?? 0)),
+            'peak_rx_mbps' => max((float) $day->peak_rx_mbps, (float) ($net['peak_rx_mbps'] ?? 0)),
+            'peak_tx_mbps' => max((float) $day->peak_tx_mbps, (float) ($net['peak_tx_mbps'] ?? 0)),
+        ]);
+    }
+
     public function health(Request $request): JsonResponse
     {
         $node = $this->node($request);
@@ -123,6 +137,12 @@ class NodeController extends Controller
             'node_info.hysteria_port_range' => ['nullable', 'regex:/^\d+-\d+$/'],
             'node_info.hysteria_cert_sha256' => ['nullable', 'string', 'max:128'],
             'node_info.hysteria_cert_pem' => ['nullable', 'string', 'max:8000'],
+            // Network use since the agent's last successful report.
+            'net' => ['nullable', 'array'],
+            'net.rx_bytes' => ['nullable', 'integer', 'min:0'],
+            'net.tx_bytes' => ['nullable', 'integer', 'min:0'],
+            'net.peak_rx_mbps' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'net.peak_tx_mbps' => ['nullable', 'numeric', 'min:0', 'max:100000'],
         ]);
 
         $engines = $data['engines'] ?? [];
@@ -156,6 +176,11 @@ class NodeController extends Controller
         }
 
         $node->update($attrs);
+
+        if (! empty($data['net'])) {
+            $this->recordTraffic($node, $data['net']);
+        }
+        app(NodeCapacity::class)->check($node);
 
         // Per-peer traffic deltas
         foreach (($data['traffic'] ?? []) as $remoteId => $bytes) {

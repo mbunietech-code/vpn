@@ -100,6 +100,9 @@ return [
         ],
         // Who gets "payment to review" emails (comma separated). Empty = every VPN admin.
         'payment_alert_emails' => env('MVPN_PAYMENT_ALERT_EMAILS'),
+        // Node capacity alerts (Admin > Alerts + email to the alert recipients).
+        'quota_alert_percent' => (int) env('MVPN_QUOTA_ALERT_PERCENT', 80),
+        'subscriber_alert' => (int) env('MVPN_SUBSCRIBER_ALERT', 80),
     ],
 
     // MbunieEduHub (mbuniehub.com): signed partner API (EduHub sells/activates VPN plans).
