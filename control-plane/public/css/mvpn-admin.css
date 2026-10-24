@@ -1,0 +1,156 @@
+/*
+ * Mbunie VPN admin look. A plain stylesheet (Hostinger has no Node build),
+ * loaded from AdminPanelProvider. It only styles Filament's own fi-* classes
+ * and the mvpn-* classes our widgets add.
+ */
+
+:root {
+    --mvpn-navy: #0a1d2e;
+    --mvpn-navy-2: #12324d;
+    --mvpn-blue: #2563eb;
+    --mvpn-teal: #2dd4bf;
+    --mvpn-page: #f4f7fb;
+    --mvpn-card-shadow: 0 1px 2px rgba(10, 29, 46, .06), 0 8px 24px -12px rgba(10, 29, 46, .18);
+}
+
+/* ---------- Sign-in page ---------- */
+
+.fi-simple-layout {
+    background:
+        radial-gradient(900px 480px at 50% -8%, rgba(37, 99, 235, .16), transparent 62%),
+        linear-gradient(180deg, #f6f8fc 0%, #eaf0fa 100%);
+}
+.dark .fi-simple-layout {
+    background:
+        radial-gradient(900px 480px at 50% -8%, rgba(45, 212, 191, .14), transparent 62%),
+        var(--mvpn-navy);
+}
+.fi-simple-main {
+    border-radius: 1rem;
+    box-shadow: 0 24px 60px -24px rgba(10, 29, 46, .35);
+}
+
+/* ---------- Page and cards ---------- */
+
+.fi-body:not(.dark *) { background: var(--mvpn-page); }
+
+.fi-section,
+.fi-ta-ctn,
+.fi-wi-chart .fi-section,
+.fi-wi-stats-overview-stat {
+    border-radius: 1rem;
+    box-shadow: var(--mvpn-card-shadow);
+}
+
+.fi-header-heading { letter-spacing: -.02em; }
+.fi-header-subheading { max-width: 48rem; }
+/* Long subheading + several buttons: let the buttons drop below instead of squeezing the text. */
+@media (min-width: 640px) {
+    .fi-header { flex-wrap: wrap; row-gap: .75rem; }
+    .fi-header > div:first-child { flex: 1 1 20rem; }
+}
+.fi-header-actions-ctn { flex-wrap: wrap; flex-shrink: 1; min-width: 0; max-width: 100%; }
+
+/* ---------- Sidebar: navy, brand teal for the open page (phone menu too) ---------- */
+
+@media all {
+    .fi-sidebar {
+        background: linear-gradient(180deg, var(--mvpn-navy) 0%, var(--mvpn-navy-2) 100%);
+        border-inline-end: 0;
+    }
+    .fi-sidebar-header {
+        background: transparent;
+        box-shadow: none;
+        border-bottom: 1px solid rgba(255, 255, 255, .08);
+    }
+    .fi-sidebar .fi-logo-light { display: none !important; }
+    .fi-sidebar .fi-logo-dark { display: flex !important; }
+    .fi-sidebar-group-label,
+    .fi-sidebar-group-btn { color: rgba(226, 236, 248, .55); }
+    .fi-sidebar-group-label { text-transform: uppercase; letter-spacing: .08em; font-size: .7rem; }
+    .fi-sidebar-item-btn { border-radius: .65rem; }
+    .fi-sidebar-item-label,
+    .fi-sidebar-item-icon { color: rgba(226, 236, 248, .85) !important; }
+    .fi-sidebar-item-btn:hover { background: rgba(255, 255, 255, .07); }
+    .fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+        background: linear-gradient(90deg, rgba(45, 212, 191, .22), rgba(37, 99, 235, .18));
+        box-shadow: inset 3px 0 0 var(--mvpn-teal);
+    }
+    .fi-sidebar-item.fi-active .fi-sidebar-item-label,
+    .fi-sidebar-item.fi-active .fi-sidebar-item-icon { color: #fff !important; }
+    .fi-sidebar-group-collapse-btn,
+    .fi-sidebar-close-collapse-sidebar-btn,
+    .fi-sidebar-open-collapse-sidebar-btn { color: rgba(226, 236, 248, .6); }
+}
+
+.fi-topbar { box-shadow: 0 1px 0 rgba(10, 29, 46, .06); }
+
+/* ---------- Stat cards: coloured top line and soft icon ---------- */
+
+.fi-wi-stats-overview-stat.mvpn-stat {
+    position: relative;
+    overflow: hidden;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+.fi-wi-stats-overview-stat.mvpn-stat::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--mvpn-accent, var(--mvpn-blue));
+}
+a.fi-wi-stats-overview-stat.mvpn-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 1px 2px rgba(10, 29, 46, .08), 0 14px 30px -14px rgba(10, 29, 46, .32);
+}
+.mvpn-stat .fi-wi-stats-overview-stat-label-ctn > svg {
+    width: 2rem;
+    height: 2rem;
+    padding: .4rem;
+    border-radius: .6rem;
+    color: var(--mvpn-accent, var(--mvpn-blue));
+    background: color-mix(in srgb, var(--mvpn-accent, var(--mvpn-blue)) 12%, transparent);
+}
+.mvpn-stat .fi-wi-stats-overview-stat-value { letter-spacing: -.02em; }
+.mvpn-stat-blue { --mvpn-accent: #2563eb; }
+.mvpn-stat-teal { --mvpn-accent: #0d9488; }
+.mvpn-stat-green { --mvpn-accent: #16a34a; }
+.mvpn-stat-amber { --mvpn-accent: #d97706; }
+.mvpn-stat-red { --mvpn-accent: #dc2626; }
+.mvpn-stat-violet { --mvpn-accent: #7c3aed; }
+.mvpn-stat-gray { --mvpn-accent: #64748b; }
+
+/* ---------- Tables ---------- */
+
+.fi-ta-header-cell { text-transform: uppercase; letter-spacing: .04em; font-size: .7rem; }
+.fi-ta-row:hover { background: rgba(37, 99, 235, .035); }
+
+/* Drop the empty toolbar-actions row (it left a blank gap above the search box on phones). */
+.fi-ta-header-toolbar .fi-ta-actions:not(:has(*)) { display: none; }
+
+/* The first column (customer/name) and second lines wrap, so a long email never
+   pushes the table sideways next to the sidebar on tablets and laptops. */
+.fi-ta-cell .fi-ta-text-description { white-space: normal; }
+:is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { max-width: 18rem; }
+:is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) :is(.fi-ta-col, .fi-ta-text, .fi-ta-text-item, .fi-ta-text-item-label, .fi-ta-text-description) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Phones: let long emails/names wrap instead of pushing the table sideways. */
+@media (max-width: 640px) {
+    .fi-ta-cell { padding-left: .6rem; padding-right: .35rem; }
+    .fi-ta-cell:last-child { padding-right: .5rem; }
+    .fi-ta-selection-cell { padding-left: .5rem; padding-right: .1rem; width: 1%; }
+    .fi-ta-cell :is(.fi-ta-col, .fi-ta-text, .fi-ta-text-description) { white-space: normal; }
+    :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { min-width: 7.75rem; max-width: 11.5rem; }
+    .fi-header-actions-ctn { width: 100%; }
+    .fi-header-actions-ctn .fi-btn { flex: 1 1 auto; justify-content: center; }
+}
+
+/* Very small phones (≤ 359px): tighter still. */
+@media (max-width: 359px) {
+    .fi-ta-cell { padding-left: .45rem; padding-right: .25rem; }
+    :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { min-width: 7rem; }
+    .fi-ta-cell .fi-ta-text-description { font-size: .72rem; }
+}

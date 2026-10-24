@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\Invoice;
 use App\Services\ManualPaymentService;
+use App\Services\RevenueSummary;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -38,14 +39,15 @@ class PendingApprovals extends TableWidget
                     ->latest()
             )
             ->columns([
-                TextColumn::make('user.email')
+                TextColumn::make('user.name')
                     ->label('Customer')
-                    ->description(fn (Invoice $r) => $r->user?->phone),
+                    ->description(fn (Invoice $r) => $r->user?->phone ?: $r->user?->email),
                 TextColumn::make('plan_code')->label('Plan')->badge(),
                 TextColumn::make('payment_method')->label('Method')->placeholder('—'),
                 TextColumn::make('amount_cents')
                     ->label('Amount')
-                    ->formatStateUsing(fn ($state, Invoice $r) => number_format($state / 100, 2) . ' ' . strtoupper($r->currency)),
+                    ->formatStateUsing(fn ($state, Invoice $r) => RevenueSummary::money((int) $state, $r->currency))
+                    ->weight('semibold'),
                 TextColumn::make('proof_path')
                     ->label('Proof')
                     ->badge()

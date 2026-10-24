@@ -19,7 +19,13 @@ class InvoiceResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
+    protected static ?string $navigationLabel = 'Payments';
+
+    protected static ?string $modelLabel = 'payment';
+
+    protected static ?string $pluralModelLabel = 'payments';
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Sales';
 
     protected static ?int $navigationSort = 10;
 

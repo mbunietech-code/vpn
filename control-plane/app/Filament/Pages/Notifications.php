@@ -27,7 +27,7 @@ class Notifications extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBellAlert;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Configuration';
+    protected static string|\UnitEnum|null $navigationGroup = 'Setup';
 
     protected static ?int $navigationSort = 25;
 

@@ -17,9 +17,9 @@ class PlansTable
             ->reorderable('sort')
             ->columns([
                 TextColumn::make('name')->weight('bold')
-                    ->description(fn (\App\Models\Plan $r) => '$' . number_format($r->price_usd_cents / 100, 2)
-                        . ' · ' . ($r->price_tzs_cents > 0 ? 'TSh ' . number_format($r->price_tzs_cents / 100) : 'no TZS price')
-                        . ' · ' . $r->days . ' days'),
+                    ->description(fn (Plan $r) => implode(' · ', $r->display())
+                        . ($r->price_tzs_cents > 0 ? '' : ' · no TZS price')
+                        . ' · ' . $r->days . ' days · ' . $r->max_devices . ' devices'),
                 TextColumn::make('code')->visibleFrom('md')->badge()->color('gray'),
                 TextColumn::make('days')->visibleFrom('md')->label('Days')->suffix(' d'),
                 TextColumn::make('max_devices')->visibleFrom('md')->label('Devices'),

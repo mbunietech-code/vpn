@@ -21,7 +21,7 @@ class SettingResource extends Resource
 
     protected static ?string $navigationLabel = 'Settings & Keys';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Configuration';
+    protected static string|\UnitEnum|null $navigationGroup = 'Setup';
 
     protected static ?int $navigationSort = 30;
 

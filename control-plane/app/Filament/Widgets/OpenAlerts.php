@@ -13,7 +13,7 @@ class OpenAlerts extends TableWidget
 {
     protected static bool $isLazy = false;
 
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 7;
 
     protected static ?string $heading = 'Tahadhari (hazijashughulikiwa)';
 
