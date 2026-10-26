@@ -7,6 +7,7 @@ use App\Models\Node;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\ProvisioningService;
+use App\Services\SubscriptionBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -104,6 +105,43 @@ class SingboxConfigTest extends TestCase
         // Everything else still resolves through the tunnel (no GFW poisoning).
         $this->assertSame('proxy-dns', $cfg['dns']['final']);
         $this->assertSame('proxy', $cfg['dns']['servers'][0]['detour']);
+    }
+
+    public function test_live_classroom_traffic_never_goes_through_the_tunnel(): void
+    {
+        config(['services.mvpn.direct_hosts' => ['live.example.test']]);
+        $this->app->instance(SubscriptionBuilder::class, new class extends SubscriptionBuilder
+        {
+            protected function resolveCidrs(array $hosts): array
+            {
+                return ['203.0.113.7/32', '2001:db8::7/128'];
+            }
+        });
+        $sub = $this->activeSub();
+
+        foreach (['windows', 'android'] as $platform) {
+            foreach (['auto', 'openvpn'] as $protocol) {
+                $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform={$platform}&protocol={$protocol}")->assertOk()->json();
+
+                // Kept off the TUN by the OS, and sent direct by sing-box where the OS cannot.
+                $this->assertContains('203.0.113.7/32', $cfg['inbounds'][0]['route_exclude_address']);
+                $this->assertContains('2001:db8::7/128', $cfg['inbounds'][0]['route_exclude_address']);
+                $this->assertContains(['domain' => ['live.example.test'], 'outbound' => 'direct'], $cfg['route']['rules']);
+                $this->assertContains(['ip_cidr' => ['203.0.113.7/32', '2001:db8::7/128'], 'outbound' => 'direct'], $cfg['route']['rules']);
+                $this->assertContains(['domain' => ['live.example.test'], 'server' => 'direct-dns'], $cfg['dns']['rules']);
+            }
+        }
+    }
+
+    public function test_no_direct_hosts_leaves_the_config_unchanged(): void
+    {
+        config(['services.mvpn.direct_hosts' => []]);
+        $sub = $this->activeSub();
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=windows")->assertOk()->json();
+
+        $this->assertNotContains('203.0.113.7/32', $cfg['inbounds'][0]['route_exclude_address']);
+        $this->assertEmpty(collect($cfg['route']['rules'])->filter(fn ($r) => isset($r['ip_cidr'])));
     }
 
     public function test_ipv6_host_adds_an_ipv6_server(): void

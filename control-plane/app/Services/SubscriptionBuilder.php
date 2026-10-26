@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Subscription;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Builds the client subscription payload for /sub/{token}.
@@ -30,6 +31,78 @@ class SubscriptionBuilder
                 fn ($a, $b) => strcmp($a->node->name, $b->node->name),
             ])
             ->values();
+    }
+
+    /**
+     * Our own services that always go direct, never through the tunnel: the live
+     * classroom (its video is real-time UDP, which stutters inside a tunnel and
+     * would only come back out on the same server anyway).
+     *
+     * @return array{hosts: list<string>, cidrs: list<string>}
+     */
+    private function directBypass(): array
+    {
+        $hosts = array_values(array_filter((array) config('services.mvpn.direct_hosts', [])));
+        if (! $hosts) {
+            return ['hosts' => [], 'cidrs' => []];
+        }
+
+        $key = 'mvpn.direct_cidrs.'.md5(implode(',', $hosts));
+        $cidrs = Cache::get($key);
+        if (! is_array($cidrs)) {
+            $cidrs = $this->resolveCidrs($hosts);
+            // A failed lookup is retried on the next config, not remembered.
+            if ($cidrs) {
+                Cache::put($key, $cidrs, now()->addMinutes(10));
+            }
+        }
+
+        return ['hosts' => $hosts, 'cidrs' => $cidrs];
+    }
+
+    /**
+     * IPv4 and IPv6 addresses of the hosts, as single-address ranges.
+     *
+     * @param  list<string>  $hosts
+     * @return list<string>
+     */
+    protected function resolveCidrs(array $hosts): array
+    {
+        $cidrs = [];
+        foreach ($hosts as $host) {
+            foreach (@dns_get_record($host, DNS_A | DNS_AAAA) ?: [] as $record) {
+                if (! empty($record['ip'])) {
+                    $cidrs[] = $record['ip'].'/32';
+                }
+                if (! empty($record['ipv6'])) {
+                    $cidrs[] = $record['ipv6'].'/128';
+                }
+            }
+        }
+
+        return array_values(array_unique($cidrs));
+    }
+
+    /**
+     * The same bypass for a config: kept off the TUN by the OS (route_exclude_address)
+     * and, where an OS ignores that, sent direct by sing-box (by name and by address).
+     *
+     * @param  array<string,mixed>  $tunInbound
+     * @return array{0: array<string,mixed>, 1: list<array<string,mixed>>, 2: list<array<string,mixed>>}
+     */
+    private function applyDirectBypass(array $tunInbound): array
+    {
+        ['hosts' => $hosts, 'cidrs' => $cidrs] = $this->directBypass();
+        if ($cidrs) {
+            $tunInbound['route_exclude_address'] = array_values(array_unique(array_merge($tunInbound['route_exclude_address'] ?? [], $cidrs)));
+        }
+        $dnsRules = $hosts ? [['domain' => $hosts, 'server' => 'direct-dns']] : [];
+        $routeRules = array_merge(
+            $hosts ? [['domain' => $hosts, 'outbound' => 'direct']] : [],
+            $cidrs ? [['ip_cidr' => $cidrs, 'outbound' => 'direct']] : [],
+        );
+
+        return [$tunInbound, $dnsRules, $routeRules];
     }
 
     public function build(Subscription $sub): string
@@ -274,6 +347,7 @@ class SubscriptionBuilder
                 // is blocked in China, and YouTube needs it to verify the device.
             ];
         }
+        [$tunInbound, $directDnsRules, $directRouteRules] = $this->applyDirectBypass($tunInbound);
 
         $config = [
             'log' => ['level' => 'warn', 'timestamp' => true],
@@ -296,7 +370,7 @@ class SubscriptionBuilder
                 // Chinese domains resolve locally (fast, correct CDN answers);
                 // everything else goes through the tunnel so the GFW cannot
                 // poison it.
-                'rules' => array_merge($bootstrapDnsRules, [
+                'rules' => array_merge($bootstrapDnsRules, $directDnsRules, [
                     ['rule_set' => ['geosite-cn'], 'server' => 'direct-dns'],
                 ]),
                 'final' => 'proxy-dns',
@@ -325,7 +399,7 @@ class SubscriptionBuilder
                 'rules' => array_merge([
                     ['action' => 'sniff'],
                     ['protocol' => 'dns', 'action' => 'hijack-dns'],
-                ], $bootstrapRouteRules, [
+                ], $bootstrapRouteRules, $directRouteRules, [
                     ['ip_is_private' => true, 'outbound' => 'direct'],
                     // Mainland China sites go direct: they are slow or
                     // unreachable from the foreign node.
@@ -434,6 +508,7 @@ class SubscriptionBuilder
         }
 
         $nodeHosts = array_values(array_unique(array_filter($nodeHosts)));
+        [$tunInbound, $directDnsRules, $directRouteRules] = $this->applyDirectBypass($tunInbound);
 
         return [
             'log' => ['level' => 'warn', 'timestamp' => true],
@@ -453,13 +528,13 @@ class SubscriptionBuilder
                         'path' => '/dns-query',
                     ],
                 ],
-                'rules' => [
+                'rules' => array_merge($directDnsRules, [
                     [
                         'preferred_by' => 'ovpn-dns',
                         'action' => 'route',
                         'server' => 'ovpn-dns',
                     ],
-                ],
+                ]),
                 'final' => 'ovpn-dns',
                 'strategy' => 'prefer_ipv4',
             ],
@@ -474,7 +549,7 @@ class SubscriptionBuilder
                     ['protocol' => 'dns', 'action' => 'hijack-dns'],
                 ], $nodeHosts ? [
                     ['domain' => $nodeHosts, 'outbound' => 'direct'],
-                ] : [], [
+                ] : [], $directRouteRules, [
                     ['ip_is_private' => true, 'outbound' => 'direct'],
                 ]),
                 'final' => 'direct',

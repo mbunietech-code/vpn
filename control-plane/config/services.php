@@ -100,6 +100,11 @@ return [
         ],
         // Who gets "payment to review" emails (comma separated). Empty = every VPN admin.
         'payment_alert_emails' => env('MVPN_PAYMENT_ALERT_EMAILS'),
+        // Our own services the tunnel must never carry (comma separated host names).
+        // Live-class video is real-time UDP: inside the tunnel (often TCP) it freezes.
+        // Their addresses are looked up when a config is built.
+        'direct_hosts' => array_values(array_filter(array_map('trim', explode(',',
+            (string) env('MVPN_DIRECT_HOSTS', 'live.mbuniehub.com,turn.mbuniehub.com'))))),
     ],
 
     // MbunieEduHub (mbuniehub.com): signed partner API (EduHub sells/activates VPN plans).
