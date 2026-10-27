@@ -15,6 +15,10 @@ flutter_launcher_icons:
     generate: true
     image_path: "branding/icon.png"
 
-  # Web / iOS can be enabled later:
+  # The App Store rejects icons with transparency.
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
+
+  # Web can be enabled later:
   # web: { generate: true, image_path: "branding/icon.png", background_color: "#0A1D2E", theme_color: "#2563EB" }
-  # ios: true

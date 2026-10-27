@@ -10,10 +10,13 @@ import '../../models.dart';
 import '../api_client.dart';
 import 'tunnel_engine.dart';
 
+/// Mobile tunnel: Android runs the embedded Hiddify core, iOS a Packet Tunnel
+/// extension with libbox (client/ios/PacketTunnel). Both answer the same
+/// MethodChannel/EventChannels, so this class drives either.
 class AndroidHiddifyEngine implements TunnelEngine {
   AndroidHiddifyEngine();
 
-  static bool get supported => Platform.isAndroid;
+  static bool get supported => Platform.isAndroid || Platform.isIOS;
 
   static const _method = MethodChannel('com.hiddify.app/method');
   static const _status = EventChannel(
@@ -62,24 +65,31 @@ class AndroidHiddifyEngine implements TunnelEngine {
     final config = await _fetchConfig(subUrl, apiToken, dirs, pref);
     _listen();
     _started = false;
-    await _method.invokeMethod('start', {
-      'path': config.path,
-      'name': 'Mbunie VPN',
-      'grpcPort': _bgPort,
-      'startCore': true,
-      'debug': false,
-    });
+    try {
+      await _method.invokeMethod('start', {
+        'path': config.path,
+        'name': 'Mbunie VPN',
+        'grpcPort': _bgPort,
+        'startCore': true,
+        'debug': false,
+      });
+    } on PlatformException catch (e) {
+      // Show the native message, not "PlatformException(code, ...)".
+      throw StateError(e.message ?? e.code);
+    }
 
     // Never spin forever: if the core hasn't reported Started, surface it.
     _watchdog?.cancel();
     _watchdog = Timer(const Duration(seconds: 45), () async {
       if (_started) return;
       _reports.add(
-        const EngineReport(
+        EngineReport(
           EngineStatus.error,
-          message:
-              'VPN did not start within 45 seconds. '
-              'Make sure you allowed the Android VPN request, then try again.',
+          message: Platform.isIOS
+              ? 'VPN did not start within 45 seconds. '
+                    'Make sure you allowed the VPN configuration, then try again.'
+              : 'VPN did not start within 45 seconds. '
+                    'Make sure you allowed the Android VPN request, then try again.',
         ),
       );
       try {
@@ -103,7 +113,10 @@ class AndroidHiddifyEngine implements TunnelEngine {
   Future<_AndroidDirs> _ensureSetup() async {
     final support = await getApplicationSupportDirectory();
     final temp = await getTemporaryDirectory();
-    final external = await getExternalStorageDirectory();
+    // Android only: iOS has no external storage (the call throws there).
+    final external = Platform.isAndroid
+        ? await getExternalStorageDirectory()
+        : null;
     final working = Directory('${external?.path ?? support.path}/data')
       ..createSync(recursive: true);
     final configs = Directory('${external?.path ?? support.path}/configs')
@@ -137,7 +150,8 @@ class AndroidHiddifyEngine implements TunnelEngine {
     };
     final sep = subUrl.contains('?') ? '&' : '?';
     final uri = Uri.parse(
-      '$subUrl${sep}format=singbox&platform=android&protocol=$protocol',
+      '$subUrl${sep}format=singbox&platform=${Platform.isIOS ? 'ios' : 'android'}'
+      '&protocol=$protocol',
     );
     final http.Response res;
     try {
@@ -170,7 +184,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
         'VPN config is not valid sing-box JSON: ${preview.substring(0, end)}',
       );
     }
-    _normalizeAndroidTunConfig(decoded);
+    if (Platform.isAndroid) _normalizeAndroidTunConfig(decoded);
     _normalizeDnsConfig(decoded);
     _normalizeBootstrapDnsRules(decoded);
     final file = File('${dirs.configs.path}/mbunie-singbox.json');
