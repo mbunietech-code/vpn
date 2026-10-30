@@ -43,6 +43,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   // ---- device heartbeat (admin "who is online now") ---------------------
 
   String? _deviceId;
+  Future<void> _idReady = Future.value();
   Timer? _beatTimer;
   bool? _lastBeatConnected;
   String? _lastReportedError;
@@ -65,6 +66,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     final connected = vpn.isConnected;
     if (connected == _lastBeatConnected) return;
     _lastBeatConnected = connected;
+    if (connected) unawaited(_askBatteryExemptionOnce());
     _beat();
     _beatTimer?.cancel();
     if (connected) {
@@ -95,6 +97,21 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     } catch (_) {
       // Best effort: telemetry must never get in the way of the tunnel.
     }
+  }
+
+  /// Android: battery savers (Infinix/Tecno XOS, Xiaomi, Huawei...) stop the
+  /// VPN in the background unless the app is exempt. Asked once, after the
+  /// first connect. Not in the Play build (its policy limits this request).
+  Future<void> _askBatteryExemptionOnce() async {
+    if (!Platform.isAndroid || MvpnConfig.playStore) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('mvpn_battery_asked') ?? false) return;
+      const ch = MethodChannel('com.hiddify.app/platform');
+      if (await ch.invokeMethod<bool>('is_ignoring_battery_optimizations') ?? true) return;
+      await prefs.setBool('mvpn_battery_asked', true);
+      await ch.invokeMethod<bool>('request_ignore_battery_optimizations');
+    } catch (_) {}
   }
 
   Future<Map<String, String>> _loadDeviceInfo() async {
@@ -197,8 +214,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
     _deviceId = legacy;
     ApiClient.deviceId = legacy;
-    // Looked up in the background so start-up never waits on it.
-    unawaited(_useHardwareId(legacy));
+    // Looked up in the background so start-up never waits on it (the update
+    // check does: the server answers per platform by this id).
+    _idReady = _useHardwareId(legacy);
     _reconnectAfterUpdate = prefs.getBool(AppUpdater.reconnectKey) ?? false;
     await prefs.remove(AppUpdater.reconnectKey);
     unawaited(checkForUpdate());
@@ -303,6 +321,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (last != null && DateTime.now().difference(last) < const Duration(hours: 6)) return;
     _lastUpdateCheck = DateTime.now();
     try {
+      await _idReady;
       final r = await api.appVersion();
       final latest = r['latest'] as String?;
       final min = r['min_supported'] as String?;
@@ -325,12 +344,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       unawaited(updater.cleanUp());
       return;
     }
+    // Fetched ahead so "Update now" in the popup is quick; installing waits
+    // for the tap, unless this version is no longer supported.
     await updater.download(v, url, auto: true);
-    if (updater.ready == null) return;
-    if (Platform.isWindows) {
+    if (updateRequired && updater.ready != null && Platform.isWindows) {
       await installUpdate();
-    } else {
-      await updater.promptOnce();
     }
   }
 

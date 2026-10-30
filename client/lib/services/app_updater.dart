@@ -2,26 +2,25 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 
 /// Downloads and installs a newer app version without a trip to the browser.
 ///
+/// The installer is fetched in the background (Android: on Wi-Fi only) and
+/// installed when the user taps "Update now" in the popup or the notice.
 /// Windows: the Inno Setup installer runs silently, the app quits for it and
 /// the installer starts it again (`--after-update`), reconnecting if the VPN
-/// was on. Android (sideloaded APK): downloads in the background (on Wi-Fi
-/// unless the user asks), then opens the system installer; Android always
+/// was on. Android (sideloaded APK): opens the system installer, which always
 /// needs one tap on Install. macOS and the Play build keep the "Update" link.
 class AppUpdater extends ChangeNotifier {
   static const _method = MethodChannel('com.hiddify.app/method');
 
   /// Set before quitting for an update: the VPN was on, bring it back.
   static const reconnectKey = 'mvpn_reconnect_after_update';
-  static const _promptedKey = 'mvpn_update_prompted';
 
   static bool get supported =>
       !MvpnConfig.playStore && (Platform.isWindows || Platform.isAndroid);
@@ -42,7 +41,6 @@ class AppUpdater extends ChangeNotifier {
   bool installing = false;
 
   bool _busy = false;
-  bool _prompting = false;
   bool _installWhenBack = false; // Android: back from "Install unknown apps"
 
   bool get downloading => progress != null;
@@ -148,31 +146,11 @@ class AppUpdater extends ChangeNotifier {
     }
   }
 
-  /// Android: shows the installer once per version by itself, while the app
-  /// is on screen (later only from the notice).
-  Future<void> promptOnce() async {
-    final v = version;
-    if (!Platform.isAndroid || ready == null || v == null || _prompting) return;
-    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) return;
-    _prompting = true;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.getString(_promptedKey) == v) return;
-      await prefs.setString(_promptedKey, v);
-      await install(beforeQuit: () async {});
-    } finally {
-      _prompting = false;
-    }
-  }
-
-  /// Back in the app: retry an install that needed "Install unknown apps",
-  /// or show a prompt that waited for the screen.
+  /// Back in the app: retry an install that needed "Install unknown apps".
   void onResume() {
     if (_installWhenBack) {
       _installWhenBack = false;
       unawaited(install(beforeQuit: () async {}));
-    } else {
-      unawaited(promptOnce());
     }
   }
 

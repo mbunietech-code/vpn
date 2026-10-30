@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'l10n/app_text.dart';
@@ -8,6 +9,7 @@ import 'screens/onboarding.dart';
 import 'screens/servers_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/app_state.dart';
+import 'services/app_updater.dart';
 import 'services/desktop_tray.dart';
 import 'services/mvpn_scope.dart';
 import 'theme/mvpn_theme.dart';
@@ -123,10 +125,53 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   int _index = 0;
 
+  /// The update already offered in this run ("Later" asks again next start).
+  String? _offeredUpdate;
+
   static const _tabs = [HomeScreen(), ServersScreen(), SettingsScreen()];
+
+  /// Pops up "Update available" once per version and run.
+  void _maybeOfferUpdate(AppState state) {
+    final v = state.updateVersion;
+    if (v == null || v == _offeredUpdate) return;
+    _offeredUpdate = v;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final tr = context.tr;
+      showDialog<void>(
+        context: context,
+        barrierDismissible: !state.updateRequired,
+        builder: (ctx) => AlertDialog(
+          title: Text(tr.t('update.title')),
+          content: Text(
+            tr.p(state.updateRequired ? 'update.bodyRequired' : 'update.body', v),
+          ),
+          actions: [
+            if (!state.updateRequired)
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(tr.t('update.later')),
+              ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (AppUpdater.supported) {
+                  state.startUpdate();
+                } else if (state.updateUrl != null) {
+                  launchUrl(Uri.parse(state.updateUrl!), mode: LaunchMode.externalApplication);
+                }
+              },
+              child: Text(tr.t('update.now')),
+            ),
+          ],
+        ),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    _maybeOfferUpdate(MvpnScope.of(context));
     final c = context.mvpn;
     return Scaffold(
       body: IndexedStack(index: _index, children: _tabs),

@@ -341,6 +341,11 @@ const _map = <String, Map<String, String>>{
   'home.updateReady': {'en': 'Version {} is downloaded and ready to install.'},
   'home.updateInstalling': {'en': 'Installing version {}… Mbunie VPN will reopen in a moment.'},
   'update.failed': {'en': 'The download failed. Tap Update to try again.'},
+  'update.title': {'en': 'Update available'},
+  'update.body': {'en': 'Mbunie VPN {} is out with fixes and better speed. Update now?'},
+  'update.bodyRequired': {'en': 'Mbunie VPN {} is required: this version is no longer supported.'},
+  'update.later': {'en': 'Later'},
+  'update.now': {'en': 'Update now'},
   'home.pendingProof': {
     'en':
         'Your payment is awaiting admin approval. Access unlocks once approved.',
@@ -502,7 +507,7 @@ const _map = <String, Map<String, String>>{
   'settings.version': {'en': 'Version', 'sw': 'Toleo', 'zh': '版本'},
   'settings.alwaysOn': {'en': 'Always-on VPN'},
   'settings.alwaysOnSub': {
-    'en': 'Keep Mbunie VPN on all the time, even after a restart. Open Android VPN settings, tap the gear next to Mbunie VPN and turn on Always-on VPN.',
+    'en': 'Keep Mbunie VPN on all the time, even after a restart. Open Android VPN settings, tap the gear next to Mbunie VPN and turn on Always-on VPN. On Infinix, Tecno or Xiaomi phones also allow Mbunie VPN to auto-start and run without battery limits.',
   },
   'settings.copyPeer': {
     'en': 'Copy Peer ID',
