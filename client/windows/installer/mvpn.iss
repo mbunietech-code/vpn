@@ -3,7 +3,7 @@
 ;        ISCC.exe windows\installer\mvpn.iss
 
 #define AppName "Mbunie VPN"
-#define AppVersion "1.0.17"
+#define AppVersion "1.0.18"
 #define AppExe "mvpn.exe"
 #define BuildDir "..\..\build\windows\x64\runner\Release"
 
@@ -43,6 +43,8 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent shellexec
+; In-app update (silent install): start the new version again.
+Filename: "{app}\{#AppExe}"; Parameters: "--after-update"; Flags: nowait; Check: WizardSilent
 
 [UninstallRun]
 ; Make sure the tunnel engine is not left running.

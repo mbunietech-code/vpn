@@ -116,9 +116,10 @@ class VpnController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Called by AppState when a subscription becomes active.
-  void maybeAutoConnect() {
-    if (autoConnect && _status == VpnStatus.disconnected) {
+  /// Called by AppState when a subscription becomes active. [force]: the
+  /// VPN was on before the app restarted to update.
+  void maybeAutoConnect({bool force = false}) {
+    if ((autoConnect || force) && _status == VpnStatus.disconnected) {
       connect();
     }
   }
@@ -278,6 +279,9 @@ class VpnController extends ChangeNotifier {
       case EngineStatus.up:
         _connectedAt ??= DateTime.now();
         _reconnectAttempts = 0;
+        // Also when the tunnel was already up (started before the app
+        // opened, from the Quick Settings tile, or after a reboot/update).
+        _userWantsConnected = true;
         _set(VpnStatus.connected);
         // Re-apply the picked server: a new engine starts on "auto" (or on
         // what its cache remembers).
@@ -285,6 +289,11 @@ class VpnController extends ChangeNotifier {
       case EngineStatus.down:
         _connectedAt = null;
         _stats = SessionStats.empty;
+        if (r.external) {
+          _userWantsConnected = false;
+          _reconnectTimer?.cancel();
+          _reconnectAttempts = 0;
+        }
         if (_userWantsConnected && autoReconnect) {
           _set(VpnStatus.reconnecting);
           _scheduleReconnect();

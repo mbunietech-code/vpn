@@ -11,7 +11,11 @@ import '../api_client.dart';
 import 'tunnel_engine.dart';
 
 class AndroidHiddifyEngine implements TunnelEngine {
-  AndroidHiddifyEngine();
+  /// Listens straight away: the VPN service outlives the app's screen, so a
+  /// reopened app learns from the first status event that it is still up.
+  AndroidHiddifyEngine() {
+    _listen();
+  }
 
   static bool get supported => Platform.isAndroid;
 
@@ -38,6 +42,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
   Timer? _watchdog;
   bool _started = false;
   bool _setupDone = false;
+  bool _stopping = false; // stop() asked for the next "Stopped"
   int _up = 0;
   int _down = 0;
 
@@ -60,8 +65,8 @@ class AndroidHiddifyEngine implements TunnelEngine {
     _reports.add(const EngineReport(EngineStatus.starting));
     final dirs = await _ensureSetup();
     final config = await _fetchConfig(subUrl, apiToken, dirs, pref);
-    _listen();
     _started = false;
+    _stopping = false;
     await _method.invokeMethod('start', {
       'path': config.path,
       'name': 'Mbunie VPN',
@@ -83,6 +88,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
         ),
       );
       try {
+        _stopping = true;
         await _method.invokeMethod('stop');
       } catch (_) {}
     });
@@ -96,6 +102,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
     _watchdog?.cancel();
     _tick?.cancel();
     _tick = null;
+    _stopping = true;
     await _method.invokeMethod('stop');
     _reports.add(const EngineReport(EngineStatus.down));
   }
@@ -333,10 +340,15 @@ class AndroidHiddifyEngine implements TunnelEngine {
             _watchdog?.cancel();
             _reports.add(const EngineReport(EngineStatus.up));
             _startTrafficTicker();
-          case 'Stopped':
           case 'Stopping':
             _tick?.cancel();
-            _reports.add(const EngineReport(EngineStatus.down));
+          case 'Stopped':
+            _tick?.cancel();
+            // Failures arrive on the alerts channel; a plain stop we did
+            // not ask for was the user's choice.
+            final ours = _stopping;
+            _stopping = false;
+            _reports.add(EngineReport(EngineStatus.down, external: !ours));
         }
       },
       onError: (Object e) {

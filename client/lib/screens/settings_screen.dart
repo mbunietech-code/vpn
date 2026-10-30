@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -99,6 +101,21 @@ class SettingsScreen extends StatelessWidget {
                     onChanged: (v) => vpn.update(() => vpn.autoReconnect = v),
                   ),
                 ),
+                if (Platform.isAndroid) ...[
+                  Divider(color: c.border, height: 1),
+                  SettingRow(
+                    title: tr.t('settings.alwaysOn'),
+                    subtitle: tr.t('settings.alwaysOnSub'),
+                    trailing: Icon(
+                      Icons.open_in_new_rounded,
+                      size: 15,
+                      color: c.textHint,
+                    ),
+                    onTap: () => const MethodChannel(
+                      'com.hiddify.app/method',
+                    ).invokeMethod<bool>('open_vpn_settings'),
+                  ),
+                ],
                 Divider(color: c.border, height: 1),
                 SettingRow(
                   title: tr.t('settings.protocol'),

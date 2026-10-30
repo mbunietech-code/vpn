@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'l10n/app_text.dart';
 import 'screens/home_screen.dart';
@@ -7,11 +8,16 @@ import 'screens/onboarding.dart';
 import 'screens/servers_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/app_state.dart';
+import 'services/desktop_tray.dart';
 import 'services/mvpn_scope.dart';
 import 'theme/mvpn_theme.dart';
 import 'widgets/common.dart';
 
-void main() => runApp(const MvpnApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (DesktopTray.supported) await windowManager.ensureInitialized();
+  runApp(const MvpnApp());
+}
 
 class MvpnApp extends StatefulWidget {
   const MvpnApp({super.key});
@@ -28,6 +34,7 @@ class _MvpnAppState extends State<MvpnApp> {
     super.initState();
     WidgetsBinding.instance.addObserver(_state); // pay -> connect on return
     _state.bootstrap();
+    if (DesktopTray.supported) DesktopTray(_state).init();
   }
 
   @override

@@ -1,7 +1,12 @@
 package com.hiddify.hiddify
 
+import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Build
 import android.util.Log
+import androidx.core.content.FileProvider
 import com.hiddify.hiddify.bg.BoxService
 //import com.hiddify.hiddify.bg.BoxService.Companion.workingDir
 import com.hiddify.hiddify.constant.Status
@@ -12,6 +17,7 @@ import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import java.io.File
 
 class MethodHandler(private val scope: CoroutineScope) : FlutterPlugin,
     MethodChannel.MethodCallHandler {
@@ -30,7 +36,9 @@ class MethodHandler(private val scope: CoroutineScope) : FlutterPlugin,
             AddGrpcClientPublicKey("add_grpc_client_public_key"),
             GetGrpcServerPublicKey("get_grpc_server_public_key"),
             DeviceInfo("device_info"),
-
+            InstallApk("install_apk"),
+            IsUnmetered("is_unmetered"),
+            OpenVpnSettings("open_vpn_settings"),
         }
     }
 
@@ -66,6 +74,62 @@ class MethodHandler(private val scope: CoroutineScope) : FlutterPlugin,
                     )
                 )
             }
+            // Opens the system installer for a downloaded update. Android
+            // asks once to allow "Install unknown apps" for Mbunie VPN.
+            Trigger.InstallApk.method -> {
+                val ctx = appContext ?: return result.error("no_context", null, null)
+                try {
+                    val path = (call.arguments as Map<*, *>)["path"] as String
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                        !ctx.packageManager.canRequestPackageInstalls()
+                    ) {
+                        ctx.startActivity(
+                            Intent(
+                                android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                Uri.parse("package:${ctx.packageName}"),
+                            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                        return result.success("needs_permission")
+                    }
+                    val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.updates", File(path))
+                    ctx.startActivity(
+                        Intent(Intent.ACTION_VIEW)
+                            .setDataAndType(uri, "application/vnd.android.package-archive")
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                    result.success("started")
+                } catch (e: Exception) {
+                    result.error("install_failed", e.message, null)
+                }
+            }
+
+            // Wi-Fi or another unmetered network under the VPN (the VPN
+            // itself always says unmetered), so big downloads can wait.
+            Trigger.IsUnmetered.method -> {
+                val cm = appContext?.getSystemService(ConnectivityManager::class.java)
+                @Suppress("DEPRECATION")
+                val unmetered = cm?.allNetworks?.any { network ->
+                    val caps = cm.getNetworkCapabilities(network) ?: return@any false
+                    !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                        caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                        caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                } ?: false
+                result.success(unmetered)
+            }
+
+            // Settings → VPN, where "Always-on VPN" lives.
+            Trigger.OpenVpnSettings.method -> {
+                try {
+                    appContext?.startActivity(
+                        Intent(android.provider.Settings.ACTION_VPN_SETTINGS)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.success(false)
+                }
+            }
+
             Trigger.AddGrpcClientPublicKey.method -> {
                 GlobalScope.launch {
                     result.runCatching {

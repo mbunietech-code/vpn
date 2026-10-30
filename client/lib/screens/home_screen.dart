@@ -1,9 +1,12 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
 import '../l10n/app_text.dart';
 import '../models.dart';
+import '../services/app_updater.dart';
 import '../services/mvpn_scope.dart';
 import '../theme/mvpn_theme.dart';
 import '../widgets/common.dart';
@@ -33,10 +36,28 @@ class HomeScreen extends StatelessWidget {
     final daysLeft = state.expiresAt?.difference(DateTime.now()).inDays;
     final left = state.expiresAt?.difference(DateTime.now());
     final endsSoon = state.subStatus == 'active' && left != null && !left.isNegative && left.inHours < 72;
+    final updater = state.updater;
     void openUpdate() {
+      if (AppUpdater.supported) {
+        state.startUpdate();
+        return;
+      }
       final url = state.updateUrl;
       if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     }
+    final updateVersion = state.updateVersion ?? '';
+    final updateBusy = updater.installing || updater.downloading;
+    final updateText = updater.installing
+        ? tr.p('home.updateInstalling', updateVersion)
+        : updater.downloading
+        ? tr
+              .p('home.updateDownloading', updateVersion)
+              .replaceAll('{pct}', '${((updater.progress ?? 0) * 100).round()}')
+        : updater.ready != null && updater.version == state.updateVersion
+        ? tr.p('home.updateReady', updateVersion)
+        : state.updateRequired
+        ? tr.t('home.updateRequired')
+        : tr.p('home.updateAvailable', updateVersion);
     void openPlans() => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const PlansScreen()),
         );
@@ -74,12 +95,16 @@ class HomeScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: InlineNotice(
-                text: state.updateRequired
-                    ? tr.t('home.updateRequired')
-                    : tr.p('home.updateAvailable', state.updateVersion!),
+                text: updater.error != null && !updateBusy
+                    ? '$updateText ${tr.t(updater.error!)}'
+                    : updateText,
                 tone: state.updateRequired ? NoticeTone.danger : NoticeTone.info,
-                action: tr.t('home.update'),
-                onAction: openUpdate,
+                action: updateBusy
+                    ? null
+                    : updater.ready != null && Platform.isAndroid
+                    ? tr.t('home.install')
+                    : tr.t('home.update'),
+                onAction: updateBusy ? null : openUpdate,
               ),
             ),
           if (endsSoon)

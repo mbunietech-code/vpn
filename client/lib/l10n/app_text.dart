@@ -332,6 +332,15 @@ const _map = <String, Map<String, String>>{
   'home.updateAvailable': {'en': 'A new version ({}) is available with fixes and better speed.'},
   'home.updateRequired': {'en': 'This version is no longer supported. Update to keep using Mbunie VPN.'},
   'home.update': {'en': 'Update'},
+  'home.install': {'en': 'Install'},
+  'tray.connect': {'en': 'Connect'},
+  'tray.disconnect': {'en': 'Disconnect'},
+  'tray.open': {'en': 'Open Mbunie VPN'},
+  'tray.quit': {'en': 'Quit'},
+  'home.updateDownloading': {'en': 'Downloading version {}… {pct}%'},
+  'home.updateReady': {'en': 'Version {} is downloaded and ready to install.'},
+  'home.updateInstalling': {'en': 'Installing version {}… Mbunie VPN will reopen in a moment.'},
+  'update.failed': {'en': 'The download failed. Tap Update to try again.'},
   'home.pendingProof': {
     'en':
         'Your payment is awaiting admin approval. Access unlocks once approved.',
@@ -491,6 +500,10 @@ const _map = <String, Map<String, String>>{
   'settings.language': {'en': 'Language', 'sw': 'Lugha', 'zh': '语言'},
   'settings.about': {'en': 'About', 'sw': 'Kuhusu', 'zh': '关于'},
   'settings.version': {'en': 'Version', 'sw': 'Toleo', 'zh': '版本'},
+  'settings.alwaysOn': {'en': 'Always-on VPN'},
+  'settings.alwaysOnSub': {
+    'en': 'Keep Mbunie VPN on all the time, even after a restart. Open Android VPN settings, tap the gear next to Mbunie VPN and turn on Always-on VPN.',
+  },
   'settings.copyPeer': {
     'en': 'Copy Peer ID',
     'sw': 'Nakili Peer ID',

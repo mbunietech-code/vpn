@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models.dart';
 import '../config.dart';
 import 'api_client.dart';
+import 'app_updater.dart';
 import 'sub_parser.dart';
 import 'vpn_controller.dart';
 
@@ -24,11 +25,15 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     // Forward VPN state changes to app-wide listeners.
     this.vpn.addListener(notifyListeners);
     this.vpn.addListener(_onVpnChanged);
+    updater.addListener(notifyListeners);
   }
 
   @override
   void dispose() {
     _beatTimer?.cancel();
+    _updateTimer?.cancel();
+    updater.removeListener(notifyListeners);
+    updater.dispose();
     vpn.removeListener(_onVpnChanged);
     vpn.removeListener(notifyListeners);
     vpn.dispose();
@@ -194,7 +199,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     ApiClient.deviceId = legacy;
     // Looked up in the background so start-up never waits on it.
     unawaited(_useHardwareId(legacy));
+    _reconnectAfterUpdate = prefs.getBool(AppUpdater.reconnectKey) ?? false;
+    await prefs.remove(AppUpdater.reconnectKey);
     unawaited(checkForUpdate());
+    // The desktop app can sit in the tray for days without a "resumed".
+    _updateTimer = Timer.periodic(const Duration(hours: 6), (_) => checkForUpdate());
     _token = prefs.getString('mvpn_token');
     identifier = prefs.getString('mvpn_identifier');
     api.token = _token;
@@ -277,6 +286,15 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   /// This build is below the server's minimum: it must update.
   bool updateRequired = false;
   DateTime? _lastUpdateCheck;
+  Timer? _updateTimer;
+
+  final updater = AppUpdater();
+
+  /// Set by the desktop shell: removes the tray icon before the app quits.
+  Future<void> Function()? beforeExit;
+
+  /// The installer restarted the app: bring the VPN back if it was on.
+  bool _reconnectAfterUpdate = false;
 
   Future<void> checkForUpdate() async {
     // Play builds update through Google Play only (Play policy).
@@ -299,8 +317,43 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       notifyListeners();
     } catch (_) {
       // Offline or older server: try again next time.
+      return;
+    }
+    if (!AppUpdater.supported) return;
+    final v = updateVersion, url = updateUrl;
+    if (v == null || url == null) {
+      unawaited(updater.cleanUp());
+      return;
+    }
+    await updater.download(v, url, auto: true);
+    if (updater.ready == null) return;
+    if (Platform.isWindows) {
+      await installUpdate();
+    } else {
+      await updater.promptOnce();
     }
   }
+
+  /// The notice's button where [AppUpdater.supported]: download (now, on
+  /// any network) and install.
+  Future<void> startUpdate() async {
+    final v = updateVersion, url = updateUrl;
+    if (v == null || url == null) return;
+    if (updater.ready == null || updater.version != v) await updater.download(v, url);
+    await installUpdate();
+  }
+
+  Future<void> installUpdate() => updater.install(
+    beforeQuit: () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(
+        AppUpdater.reconnectKey,
+        vpn.status == VpnStatus.connected || vpn.status == VpnStatus.reconnecting,
+      );
+      if (vpn.status != VpnStatus.disconnected) await vpn.disconnect();
+      await beforeExit?.call();
+    },
+  );
 
   /// "1.0.13" > "1.0.9" (numeric, part by part).
   static bool isNewerVersion(String a, String b) {
@@ -315,7 +368,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(checkForUpdate());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(checkForUpdate());
+      updater.onResume();
+    }
     if (state == AppLifecycleState.resumed && _connectOnResume) {
       _connectOnResume = false;
       if (subStatus == 'active') unawaited(vpn.connect());
@@ -419,7 +475,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         await _loadNodesFrom(subUrl);
         gate = AuthGate.ready;
         unawaited(_beat());
-        vpn.maybeAutoConnect();
+        vpn.maybeAutoConnect(force: _reconnectAfterUpdate);
+        _reconnectAfterUpdate = false;
       } else {
         gate = AuthGate.needsPlan;
       }
