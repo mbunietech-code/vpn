@@ -201,8 +201,8 @@ class AdminSubscriptionActionsTest extends TestCase
             ->assertHasNoActionErrors();
 
         $this->assertModelMissing($sub);
-        $this->assertSame(0, Peer::count());
-        $this->assertSame(0, Device::count());
+        $this->assertSame(0, Peer::where('subscription_id', $sub->id)->count());
+        $this->assertSame(0, Device::where('subscription_id', $sub->id)->count());
         $this->assertSame(1, $cust->invoices()->count(), 'payment kept');
         $this->assertNull($cust->invoices()->first()->subscription_id);
         $this->assertGreaterThan($version, $this->node->fresh()->peer_version);
@@ -255,9 +255,10 @@ class AdminSubscriptionActionsTest extends TestCase
 
         $this->assertModelMissing($cust);
         $this->assertModelExists($admin);
-        $this->assertSame(0, Subscription::count());
-        $this->assertSame(0, Peer::count());
-        $this->assertSame(0, Device::count());
+        // The admins keep their own (unlimited) VPN.
+        $this->assertSame(0, Subscription::where('user_id', $cust->id)->count());
+        $this->assertSame(0, Peer::where('subscription_id', $sub->id)->count());
+        $this->assertSame(0, Device::where('subscription_id', $sub->id)->count());
         $this->assertSame(0, Invoice::count());
         $this->assertSame(0, PersonalAccessToken::where('tokenable_id', $cust->id)->count());
         Storage::assertMissing('proofs/c.jpg');
@@ -293,7 +294,7 @@ class AdminSubscriptionActionsTest extends TestCase
     public function test_edit_page_suspend_and_delete_use_the_safe_paths(): void
     {
         $cust = $this->customer();
-        app(SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
+        $sub = app(SubscriptionAdmin::class)->grant($cust, Plan::where('code', 'm1')->first(), 'test');
 
         Livewire::test(EditUser::class, ['record' => $cust->getRouteKey()])
             ->assertSee('M1 · active')
@@ -305,7 +306,7 @@ class AdminSubscriptionActionsTest extends TestCase
             ->callAction('delete')
             ->assertRedirect();
         $this->assertModelMissing($cust);
-        $this->assertSame(0, Peer::count());
+        $this->assertSame(0, Peer::where('subscription_id', $sub->id)->count());
 
         // No delete button for admins.
         Livewire::test(EditUser::class, ['record' => auth()->user()->getRouteKey()])

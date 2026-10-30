@@ -123,7 +123,7 @@ class AuthController extends Controller
             'subscription' => $sub ? [
                 'status' => $sub->status,
                 'plan' => $sub->plan_code,
-                'expires_at' => $sub->expires_at?->toIso8601String(),
+                'expires_at' => $sub->expiresAtForApp(),
             ] : null,
         ]);
     }

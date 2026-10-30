@@ -5,15 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Device;
 use App\Models\Subscription;
+use App\Services\SubscriptionAdmin;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SubscriptionController extends Controller
 {
     /** App polls this after checkout to detect auto-activation. */
-    public function show(Request $request): JsonResponse
+    public function show(Request $request, SubscriptionAdmin $admin): JsonResponse
     {
         $user = $request->user();
+        $admin->ensureAdminAccess($user);
         $sub = $user->activeSubscription()
             ?? $user->subscriptions()->latest()->first();
 
@@ -42,7 +44,8 @@ class SubscriptionController extends Controller
         return response()->json([
             'status' => $sub->status,                  // pending | active | expired | suspended
             'plan' => $sub->plan_code,
-            'expires_at' => $sub->expires_at?->toIso8601String(),
+            'expires_at' => $sub->expiresAtForApp(),
+            'unlimited' => $sub->isUnlimited(),
             'max_devices' => $sub->max_devices,
             'data_used_mb' => $sub->data_used_mb,
             'sub_url' => $sub->isActive()

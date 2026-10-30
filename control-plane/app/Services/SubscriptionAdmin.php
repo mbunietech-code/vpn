@@ -75,6 +75,62 @@ class SubscriptionAdmin
     }
 
     /**
+     * Admins use the VPN with no time limit: their newest subscription (or a
+     * new one on the plan with the most devices) runs until UNLIMITED_UNTIL.
+     * A suspended one stays suspended. Called whenever the app asks for the
+     * subscription, so a new admin gets it at their next sign-in.
+     */
+    public function ensureAdminAccess(User $user): ?Subscription
+    {
+        if (! $user->is_admin) {
+            return null;
+        }
+        $sub = $user->subscriptions()->latest('expires_at')->first();
+        if ($sub && ($sub->status === 'suspended' || ($sub->status === 'active' && $sub->isUnlimited()))) {
+            return $sub;
+        }
+
+        return DB::transaction(function () use ($user, $sub) {
+            if ($sub) {
+                $sub->update([
+                    'status' => 'active',
+                    'expires_at' => Subscription::UNLIMITED_UNTIL,
+                    'started_at' => $sub->started_at ?? now(),
+                ]);
+            } else {
+                $plan = Plan::where('is_active', true)->orderByDesc('max_devices')->orderByDesc('days')->first()
+                    ?? Plan::orderByDesc('max_devices')->first();
+                if (! $plan) {
+                    return null;
+                }
+                $sub = $user->subscriptions()->create([
+                    'plan_code' => $plan->code,
+                    'status' => 'active',
+                    'max_devices' => $plan->max_devices,
+                    'started_at' => now(),
+                    'expires_at' => Subscription::UNLIMITED_UNTIL,
+                ]);
+            }
+            $this->provisioner->syncPeers($sub->refresh());
+            $this->audit('system', 'subscription.admin_unlimited', $sub, ['user_id' => $user->id]);
+
+            return $sub->refresh();
+        });
+    }
+
+    /** No longer an admin: the unlimited time ends now (the sweep cuts access). */
+    public function endAdminAccess(User $user): void
+    {
+        $user->subscriptions()
+            ->where('expires_at', '>=', Subscription::UNLIMITED_UNTIL)
+            ->get()
+            ->each(function (Subscription $sub) {
+                $sub->update(['expires_at' => now()]);
+                $this->audit('system', 'subscription.admin_unlimited_ended', $sub, ['user_id' => $sub->user_id]);
+            });
+    }
+
+    /**
      * Give a customer a plan without a payment (gift, compensation, test).
      * Recorded as a zero-amount "admin" invoice so history stays complete.
      */
