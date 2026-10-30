@@ -96,7 +96,12 @@ class NotificationsTest extends TestCase
 
     public function test_app_version_endpoint(): void
     {
-        config(['services.mvpn.app_version' => '1.0.13', 'services.mvpn.min_app_version' => '1.0.8']);
+        config([
+            'services.mvpn.app_version' => '1.0.13',
+            'services.mvpn.android_version' => null,
+            'services.mvpn.windows_version' => null,
+            'services.mvpn.min_app_version' => '1.0.8',
+        ]);
 
         $this->getJson('/api/app/version')->assertOk()
             ->assertJsonPath('latest', '1.0.13')
@@ -117,7 +122,11 @@ class NotificationsTest extends TestCase
         config(['services.mvpn.windows_version' => '1.0.15']);
         $this->getJson('/api/app/version', ['X-Mvpn-Device' => 'pc-1'])->assertJsonPath('latest', '1.0.15');
         $this->getJson('/api/app/version', ['X-Mvpn-Device' => 'mac-1'])->assertJsonPath('latest', '1.0.13');
-        $this->getJson('/api/app/version')->assertJsonPath('latest', '1.0.13');
+        // Not known yet (or no id at all): the newest of the platforms.
+        $this->getJson('/api/app/version')->assertJsonPath('latest', '1.0.15');
+        $this->getJson('/api/app/version', ['X-Mvpn-Device' => 'new-install'])->assertJsonPath('latest', '1.0.15');
+        // A new id sent with the old one is still that PC.
+        $this->getJson('/api/app/version', ['X-Mvpn-Device' => 'hw-1', 'X-Mvpn-Device-Prev' => 'mac-1'])->assertJsonPath('latest', '1.0.13');
         $this->get('/download')->assertOk()->assertSee('Version 1.0.14');
     }
 }
