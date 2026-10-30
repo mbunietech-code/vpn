@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\Users\Pages\CreateUser;
+use App\Filament\Resources\Users\Pages\EditUser;
 use App\Models\Node;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AdminUnlimitedVpnTest extends TestCase
@@ -78,5 +81,30 @@ class AdminUnlimitedVpnTest extends TestCase
 
         $this->artisan('mvpn:sweep-expired');
         $this->assertSame('expired', $sub->fresh()->status);
+    }
+
+    public function test_the_admin_panel_turns_admin_access_on_and_off(): void
+    {
+        $this->actingAs(User::where('is_admin', true)->first());
+        $cust = User::factory()->create(['email' => 'cust@example.com']);
+
+        Livewire::test(EditUser::class, ['record' => $cust->getRouteKey()])
+            ->fillForm(['is_admin' => true, 'password' => 'a-long-password-1'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertTrue($cust->fresh()->is_admin);
+        $this->assertTrue($cust->subscriptions()->sole()->isUnlimited());
+
+        Livewire::test(EditUser::class, ['record' => $cust->getRouteKey()])
+            ->fillForm(['is_admin' => false])
+            ->call('save');
+        $this->assertFalse($cust->fresh()->is_admin);
+        $this->assertFalse($cust->subscriptions()->sole()->isUnlimited());
+
+        Livewire::test(CreateUser::class)
+            ->fillForm(['email' => 'new-staff@example.com', 'preferred_currency' => 'usd', 'is_admin' => true, 'password' => 'a-long-password-2'])
+            ->call('create')
+            ->assertHasNoFormErrors();
+        $this->assertTrue(User::where('email', 'new-staff@example.com')->sole()->is_admin);
     }
 }
