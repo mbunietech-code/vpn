@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Download Mbunie VPN</title>
-<link rel="icon" href="{{ asset('images/favicon-64.png') }}?v=4">
+<link rel="icon" href="{{ asset('images/favicon-64.png') }}?v=5">
 <style>
   :root { color-scheme: light dark; --blue: #2563eb; --card: #fff; --line: #e3e8f2; --muted: #6b7385; --disc: #f1f3f7; --ink: #141b2d; }
   @media (prefers-color-scheme: dark) { :root { --card: #121a2b; --line: #22304a; --muted: #9aa6bd; --disc: #1b2538; --ink: #eef2fb; } body { background: #0b111e !important; } }
@@ -47,7 +47,7 @@
 <body>
 <div class="wrap">
   <div class="brand">
-    <img src="{{ asset('images/mvpn-icon.png') }}?v=4" alt="Mbunie">
+    <img src="{{ asset('images/mvpn-icon.png') }}?v=5" alt="Mbunie">
     <div>
       <h1>Mbunie VPN</h1>
       <p class="muted" style="margin:0">Fast, private access that works in China.</p>

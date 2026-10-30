@@ -38,7 +38,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(asset('images/mvpn-logo-light.svg').'?v=4')
             ->darkModeBrandLogo(asset('images/mvpn-logo-dark.svg').'?v=4')
             ->brandLogoHeight('2.25rem')
-            ->favicon(asset('images/favicon-64.png').'?v=4')
+            ->favicon(asset('images/favicon-64.png').'?v=5')
             ->login()
             // Brand look (plain stylesheet: no theme build on Hostinger).
             ->renderHook(PanelsRenderHook::HEAD_END, function (): string {
