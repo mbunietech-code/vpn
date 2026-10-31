@@ -20,6 +20,9 @@ PORT=40000
 # (*.googleapis.com), consent (google.com) and static hosts; if those leave
 # from the node's own IP the player still says "sign in" (seen 2026-10-20).
 YT='["youtube.com","googlevideo.com","ytimg.com","youtu.be","youtube-nocookie.com","ggpht.com","yt.be","youtubekids.com","withyoutube.com","google.com","googleapis.com","gstatic.com","googleusercontent.com","gvt1.com","gvt2.com","1e100.net","google.com.hk","doubleclick.net","googleadservices.com","googlesyndication.com","app-measurement.com"]'
+# Google Scholar blocks WARP (Cloudflare) addresses as bots, so it leaves from
+# the node's own IP instead (it stays inside the tunnel either way).
+SCHOLAR='["scholar.google.com","scholar.google.com.hk","scholar.googleusercontent.com"]'
 log(){ printf '==> %s\n' "$*"; }
 
 if [[ "${1:-}" != "--patch-only" ]]; then
@@ -47,20 +50,21 @@ ss -ltn | grep -q "127.0.0.1:$PORT " || { echo "no WARP proxy on 127.0.0.1:$PORT
 
 # Idempotent: drop earlier warp bits, then put the YouTube rules first.
 XRAY="$CFG/xray-config.json"
-jq --argjson yt "$YT" --argjson port "$PORT" '
+jq --argjson yt "$YT" --argjson sch "$SCHOLAR" --argjson port "$PORT" '
   .outbounds = ([.outbounds[] | select(.tag != "warp")] + [{protocol:"socks",tag:"warp",settings:{servers:[{address:"127.0.0.1",port:$port}]}}])
   | .routing.rules = ([
       {type:"field",network:"udp",domain:($yt|map("domain:"+.)),outboundTag:"block"},
+      {type:"field",domain:($sch|map("domain:"+.)),outboundTag:"direct"},
       {type:"field",domain:($yt|map("domain:"+.)),outboundTag:"warp"}
-    ] + [.routing.rules[] | select(.outboundTag != "warp" and ((.network // "") != "udp" or (.domain // [] | length) == 0))])
+    ] + [.routing.rules[] | select(.outboundTag != "warp" and (.domain // []) != ($sch|map("domain:"+.)) and ((.network // "") != "udp" or (.domain // [] | length) == 0))])
 ' "$XRAY" > "${XRAY%.json}.warp.json"
 xray run -test -config "${XRAY%.json}.warp.json" >/dev/null
 mv "${XRAY%.json}.warp.json" "$XRAY"; chmod 600 "$XRAY"
 
 SB="$CFG/singbox-config.json"
-jq --argjson yt "$YT" --argjson port "$PORT" '
+jq --argjson yt "$YT" --argjson sch "$SCHOLAR" --argjson port "$PORT" '
   .outbounds = ([.outbounds[] | select(.tag != "warp")] + [{type:"socks",tag:"warp",server:"127.0.0.1",server_port:$port,version:"5"}])
-  | .route = {rules:[{domain_suffix:$yt,network:["udp"],action:"reject"},{domain_suffix:$yt,outbound:"warp"}],final:"direct"}
+  | .route = {rules:[{domain_suffix:$yt,network:["udp"],action:"reject"},{domain_suffix:$sch,outbound:"direct"},{domain_suffix:$yt,outbound:"warp"}],final:"direct"}
 ' "$SB" > "${SB%.json}.warp.json"
 sing-box check -c "${SB%.json}.warp.json"
 mv "${SB%.json}.warp.json" "$SB"; chmod 600 "$SB"
