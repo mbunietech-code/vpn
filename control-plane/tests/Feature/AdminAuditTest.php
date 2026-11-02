@@ -134,6 +134,22 @@ class AdminAuditTest extends TestCase
         $this->actingAs($owner)->get('/admin')->assertSuccessful();
     }
 
+    public function test_dashboard_names_customers_who_signed_in_without_a_name(): void
+    {
+        $otp = User::create(['phone' => '+255711222333', 'password' => 'x']);
+        Invoice::create([
+            'user_id' => $otp->id, 'plan_code' => 'm3', 'provider' => 'manual', 'currency' => 'cny',
+            'amount_cents' => 6000, 'status' => 'pending_review', 'idempotency_key' => 'otp-1', 'expires_at' => now()->addDay(),
+        ]);
+        $this->sub->update(['expires_at' => now()->addDays(2)]);
+
+        $this->actingAs($this->admin)->get('/admin')
+            ->assertSuccessful()
+            ->assertSee('+255711222333')
+            ->assertSee('mteja@example.com')
+            ->assertDontSee('Haipo');
+    }
+
     public function test_customers_cannot_open_the_admin_panel(): void
     {
         $this->actingAs($this->customer)->get('/admin')->assertForbidden();

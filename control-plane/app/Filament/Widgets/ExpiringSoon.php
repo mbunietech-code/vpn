@@ -40,16 +40,18 @@ class ExpiringSoon extends TableWidget
         return $table
             ->query(static::query())
             ->columns([
-                TextColumn::make('user.name')
+                // OTP customers often have no name: fall back to email / phone.
+                TextColumn::make('customer')
                     ->label('Customer')
-                    ->description(fn (Subscription $r) => $r->user?->phone ?: $r->user?->email),
-                TextColumn::make('plan_code')->label('Plan')->badge(),
+                    ->state(fn (Subscription $r) => $r->user?->name ?: ($r->user?->email ?: ($r->user?->phone ?: '#'.$r->user_id)))
+                    ->description(fn (Subscription $r) => $r->user?->name ? ($r->user->phone ?: $r->user->email) : $r->plan_code),
+                TextColumn::make('plan_code')->label('Plan')->badge()->visibleFrom('md'),
                 TextColumn::make('expires_at')
                     ->label('Ends')
                     ->since()
                     ->description(fn (Subscription $r) => $r->expires_at->format('d M, H:i'))
                     ->color(fn (Subscription $r) => $r->expires_at->lt(now()->addDays(2)) ? 'danger' : 'warning'),
-                TextColumn::make('devices_count')->label('Devices')->alignCenter(),
+                TextColumn::make('devices_count')->label('Devices')->alignCenter()->visibleFrom('md'),
             ])
             ->recordActions([
                 Action::make('open')
