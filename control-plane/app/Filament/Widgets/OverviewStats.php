@@ -31,8 +31,10 @@ class OverviewStats extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        $nodesOnline = Node::where('status', 'online')->count();
-        $nodesTotal = Node::count();
+        // Nodes switched off on purpose (draining / disabled) are not "down".
+        $inService = Node::whereNotIn('status', Node::ADMIN_STATUSES);
+        $nodesOnline = (clone $inService)->where('status', 'online')->count();
+        $nodesTotal = (clone $inService)->count();
 
         $onlineNow = Device::online()->whereNull('revoked_at')->count();
         $onlineUsers = Device::online()->whereNull('revoked_at')->distinct('subscription_id')->count('subscription_id');

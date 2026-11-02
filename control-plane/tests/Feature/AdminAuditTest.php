@@ -103,6 +103,27 @@ class AdminAuditTest extends TestCase
         }
     }
 
+    public function test_a_node_switched_off_on_purpose_is_not_reported_down(): void
+    {
+        Node::create([
+            'name' => 'Old', 'region' => 'hk', 'public_host' => 'old.example.com', 'api_secret' => Str::random(48),
+            'status' => 'disabled', 'capacity' => 500, 'priority' => 100,
+        ]);
+
+        $this->actingAs($this->admin)->get('/admin')
+            ->assertSuccessful()
+            ->assertSee('1 / 1')
+            ->assertDontSee('A node is down!');
+    }
+
+    public function test_a_suspended_admin_is_locked_out(): void
+    {
+        $other = User::create(['email' => 'admin2@example.com', 'password' => 'a-long-password-1']);
+        $other->forceFill(['is_admin' => true, 'status' => 'suspended'])->save();
+
+        $this->actingAs($other)->get('/admin')->assertForbidden();
+    }
+
     public function test_customers_cannot_open_the_admin_panel(): void
     {
         $this->actingAs($this->customer)->get('/admin')->assertForbidden();

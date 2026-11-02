@@ -47,7 +47,8 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->is_admin === true;
+        // A suspended or banned admin is locked out of the panel too.
+        return $this->is_admin === true && in_array($this->status ?? 'active', ['active'], true);
     }
 
     /** @return HasMany<Subscription> */
