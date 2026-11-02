@@ -106,9 +106,12 @@ class UserForm
                             ->autocomplete('new-password')
                             ->minLength(10)
                             ->visible(fn (Get $get) => (bool) $get('is_admin'))
-                            // Only change it when something is typed; empty keeps the current one.
+                            // A new admin needs one to sign in; afterwards empty keeps it.
+                            ->required(fn (Get $get, ?User $record) => (bool) $get('is_admin') && ! ($record?->is_admin && filled($record?->password)))
                             ->dehydrated(fn ($state) => filled($state))
-                            ->helperText('Leave empty to keep the current password.')
+                            ->helperText(fn (?User $record) => $record?->is_admin && filled($record?->password)
+                                ? 'Leave empty to keep the current password.'
+                                : 'They sign in to this panel with their email and this password (at least 10 characters).')
                             ->columnSpanFull(),
                     ]),
 

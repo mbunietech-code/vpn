@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Plans\Schemas;
 
+use App\Models\Plan;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
@@ -25,7 +26,11 @@ class PlanForm
                             ->unique(ignoreRecord: true)
                             ->regex('/^[a-z0-9_-]+$/')
                             ->placeholder('m1')
-                            ->helperText('Short code used by the apps and by MbunieHub plans. Do not change it once customers have bought it.'),
+                            // Subscriptions and payments point at the code: locked once used.
+                            ->disabled(fn (?Plan $record) => $record !== null && $record->isInUse())
+                            ->helperText(fn (?Plan $record) => $record !== null && $record->isInUse()
+                                ? 'Locked: customers have bought this plan.'
+                                : 'Short code used by the apps and by MbunieHub plans. It is locked once a customer buys the plan.'),
                         TextInput::make('days')
                             ->required()
                             ->integer()

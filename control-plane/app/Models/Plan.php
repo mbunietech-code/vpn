@@ -35,4 +35,11 @@ class Plan extends Model
 
         return $out;
     }
+
+    /** Subscriptions or payments refer to this plan by its code. */
+    public function isInUse(): bool
+    {
+        return Subscription::where('plan_code', $this->code)->exists()
+            || Invoice::where('plan_code', $this->code)->exists();
+    }
 }

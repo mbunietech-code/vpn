@@ -173,6 +173,45 @@ class AdminAuditTest extends TestCase
             ->assertActionVisible('delete');
     }
 
+    public function test_a_bought_plan_keeps_its_code(): void
+    {
+        $this->actingAs($this->admin);
+        $plan = Plan::where('code', 'm3')->first();
+
+        Livewire::test(EditPlan::class, ['record' => $plan->getRouteKey()])
+            ->assertFormFieldDisabled('code')
+            ->fillForm(['code' => 'm3x', 'days' => 92])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('m3', $plan->fresh()->code);
+        $this->assertSame(92, (int) $plan->fresh()->days);
+    }
+
+    public function test_a_new_admin_must_get_a_password(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(\App\Filament\Resources\Users\Pages\EditUser::class, ['record' => $this->customer->getRouteKey()])
+            ->fillForm(['is_admin' => true, 'password' => ''])
+            ->call('save')
+            ->assertHasFormErrors(['password' => 'required']);
+        $this->assertFalse($this->customer->fresh()->is_admin);
+
+        Livewire::test(\App\Filament\Resources\Users\Pages\EditUser::class, ['record' => $this->customer->getRouteKey()])
+            ->fillForm(['is_admin' => true, 'password' => 'a-long-password-1'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertTrue($this->customer->fresh()->is_admin);
+
+        // Later edits keep the password when the field is left empty.
+        Livewire::test(\App\Filament\Resources\Users\Pages\EditUser::class, ['record' => $this->customer->getRouteKey()])
+            ->fillForm(['name' => 'Mteja', 'password' => ''])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('a-long-password-1', $this->customer->fresh()->password));
+    }
+
     public function test_secret_settings_never_reach_the_browser_and_blank_keeps_them(): void
     {
         $secret = Setting::where('is_secret', true)->first();
