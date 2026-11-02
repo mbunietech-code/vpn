@@ -124,6 +124,16 @@ class AdminAuditTest extends TestCase
         $this->actingAs($other)->get('/admin')->assertForbidden();
     }
 
+    public function test_the_admin_password_command_creates_a_working_admin(): void
+    {
+        $this->artisan('mvpn:admin-password', ['--email' => 'owner@example.com', '--password' => 'a-long-password-1'])
+            ->assertSuccessful();
+
+        $owner = User::where('email', 'owner@example.com')->first();
+        $this->assertTrue($owner->is_admin);
+        $this->actingAs($owner)->get('/admin')->assertSuccessful();
+    }
+
     public function test_customers_cannot_open_the_admin_panel(): void
     {
         $this->actingAs($this->customer)->get('/admin')->assertForbidden();

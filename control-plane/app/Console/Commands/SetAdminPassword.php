@@ -35,7 +35,8 @@ class SetAdminPassword extends Command
         $user = User::firstOrNew(['email' => $email]);
         $created = ! $user->exists;
 
-        $user->fill([
+        // forceFill: is_admin / status are not mass-assignable on purpose.
+        $user->forceFill([
             'name' => $user->name ?: (string) $this->option('name'),
             'password' => Hash::make($password),
             'is_admin' => true,
