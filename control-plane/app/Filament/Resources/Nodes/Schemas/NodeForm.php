@@ -8,6 +8,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -100,13 +101,29 @@ class NodeForm
                     ->columns(2)
                     ->collapsed(fn (?Node $record) => blank($record?->openvpn_config))
                     ->schema([
+                        // These are $hidden on the model, so the edit form starts
+                        // empty and never shows them: blank = keep what is saved.
                         Textarea::make('openvpn_config')
                             ->label('.ovpn profile')
                             ->rows(10)
                             ->columnSpanFull()
-                            ->helperText('Supports remote/proto with inline <ca>, <cert>, <key>, <tls-auth> or <tls-crypt>.'),
-                        TextInput::make('openvpn_username')->label('Username')->password()->revealable(),
-                        TextInput::make('openvpn_password')->label('Password')->password()->revealable(),
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->helperText(fn (?Node $record) => filled($record?->openvpn_config)
+                                ? 'A profile is saved (not shown). Paste a new one to replace it, or leave empty to keep it.'
+                                : 'Supports remote/proto with inline <ca>, <cert>, <key>, <tls-auth> or <tls-crypt>.'),
+                        TextInput::make('openvpn_username')->label('Username')->password()->revealable()
+                            ->autocomplete('off')
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->helperText(fn (?Node $record) => filled($record?->openvpn_username) ? 'Saved. Leave empty to keep it.' : null),
+                        TextInput::make('openvpn_password')->label('Password')->password()->revealable()
+                            ->autocomplete('new-password')
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->helperText(fn (?Node $record) => filled($record?->openvpn_password) ? 'Saved. Leave empty to keep it.' : null),
+                        Toggle::make('remove_openvpn')
+                            ->label('Remove the saved OpenVPN profile and login')
+                            ->visible(fn (?Node $record) => filled($record?->openvpn_config))
+                            ->dehydrated(false)
+                            ->columnSpanFull(),
                         TextInput::make('openvpn_server_name')
                             ->label('TLS/SNI name')
                             ->placeholder('asia8.libaivps.pw')
