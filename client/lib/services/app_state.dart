@@ -16,7 +16,9 @@ import 'app_updater.dart';
 import 'sub_parser.dart';
 import 'vpn_controller.dart';
 
-enum AuthGate { loading, needsAuth, needsPlan, ready }
+/// [offline]: signed in, but the server could not be reached and no saved
+/// plan lets the app start without it.
+enum AuthGate { loading, needsAuth, needsPlan, ready, offline }
 
 class AppState extends ChangeNotifier with WidgetsBindingObserver {
   AppState({ApiClient? api, VpnController? vpn})
@@ -32,6 +34,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     _beatTimer?.cancel();
     _updateTimer?.cancel();
+    _offlineRetry?.cancel();
     updater.removeListener(notifyListeners);
     updater.dispose();
     vpn.removeListener(_onVpnChanged);
@@ -231,7 +234,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       notifyListeners();
       return;
     }
-    await refreshSubscription();
+    try {
+      await refreshSubscription();
+    } catch (_) {
+      // Never stay on the splash: it spun forever when the server could not
+      // be reached (Cloudflare is often blocked in China).
+      await _startOffline();
+    }
   }
 
   // ---- auth ---------------------------------------------------------------
@@ -399,6 +408,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('mvpn_token');
+    await prefs.remove(_lastSubKey);
+    await prefs.remove(_lastNodesKey);
+    _offlineRetry?.cancel();
+    _offline = false;
     _token = null;
     api.token = null;
     gate = AuthGate.needsAuth;
@@ -472,45 +485,142 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   // ---- subscription ----------------------------------------------------
 
-  Future<void> refreshSubscription() async {
-    try {
-      final r = await api.subscription();
-      subStatus = r['status'] as String? ?? 'none';
-      planCode = r['plan'] as String?;
-      awaitingPayment = r['awaiting_payment'] == true;
-      pendingInvoice = r['pending_invoice'] as Map<String, dynamic>?;
-      expiresAt = r['expires_at'] != null
-          ? DateTime.tryParse(r['expires_at'] as String)
-          : null;
+  // The last good answer, so a customer whose plan is active can still
+  // connect while the server is unreachable; the VPN engines keep the last
+  // config for the same reason.
+  static const _lastSubKey = 'mvpn_last_subscription';
+  static const _lastNodesKey = 'mvpn_last_nodes';
+  static const _offlineRetryEvery = Duration(seconds: 30);
+  Timer? _offlineRetry;
+  bool _offline = false;
 
-      if (subStatus == 'active' && r['sub_url'] is String) {
-        final subUrl = r['sub_url'] as String;
-        vpn.setConnection(
-          subUrl: subUrl,
-          apiToken: _token ?? '',
-          apiBase: api.baseUrl,
-        );
-        await _loadNodesFrom(subUrl);
-        gate = AuthGate.ready;
-        unawaited(_beat());
-        vpn.maybeAutoConnect(force: _reconnectAfterUpdate);
-        _reconnectAfterUpdate = false;
-      } else {
-        gate = AuthGate.needsPlan;
-      }
+  /// Running from the saved plan because the server could not be reached.
+  bool get offline => _offline;
+
+  Future<void> refreshSubscription() async {
+    final Map<String, dynamic> r;
+    try {
+      r = await api.subscription();
     } on ApiException catch (e) {
       if (e.status == 401 || e.deviceRevoked) {
         await _signedOut(e);
         return;
       }
+      if (e.status == 0 && (_offline || gate == AuthGate.offline)) {
+        _retryOffline();
+        return;
+      }
       rethrow;
     }
+    _offline = false;
+    _offlineRetry?.cancel();
+    await _applySubscription(r);
+    unawaited(_saveLastSubscription(r));
     notifyListeners();
   }
 
-  Future<void> _loadNodesFrom(String subUrl) async {
+  Future<void> _applySubscription(
+    Map<String, dynamic> r, {
+    bool fromCache = false,
+  }) async {
+    subStatus = r['status'] as String? ?? 'none';
+    planCode = r['plan'] as String?;
+    awaitingPayment = r['awaiting_payment'] == true;
+    pendingInvoice = r['pending_invoice'] as Map<String, dynamic>?;
+    expiresAt = r['expires_at'] != null
+        ? DateTime.tryParse(r['expires_at'] as String)
+        : null;
+
+    if (subStatus == 'active' && r['sub_url'] is String) {
+      final subUrl = r['sub_url'] as String;
+      vpn.setConnection(
+        subUrl: subUrl,
+        apiToken: _token ?? '',
+        apiBase: api.baseUrl,
+      );
+      await _loadNodesFrom(subUrl, fromCache: fromCache);
+      gate = AuthGate.ready;
+      if (!fromCache) unawaited(_beat());
+      vpn.maybeAutoConnect(force: _reconnectAfterUpdate);
+      _reconnectAfterUpdate = false;
+    } else {
+      gate = AuthGate.needsPlan;
+    }
+  }
+
+  /// Starts from the saved plan, or shows the "can't reach" screen, and keeps
+  /// trying the server in the background.
+  Future<void> _startOffline() async {
+    _offline = true;
+    Map<String, dynamic>? saved;
     try {
-      final body = await api.fetchSubscription(subUrl);
+      final raw = (await SharedPreferences.getInstance()).getString(_lastSubKey);
+      if (raw != null) saved = jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      saved = null;
+    }
+    final expiresRaw = saved?['expires_at'];
+    final expires = expiresRaw is String ? DateTime.tryParse(expiresRaw) : null;
+    if (saved != null &&
+        saved['status'] == 'active' &&
+        expires != null &&
+        expires.isAfter(DateTime.now())) {
+      await _applySubscription(saved, fromCache: true);
+    } else {
+      gate = AuthGate.offline;
+    }
+    notifyListeners();
+    _retryOffline();
+  }
+
+  void _retryOffline() {
+    _offlineRetry?.cancel();
+    _offlineRetry = Timer(_offlineRetryEvery, () {
+      unawaited(refreshSubscription().catchError((Object _) {}));
+    });
+  }
+
+  /// "Try again" on the can't-reach screen.
+  Future<void> retryNow() async {
+    _offlineRetry?.cancel();
+    try {
+      await refreshSubscription();
+    } catch (_) {
+      _retryOffline();
+    }
+  }
+
+  Future<void> _saveLastSubscription(Map<String, dynamic> r) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (r['status'] == 'active' && r['sub_url'] is String) {
+      await prefs.setString(
+        _lastSubKey,
+        jsonEncode({
+          'status': r['status'],
+          'plan': r['plan'],
+          'expires_at': r['expires_at'],
+          'sub_url': r['sub_url'],
+        }),
+      );
+    } else {
+      await prefs.remove(_lastSubKey);
+    }
+  }
+
+  Future<void> _loadNodesFrom(String subUrl, {bool fromCache = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? body;
+    if (!fromCache) {
+      try {
+        body = await api.fetchSubscription(subUrl);
+        await prefs.setString(_lastNodesKey, body);
+      } catch (_) {
+        body = null;
+      }
+    }
+    body ??= prefs.getString(_lastNodesKey);
+    if (body == null) return; // keep whatever nodes we have
+    try {
       final nodes = SubParser.parse(body);
       if (nodes.isNotEmpty) vpn.setNodes(nodes);
     } catch (_) {

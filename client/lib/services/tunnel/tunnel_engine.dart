@@ -1,8 +1,18 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../../models.dart';
+
+/// The server could not be reached at all (no route, DNS, TLS, timeout), as
+/// opposed to an HTTP error from it.
+bool isUnreachable(Object e) =>
+    e is TimeoutException ||
+    e is SocketException ||
+    e is HandshakeException ||
+    e is http.ClientException;
 
 enum EngineStatus { down, starting, up, error }
 

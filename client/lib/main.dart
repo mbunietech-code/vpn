@@ -91,6 +91,7 @@ class _Gate extends StatelessWidget {
       AuthGate.needsAuth => const AuthScreen(),
       AuthGate.needsPlan => const PlansScreen(),
       AuthGate.ready => const RootShell(),
+      AuthGate.offline => const _Offline(),
     };
   }
 }
@@ -109,6 +110,70 @@ class _Splash extends StatelessWidget {
             const SizedBox(height: 20),
             const CircularProgressIndicator(),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Signed in, but the server can't be reached and there is no saved plan to
+/// start from. The app keeps retrying in the background.
+class _Offline extends StatefulWidget {
+  const _Offline();
+
+  @override
+  State<_Offline> createState() => _OfflineState();
+}
+
+class _OfflineState extends State<_Offline> {
+  bool _busy = false;
+
+  Future<void> _retry() async {
+    setState(() => _busy = true);
+    await MvpnScope.of(context).retryNow();
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = MvpnScope.of(context);
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const BrandMark(size: 64),
+                const SizedBox(height: 20),
+                Text(
+                  context.tt('offline.title'),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                Text(context.tt('offline.body'), textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _busy ? null : _retry,
+                  child: _busy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(context.tt('common.retry')),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: state.logout,
+                  child: Text(context.tt('plans.logout')),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

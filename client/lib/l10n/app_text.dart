@@ -47,6 +47,16 @@ const _map = <String, Map<String, String>>{
   'common.change': {'en': 'Change', 'sw': 'Badilisha', 'zh': '更改'},
   'common.check': {'en': 'Check', 'sw': 'Angalia', 'zh': '查看'},
   'common.close': {'en': 'Close', 'sw': 'Funga', 'zh': '关闭'},
+  'offline.title': {
+    'en': "Can't reach Mbunie VPN",
+    'sw': 'Imeshindwa kufikia Mbunie VPN',
+    'zh': '无法连接 Mbunie VPN',
+  },
+  'offline.body': {
+    'en': 'Your network may be blocking our server. Check your internet or try another network (Wi-Fi or mobile data). We keep trying every 30 seconds.',
+    'sw': 'Huenda mtandao wako unazuia server yetu. Angalia intaneti yako au jaribu mtandao mwingine (Wi-Fi au data ya simu). Tunaendelea kujaribu kila sekunde 30.',
+    'zh': '您的网络可能屏蔽了我们的服务器。请检查网络，或换一个网络（Wi-Fi 或移动数据）。我们每 30 秒自动重试。',
+  },
 
   // ---- auth ----
   'auth.tagline': {

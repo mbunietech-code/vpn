@@ -172,8 +172,32 @@ class SingboxEngine implements TunnelEngine {
     }
     // Also clear an engine orphaned by a crashed/force-closed app session.
     if (Platform.isWindows) {
-      await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe']);
+      final r = await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe']);
+      if (r.exitCode == 0) await _waitEngineGone();
     }
+  }
+
+  /// taskkill returns before the engine has exited. Starting the next one
+  /// straight away failed with "initialize cache-file: timeout" (the old one
+  /// still held cache.db) or "create adapter: ... already exists" (its Wintun
+  /// adapter was not gone yet).
+  static Future<void> _waitEngineGone() async {
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final r = await Process.run('tasklist', [
+          '/FI',
+          'IMAGENAME eq sing-box.exe',
+          '/NH',
+        ]);
+        if (!r.stdout.toString().toLowerCase().contains('sing-box.exe')) break;
+      } catch (_) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+    // Let Wintun drop the adapter.
+    await Future<void>.delayed(const Duration(seconds: 1));
   }
 
   @override
@@ -339,10 +363,35 @@ class SingboxEngine implements TunnelEngine {
       '$subUrl${sep}format=singbox&platform=$platform&protocol=$protocol',
     );
 
-    final res = await _http.get(
-      uri,
-      headers: {'Authorization': 'Bearer $token', ...ApiClient.deviceHeaders},
+    // The last config that worked for this protocol: used when the server
+    // can't be reached (Cloudflare is often blocked in China) so a paid
+    // customer can still connect.
+    final last = File(
+      '${dir.path}${Platform.pathSeparator}last-$protocol.json',
     );
+    final config = File('${dir.path}${Platform.pathSeparator}config.json');
+    final http.Response res;
+    try {
+      res = await _http
+          .get(
+            uri,
+            headers: {
+              'Authorization': 'Bearer $token',
+              ...ApiClient.deviceHeaders,
+            },
+          )
+          .timeout(const Duration(seconds: 20));
+    } catch (e) {
+      if (!isUnreachable(e)) rethrow;
+      if (last.existsSync()) {
+        await last.copy(config.path);
+        return config;
+      }
+      throw StateError(
+        'Could not reach the server to get the VPN config. '
+        'Check your internet or try another network, then press Connect again.',
+      );
+    }
     if (res.statusCode != 200) {
       if (res.statusCode == 403 && res.body.contains('device_revoked')) {
         throw StateError(
@@ -376,9 +425,9 @@ class SingboxEngine implements TunnelEngine {
       if (changed) body = jsonEncode(json);
     }
 
-    final f = File('${dir.path}${Platform.pathSeparator}config.json');
-    await f.writeAsString(body, flush: true);
-    return f;
+    await config.writeAsString(body, flush: true);
+    await last.writeAsString(body, flush: true);
+    return config;
   }
 
   // ---- readiness + logs --------------------------------------------
@@ -410,7 +459,11 @@ class SingboxEngine implements TunnelEngine {
   }
 
   Future<void> _waitUntilUp() async {
-    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    // Windows: the first Wintun adapter, or an antivirus (Huorong, 360)
+    // checking it, can take well over 30 s.
+    final deadline = DateTime.now().add(
+      Duration(seconds: Platform.isWindows ? 60 : 30),
+    );
     while (DateTime.now().isBefore(deadline)) {
       if (_proc == null) {
         // The exit can arrive before the last stderr lines: let them land so

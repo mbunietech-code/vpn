@@ -146,6 +146,10 @@ class AndroidHiddifyEngine implements TunnelEngine {
     final uri = Uri.parse(
       '$subUrl${sep}format=singbox&platform=android&protocol=$protocol',
     );
+    final file = File('${dirs.configs.path}/mbunie-singbox.json');
+    // The last config that worked for this protocol, for when the server
+    // can't be reached (Cloudflare is often blocked in China).
+    final last = File('${dirs.configs.path}/last-$protocol.json');
     final http.Response res;
     try {
       res = await _http
@@ -157,9 +161,14 @@ class AndroidHiddifyEngine implements TunnelEngine {
             },
           )
           .timeout(const Duration(seconds: 25));
-    } on TimeoutException {
+    } catch (e) {
+      if (!isUnreachable(e)) rethrow;
+      if (last.existsSync()) {
+        await last.copy(file.path);
+        return file;
+      }
       throw StateError(
-        'Could not download the VPN config within 25 seconds '
+        'Could not download the VPN config '
         '(${uri.host} is unreachable from this network).',
       );
     }
@@ -180,11 +189,9 @@ class AndroidHiddifyEngine implements TunnelEngine {
     _normalizeAndroidTunConfig(decoded);
     _normalizeDnsConfig(decoded);
     _normalizeBootstrapDnsRules(decoded);
-    final file = File('${dirs.configs.path}/mbunie-singbox.json');
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(decoded),
-      flush: true,
-    );
+    final json = const JsonEncoder.withIndent('  ').convert(decoded);
+    await file.writeAsString(json, flush: true);
+    await last.writeAsString(json, flush: true);
     return file;
   }
 

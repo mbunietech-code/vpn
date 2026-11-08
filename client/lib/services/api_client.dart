@@ -136,7 +136,9 @@ class ApiClient {
 
   /// Raw subscription bundle from an absolute /sub/{token} URL.
   Future<String> fetchSubscription(String subUrl) async {
-    final res = await _http.get(Uri.parse(subUrl), headers: _headers());
+    final res = await _http
+        .get(Uri.parse(subUrl), headers: _headers())
+        .timeout(const Duration(seconds: 15));
     if (res.statusCode >= 400) {
       throw ApiException(res.statusCode, {'body': res.body});
     }
