@@ -105,9 +105,9 @@ const _map = <String, Map<String, String>>{
     'zh': '畅享完整互联网',
   },
   'plans.sub': {
-    'en': 'High speed · Tokyo server · multiple devices',
-    'sw': 'Kasi ya juu · seva Tokyo · vifaa vingi',
-    'zh': '高速 · 东京服务器 · 多设备',
+    'en': 'High speed · no traffic logs · multiple devices',
+    'sw': 'Kasi ya juu · hakuna kumbukumbu za matumizi · vifaa vingi',
+    'zh': '高速 · 无流量日志 · 多设备',
   },
   'plans.processing': {
     'en': 'Your payment is being processed…',

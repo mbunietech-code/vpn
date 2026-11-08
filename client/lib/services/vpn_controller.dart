@@ -349,11 +349,12 @@ class VpnController extends ChangeNotifier {
     super.dispose();
   }
 
+  // Shown until the account's server list loads; matches the live server.
   List<VpnNode> _seedNodes() => const [
     VpnNode(
-      id: 'tk1',
-      name: 'Tokyo',
-      code: 'JP-TK-01',
+      id: 'kl1',
+      name: 'Kuala Lumpur 1',
+      code: 'MY-KL-01',
       region: 'Asia-Pacific',
       latencyMs: 0,
       optimizedFor: 'China',
