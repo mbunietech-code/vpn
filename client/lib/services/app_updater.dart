@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import '../config.dart';
+import 'relay.dart';
 
 /// Downloads and installs a newer app version without a trip to the browser.
 ///
@@ -59,7 +60,7 @@ class AppUpdater extends ChangeNotifier {
     error = null;
     progress = 0;
     notifyListeners();
-    final client = http.Client();
+    final client = Relay.client();
     try {
       final dir = await _dir();
       final name = Platform.isWindows
@@ -69,9 +70,19 @@ class AppUpdater extends ChangeNotifier {
       if (!file.existsSync()) {
         // Older downloads are of no use any more.
         await _clear(dir);
-        final res = await client
-            .send(http.Request('GET', uri))
-            .timeout(const Duration(seconds: 30));
+        http.StreamedResponse res;
+        try {
+          res = await client
+              .send(http.Request('GET', uri))
+              .timeout(const Duration(seconds: 30));
+        } catch (_) {
+          // Blocked control plane (China): fetch it through the relay.
+          final alt = Relay.alternate(uri);
+          if (alt == null) rethrow;
+          res = await client
+              .send(http.Request('GET', alt))
+              .timeout(const Duration(seconds: 30));
+        }
         if (res.statusCode != 200) {
           throw HttpException('HTTP ${res.statusCode}', uri: uri);
         }

@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../models.dart';
 import '../api_client.dart';
+import '../relay.dart';
 import 'tunnel_engine.dart';
 
 /// Real tunnel for Windows / Linux / macOS.
@@ -37,7 +38,7 @@ class SingboxEngine implements TunnelEngine {
 
   final _reports = StreamController<EngineReport>.broadcast();
   final _traffic = StreamController<EngineTraffic>.broadcast();
-  final _http = http.Client();
+  final _http = Relay.client();
 
   Process? _proc;
   Timer? _poll;
@@ -372,15 +373,11 @@ class SingboxEngine implements TunnelEngine {
     final config = File('${dir.path}${Platform.pathSeparator}config.json');
     final http.Response res;
     try {
-      res = await _http
-          .get(
-            uri,
-            headers: {
-              'Authorization': 'Bearer $token',
-              ...ApiClient.deviceHeaders,
-            },
-          )
-          .timeout(const Duration(seconds: 20));
+      res = await Relay.get(
+        _http,
+        uri,
+        headers: {'Authorization': 'Bearer $token', ...ApiClient.deviceHeaders},
+      );
     } catch (e) {
       if (!isUnreachable(e)) rethrow;
       if (last.existsSync()) {

@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../models.dart';
 import '../api_client.dart';
+import '../relay.dart';
 import 'tunnel_engine.dart';
 
 class AndroidHiddifyEngine implements TunnelEngine {
@@ -34,7 +35,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
 
   final _reports = StreamController<EngineReport>.broadcast();
   final _traffic = StreamController<EngineTraffic>.broadcast();
-  final _http = http.Client();
+  final _http = Relay.client();
 
   StreamSubscription? _statusSub;
   StreamSubscription? _alertsSub;
@@ -152,15 +153,15 @@ class AndroidHiddifyEngine implements TunnelEngine {
     final last = File('${dirs.configs.path}/last-$protocol.json');
     final http.Response res;
     try {
-      res = await _http
-          .get(
-            uri,
-            headers: {
-              if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-              ...ApiClient.deviceHeaders,
-            },
-          )
-          .timeout(const Duration(seconds: 25));
+      res = await Relay.get(
+        _http,
+        uri,
+        headers: {
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+          ...ApiClient.deviceHeaders,
+        },
+        timeout: const Duration(seconds: 25),
+      );
     } catch (e) {
       if (!isUnreachable(e)) rethrow;
       if (last.existsSync()) {

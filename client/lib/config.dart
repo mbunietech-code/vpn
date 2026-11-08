@@ -1,5 +1,9 @@
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
+
+import 'services/relay.dart';
+
 /// Control-plane configuration.
 ///
 /// Override at build time:
@@ -29,7 +33,9 @@ class MvpnConfig {
       // Debug builds still default to prod so a sideloaded APK "just works";
       // point at local with --dart-define when developing against WAMP.
       list.add(_prod);
-      list.add(local);
+      // The Kuala Lumpur relay, for when Cloudflare is blocked (China).
+      list.add(Relay.base);
+      if (kDebugMode) list.add(local);
     }
 
     for (final f in _fallbacks.split(',')) {
@@ -40,7 +46,7 @@ class MvpnConfig {
   }
 
   /// Keep in sync with pubspec.yaml `version` (reported in device heartbeats).
-  static const appVersion = '1.0.22';
+  static const appVersion = '1.0.23';
 
   /// Google Play build (`--dart-define=MVPN_PLAY=true`): Play's payments
   /// policy forbids selling the service with our own checkout, so this build
