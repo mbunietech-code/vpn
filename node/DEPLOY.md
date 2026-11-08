@@ -87,3 +87,17 @@ network, then repeat from inside China for the 24–72 h field test.
   every subscription and agent health won't flip it back to `online`.
 - **Agent can't apply a config:** it keeps the last good one and raises a
   `node.sync` alert with the engine's error text.
+
+## Control-plane relay (KL1 only)
+
+vpn.mbuniehub.com sits behind Cloudflare, which China often blocks. KL1 runs a
+second address for it that the app (1.0.23+) tries next: the `mvpn-api-relay`
+container (`caddy:2`, restart unless-stopped) on TCP 2096, forwarding every
+request to https://vpn.mbuniehub.com. It is separate from the LiveKit stack.
+
+- Config and certificate: `/etc/mvpn/relay/` (`Caddyfile`, `relay.crt`, `relay.key`).
+- The certificate is self-signed (IP SAN 187.52.115.154, 10 years) and pinned in
+  `client/lib/services/relay.dart`. Replacing it means shipping a new app with
+  the new pin first.
+- Check: `curl -sk https://187.52.115.154:2096/api/plans`.
+- Customers on the relay share KL1's IP for rate limits (OTP 10/min).
