@@ -85,7 +85,10 @@ class AlertsTable
                     'node.sync' => 'Peer sync',
                     'webhook' => 'Payment',
                 ]),
-                SelectFilter::make('node')->relationship('node', 'name'),
+                // Plain options on node_id: the relationship() version crashed the page (500).
+                SelectFilter::make('node_id')
+                    ->label('Node')
+                    ->options(fn () => \App\Models\Node::query()->orderBy('name')->pluck('name', 'id')->all()),
             ])
             ->recordActions([
                 Action::make('ack')
