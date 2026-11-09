@@ -154,3 +154,37 @@ a.fi-wi-stats-overview-stat.mvpn-stat:hover {
     :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { min-width: 7rem; }
     .fi-ta-cell .fi-ta-text-description { font-size: .72rem; }
 }
+
+/* ---------- Settings & Keys: a tab per area ---------- */
+
+.mvpn-settings-tabs { border-radius: 1rem; box-shadow: var(--mvpn-card-shadow); }
+.mvpn-settings-tabs > .fi-tabs {
+    position: sticky;
+    top: 4rem;
+    z-index: 10;
+    gap: .25rem;
+    padding: .4rem;
+    border-radius: 1rem 1rem 0 0;
+    background: #fff;
+    border-bottom: 1px solid rgba(10, 29, 46, .08);
+    overflow-x: auto;
+}
+.dark .mvpn-settings-tabs > .fi-tabs { background: var(--mvpn-navy-2); border-color: rgba(255, 255, 255, .08); }
+.mvpn-settings-tabs .fi-tabs-item { border-radius: .7rem; padding: .55rem .9rem; font-weight: 600; white-space: nowrap; }
+.mvpn-settings-tabs .fi-tabs-item:hover { background: rgba(37, 99, 235, .06); }
+.mvpn-settings-tabs .fi-tabs-item.fi-active {
+    background: linear-gradient(90deg, rgba(37, 99, 235, .12), rgba(45, 212, 191, .12));
+    box-shadow: inset 0 -2px 0 var(--mvpn-blue);
+}
+.mvpn-settings-tabs .fi-sc-tabs-tab { padding: 1.25rem; }
+.mvpn-settings-tabs .fi-sc-tabs-tab > .fi-sc > * + * { margin-top: 1.25rem; }
+.mvpn-settings-tabs .fi-section { box-shadow: none; border: 1px solid rgba(10, 29, 46, .08); }
+.dark .mvpn-settings-tabs .fi-section { border-color: rgba(255, 255, 255, .08); }
+.mvpn-settings-tabs .fi-section-header-heading { font-size: 1rem; }
+.mvpn-settings-tabs .fi-fo-field-label-content { font-weight: 600; }
+.mvpn-settings-tabs .fi-fo-field-wrp-hint { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; }
+
+@media (max-width: 640px) {
+    .mvpn-settings-tabs .fi-sc-tabs-tab { padding: .85rem; }
+    .mvpn-settings-tabs .fi-tabs-item { padding: .5rem .7rem; }
+}
