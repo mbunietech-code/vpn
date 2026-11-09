@@ -12,8 +12,8 @@ use Illuminate\Support\ServiceProvider;
  */
 class SettingsServiceProvider extends ServiceProvider
 {
-    /** setting key => config path(s) */
-    private const MAP = [
+    /** setting key => config path(s). Public: the Settings page reads the .env values through it. */
+    public const MAP = [
         // --- email ---
         'mail_driver' => 'mail.default',
         'mail_host' => 'mail.mailers.smtp.host',

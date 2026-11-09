@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Settings\Pages;
 use App\Filament\Resources\Settings\SettingResource;
 use App\Models\AuditLog;
 use App\Models\Setting;
+use App\Providers\SettingsServiceProvider;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -119,6 +120,11 @@ class ManageSettings extends Page
                 }
             } else {
                 $value = blank($value) ? null : (string) $value;
+                // The field shows the .env value when nothing is saved here:
+                // leaving it as it is must not copy it into the database.
+                if (! self::isSaved($setting) && $value !== null && $value === self::envValue($setting)) {
+                    continue;
+                }
             }
 
             if ($value === $setting->value) {
@@ -181,7 +187,8 @@ class ManageSettings extends Page
     /** @return list<\Filament\Schemas\Components\Component|\Filament\Forms\Components\Field> */
     private function fields(Setting $s): array
     {
-        $configured = self::isSet($s);
+        $configured = self::isSaved($s);
+        $fromEnv = ! $configured && filled(self::envValue($s));
 
         $input = TextInput::make(self::field($s->key))
             ->label(Str::of($s->label)->before(' (')->toString())
@@ -195,13 +202,15 @@ class ManageSettings extends Page
 
         if ($s->is_secret) {
             $input->password()->revealable()
-                ->placeholder($configured ? '•••••••• saved' : 'Not set')
+                ->placeholder($configured ? '•••••••• saved here' : ($fromEnv ? '•••••••• set in the server .env' : 'Not set'))
                 ->helperText($configured
                     ? 'Saved and encrypted. Type a new value to replace it, or leave empty to keep it.'
-                    : ($tip ? ucfirst($tip).'. ' : '').'Stored encrypted. Empty = use the .env value.');
+                    : ($fromEnv
+                        ? 'Set in the server .env file (not shown). Type a new value here to replace it.'
+                        : ($tip ? ucfirst($tip).'. ' : '').'Stored encrypted.'));
         } else {
-            $input->placeholder('Not set (uses the .env value)')
-                ->helperText($tip ? ucfirst($tip) : null);
+            $input->placeholder('Not set')
+                ->helperText(trim(($tip ? ucfirst($tip).'. ' : '').($fromEnv ? 'From the server .env file. Change it here to override it.' : '')) ?: null);
         }
 
         if (in_array($s->key, ['mail_from_address', 'mail_username'], true)) {
@@ -242,7 +251,8 @@ class ManageSettings extends Page
     {
         $state = [];
         foreach ($this->settings() as $s) {
-            $state[self::field($s->key)] = $s->is_secret ? null : $s->value;
+            // Plain settings show what is in use: the saved value, else the .env one.
+            $state[self::field($s->key)] = $s->is_secret ? null : (self::isSaved($s) ? $s->value : self::envValue($s));
             if ($s->is_secret) {
                 $state[self::clearField($s->key)] = false;
             }
@@ -257,9 +267,35 @@ class ManageSettings extends Page
         return Setting::query()->orderBy('sort')->get();
     }
 
+    /** Set here or in the server .env: the setting is in use either way. */
     private static function isSet(Setting $s): bool
     {
+        return self::isSaved($s) || filled(self::envValue($s));
+    }
+
+    /** Saved on this page (in the database). */
+    private static function isSaved(Setting $s): bool
+    {
         return filled($s->getRawOriginal('value'));
+    }
+
+    /**
+     * The value the server .env gives this setting. Only meaningful while
+     * nothing is saved here (a saved value overrides config at boot).
+     */
+    private static function envValue(Setting $s): ?string
+    {
+        $paths = (array) (SettingsServiceProvider::MAP[$s->key] ?? []);
+        if ($paths === []) {
+            return null;
+        }
+
+        $value = config($paths[0]);
+        if (is_array($value)) {
+            $value = implode(', ', array_filter($value, 'is_scalar'));
+        }
+
+        return is_scalar($value) && (string) $value !== '' ? (string) $value : null;
     }
 
     private static function field(string $key): string

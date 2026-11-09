@@ -48,7 +48,7 @@ class ManageSettingsTest extends TestCase
                 'v_mail_username' => 'noreply@mbuniehub.com',
                 'v_mail_password' => 'new-mailbox-password',
                 'v_mail_from_address' => 'noreply@mbuniehub.com',
-                'v_mail_from_name' => 'Mbunie VPN',
+                'v_mail_from_name' => 'Mbunie VPN Login',
             ])
             ->call('save')
             ->assertHasNoFormErrors();
@@ -56,7 +56,7 @@ class ManageSettingsTest extends TestCase
         $this->assertSame('smtp.hostinger.com', Setting::value('mail_host'));
         $this->assertSame('465', Setting::value('mail_port'));
         $this->assertSame('new-mailbox-password', Setting::value('mail_password'));
-        $this->assertSame('Mbunie VPN', Setting::value('mail_from_name'));
+        $this->assertSame('Mbunie VPN Login', Setting::value('mail_from_name'));
         $this->assertSame(6, AuditLog::where('action', 'setting.updated')->count());
     }
 
@@ -71,6 +71,30 @@ class ManageSettingsTest extends TestCase
             ->call('save');
 
         $this->assertSame('keep-me', Setting::value('mail_password'));
+    }
+
+    public function test_values_from_the_server_env_are_shown_but_not_copied_on_save(): void
+    {
+        config([
+            'mail.mailers.smtp.host' => 'smtp.hostinger.com',
+            'mail.mailers.smtp.username' => 'noreply@mbuniehub.com',
+            'mail.mailers.smtp.password' => 'env-secret',
+        ]);
+
+        Livewire::test(ManageSettings::class)
+            ->assertFormSet([
+                'v_mail_host' => 'smtp.hostinger.com',
+                'v_mail_username' => 'noreply@mbuniehub.com',
+                'v_mail_password' => null,
+            ])
+            ->assertDontSee('env-secret')
+            ->assertSee('set in the server .env')
+            ->call('save');
+
+        // Untouched .env values stay in .env, not copied into the database.
+        $this->assertNull(Setting::value('mail_host'));
+        $this->assertNull(Setting::value('mail_username'));
+        $this->assertNull(Setting::value('mail_password'));
     }
 
     public function test_a_saved_secret_can_be_removed(): void
