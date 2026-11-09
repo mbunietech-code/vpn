@@ -21,7 +21,7 @@ class ListSubscriptions extends ListRecords
 
     public function getTabs(): array
     {
-        $expiring = fn (Builder $q) => $q->where('status', 'active')
+        $expiring = fn (Builder $query) => $query->where('status', 'active')
             ->whereBetween('expires_at', [now(), now()->addDays(7)]);
 
         return [
@@ -29,7 +29,7 @@ class ListSubscriptions extends ListRecords
                 ->icon(Heroicon::OutlinedCheckCircle)
                 ->badge(\App\Models\Subscription::where('status', 'active')->where('expires_at', '>', now())->count() ?: null)
                 ->badgeColor('success')
-                ->modifyQueryUsing(fn (Builder $q) => $q->where('status', 'active')->where('expires_at', '>', now())),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'active')->where('expires_at', '>', now())),
             'expiring' => Tab::make('Ending in 7 days')
                 ->icon(Heroicon::OutlinedClock)
                 ->badge($expiring(\App\Models\Subscription::query())->count() ?: null)
@@ -37,7 +37,7 @@ class ListSubscriptions extends ListRecords
                 ->modifyQueryUsing($expiring),
             'ended' => Tab::make('Expired / suspended')
                 ->icon(Heroicon::OutlinedPauseCircle)
-                ->modifyQueryUsing(fn (Builder $q) => $q->where(fn ($w) => $w->whereIn('status', ['expired', 'suspended'])
+                ->modifyQueryUsing(fn (Builder $query) => $query->where(fn ($w) => $w->whereIn('status', ['expired', 'suspended'])
                     ->orWhere(fn ($x) => $x->where('status', 'active')->where('expires_at', '<=', now())))),
             'all' => Tab::make('All')->icon(Heroicon::OutlinedListBullet),
         ];

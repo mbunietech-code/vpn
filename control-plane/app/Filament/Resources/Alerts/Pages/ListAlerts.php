@@ -34,15 +34,15 @@ class ListAlerts extends ListRecords
                 ->icon(Heroicon::OutlinedBellAlert)
                 ->badge($open ?: null)
                 ->badgeColor($critical ? 'danger' : 'warning')
-                ->modifyQueryUsing(fn (Builder $q) => $q->whereNull('acknowledged_at')),
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereNull('acknowledged_at')),
             'critical' => Tab::make('Critical')
                 ->icon(Heroicon::OutlinedExclamationTriangle)
                 ->badge($critical ?: null)
                 ->badgeColor('danger')
-                ->modifyQueryUsing(fn (Builder $q) => $q->whereNull('acknowledged_at')->where('severity', 'critical')),
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereNull('acknowledged_at')->where('severity', 'critical')),
             'resolved' => Tab::make('Resolved')
                 ->icon(Heroicon::OutlinedCheckCircle)
-                ->modifyQueryUsing(fn (Builder $q) => $q->whereNotNull('acknowledged_at')),
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereNotNull('acknowledged_at')),
             'all' => Tab::make('All')
                 ->icon(Heroicon::OutlinedListBullet),
         ];

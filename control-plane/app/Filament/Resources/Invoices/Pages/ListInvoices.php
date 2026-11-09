@@ -25,16 +25,16 @@ class ListInvoices extends ListRecords
                 ->icon(Heroicon::OutlinedEye)
                 ->badge($review ?: null)
                 ->badgeColor('warning')
-                ->modifyQueryUsing(fn (Builder $q) => $q->where('status', 'pending_review')),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'pending_review')),
             'paid' => Tab::make('Paid')
                 ->icon(Heroicon::OutlinedCheckCircle)
-                ->modifyQueryUsing(fn (Builder $q) => $q->where('status', 'paid')),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'paid')),
             'pending' => Tab::make('Not paid yet')
                 ->icon(Heroicon::OutlinedClock)
-                ->modifyQueryUsing(fn (Builder $q) => $q->where('status', 'pending')),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'pending')),
             'failed' => Tab::make('Failed / refunded')
                 ->icon(Heroicon::OutlinedXCircle)
-                ->modifyQueryUsing(fn (Builder $q) => $q->whereIn('status', ['failed', 'refunded'])),
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereIn('status', ['failed', 'refunded'])),
             'all' => Tab::make('All')->icon(Heroicon::OutlinedListBullet),
         ];
     }
