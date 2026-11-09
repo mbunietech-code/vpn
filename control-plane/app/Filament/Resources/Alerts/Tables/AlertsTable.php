@@ -57,6 +57,7 @@ class AlertsTable
                         'node.health' => 'Node health',
                         'node.sync' => 'Peer sync',
                         'webhook' => 'Payment',
+                        'node.security' => 'Server security',
                         default => $state,
                     })
                     ->visibleFrom('lg'),
@@ -84,6 +85,7 @@ class AlertsTable
                     'node.health' => 'Node health',
                     'node.sync' => 'Peer sync',
                     'webhook' => 'Payment',
+                    'node.security' => 'Server security',
                 ]),
                 // Plain options on node_id: the relationship() version crashed the page (500).
                 SelectFilter::make('node_id')

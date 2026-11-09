@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Alert;
 use App\Models\Node;
 use App\Services\AlertAnalyzer;
 use App\Models\Peer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Node-agent facing API. The agent authenticates with its per-node bearer
@@ -180,5 +182,46 @@ class NodeController extends Controller
         }
 
         return response()->json(['status' => 'ok', 'peer_version' => $node->peer_version]);
+    }
+
+    /**
+     * The server's own security check (node/security/mbunie-security-check.sh)
+     * reports what it found. Each problem becomes an alert (emailed / sent to
+     * Telegram once while it stays open); problems no longer reported are
+     * resolved, so they alert again if they come back.
+     */
+    public function security(Request $request): JsonResponse
+    {
+        $node = $this->node($request);
+        if (! $node) {
+            return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $data = $request->validate([
+            'findings' => ['present', 'array', 'max:60'],
+            'findings.*.level' => ['required', 'in:critical,warn,info'],
+            'findings.*.title' => ['required', 'string', 'max:200'],
+            'findings.*.detail' => ['nullable', 'string', 'max:2000'],
+            'host' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $alerts = app(AlertAnalyzer::class);
+        $open = [];
+        foreach ($data['findings'] as $f) {
+            if ($f['level'] === 'info') {
+                continue;
+            }
+            $title = Str::limit("{$node->name}: {$f['title']}", 250, '');
+            $open[] = $title;
+            $alerts->raise($f['level'] === 'critical' ? 'critical' : 'warn', 'node.security', $title, $f['detail'] ?? null, $node);
+        }
+
+        $resolved = Alert::open()
+            ->where('source', 'node.security')
+            ->where('node_id', $node->id)
+            ->whereNotIn('title', $open)
+            ->update(['acknowledged_at' => now(), 'acknowledged_by' => 'node:security-check']);
+
+        return response()->json(['status' => 'ok', 'open' => count($open), 'resolved' => $resolved]);
     }
 }
