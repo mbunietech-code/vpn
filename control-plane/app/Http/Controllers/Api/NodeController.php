@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Alert;
 use App\Models\Node;
+use App\Services\AlertAnalyzer;
 use App\Models\Peer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -163,26 +163,20 @@ class NodeController extends Controller
                 ->update(['bytes_down' => DB::raw('bytes_down + ' . (int) $bytes)]);
         }
 
+        // Through the analyzer, so the admins are emailed / sent a Telegram message.
+        $alerts = app(AlertAnalyzer::class);
+
         if ($enginesDown->isNotEmpty()) {
-            Alert::firstOrCreate(
-                [
-                    'source' => 'node.health',
-                    'title' => "Engine down on {$node->name}: " . $enginesDown->implode(', '),
-                    'acknowledged_at' => null,
-                ],
-                ['severity' => 'critical', 'node_id' => $node->id, 'context' => $engines]
-            );
+            $alerts->raise('critical', 'node.health',
+                "Engine down on {$node->name}: ".$enginesDown->implode(', '),
+                'The node reported these engines as down. Customers on it may not connect.',
+                $node, (array) $engines);
         }
 
         if (! empty($data['last_error'])) {
-            Alert::firstOrCreate(
-                [
-                    'source' => 'node.sync',
-                    'title' => "Agent on {$node->name} cannot apply peers",
-                    'acknowledged_at' => null,
-                ],
-                ['severity' => 'critical', 'node_id' => $node->id, 'body' => $data['last_error']]
-            );
+            $alerts->raise('critical', 'node.sync',
+                "Agent on {$node->name} cannot apply peers",
+                (string) $data['last_error'], $node);
         }
 
         return response()->json(['status' => 'ok', 'peer_version' => $node->peer_version]);

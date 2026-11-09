@@ -188,3 +188,26 @@ a.fi-wi-stats-overview-stat.mvpn-stat:hover {
     .mvpn-settings-tabs .fi-sc-tabs-tab { padding: .85rem; }
     .mvpn-settings-tabs .fi-tabs-item { padding: .5rem .7rem; }
 }
+
+/* ---------- Alerts: a coloured edge per severity ---------- */
+
+.fi-ta-row.mvpn-alert > .fi-ta-cell:first-child { box-shadow: inset 4px 0 0 var(--mvpn-alert-edge, transparent); }
+.fi-ta-row.mvpn-alert-critical { --mvpn-alert-edge: #dc2626; background: rgba(220, 38, 38, .035); }
+.fi-ta-row.mvpn-alert-warn { --mvpn-alert-edge: #d97706; }
+.fi-ta-row.mvpn-alert-info { --mvpn-alert-edge: #2563eb; }
+.fi-ta-row.mvpn-alert-resolved { --mvpn-alert-edge: #94a3b8; }
+.fi-ta-row.mvpn-alert-resolved .fi-ta-text-item-label { color: #64748b; }
+.dark .fi-ta-row.mvpn-alert-critical { background: rgba(248, 113, 113, .07); }
+.fi-ta-row.mvpn-alert .fi-ta-text-description { line-height: 1.35; margin-top: .15rem; }
+.fi-ta-row.mvpn-alert .fi-ta-icon { width: 1.4rem; height: 1.4rem; }
+
+/* Tabs above tables (Alerts: Open / Critical / Resolved / All) */
+.fi-resource-list-records-page .fi-tabs {
+    border-radius: .9rem;
+    padding: .3rem;
+    box-shadow: var(--mvpn-card-shadow);
+}
+.fi-resource-list-records-page .fi-tabs-item { border-radius: .6rem; font-weight: 600; }
+.fi-resource-list-records-page .fi-tabs-item.fi-active {
+    background: linear-gradient(90deg, rgba(37, 99, 235, .12), rgba(45, 212, 191, .12));
+}
