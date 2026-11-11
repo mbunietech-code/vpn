@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../models.dart';
 import '../api_client.dart';
 import '../relay.dart';
+import 'clash_traffic.dart';
 import 'rule_sets.dart';
 import 'tunnel_engine.dart';
 
@@ -37,16 +38,14 @@ class AndroidHiddifyEngine implements TunnelEngine {
   final _reports = StreamController<EngineReport>.broadcast();
   final _traffic = StreamController<EngineTraffic>.broadcast();
   final _http = Relay.client();
+  late final _poller = ClashTraffic(_http, _traffic);
 
   StreamSubscription? _statusSub;
   StreamSubscription? _alertsSub;
-  Timer? _tick;
   Timer? _watchdog;
   bool _started = false;
   bool _setupDone = false;
   bool _stopping = false; // stop() asked for the next "Stopped"
-  int _up = 0;
-  int _down = 0;
 
   @override
   bool get isReal => true;
@@ -102,8 +101,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
   @override
   Future<void> stop() async {
     _watchdog?.cancel();
-    _tick?.cancel();
-    _tick = null;
+    _poller.stop();
     _stopping = true;
     await _method.invokeMethod('stop');
     _reports.add(const EngineReport(EngineStatus.down));
@@ -350,11 +348,11 @@ class AndroidHiddifyEngine implements TunnelEngine {
             _started = true;
             _watchdog?.cancel();
             _reports.add(const EngineReport(EngineStatus.up));
-            _startTrafficTicker();
+            _poller.start();
           case 'Stopping':
-            _tick?.cancel();
+            _poller.stop();
           case 'Stopped':
-            _tick?.cancel();
+            _poller.stop();
             // Failures arrive on the alerts channel; a plain stop we did
             // not ask for was the user's choice.
             final ours = _stopping;
@@ -382,26 +380,10 @@ class AndroidHiddifyEngine implements TunnelEngine {
     });
   }
 
-  void _startTrafficTicker() {
-    _tick?.cancel();
-    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      _up += 512;
-      _down += 2048;
-      _traffic.add(
-        EngineTraffic(
-          upBytes: _up,
-          downBytes: _down,
-          upBps: 512,
-          downBps: 2048,
-        ),
-      );
-    });
-  }
-
   @override
   void dispose() {
     _watchdog?.cancel();
-    _tick?.cancel();
+    _poller.stop();
     _statusSub?.cancel();
     _alertsSub?.cancel();
     _http.close();

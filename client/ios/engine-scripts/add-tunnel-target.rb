@@ -48,7 +48,7 @@ ext.build_configurations.each do |c|
   s['CODE_SIGN_STYLE'] = 'Automatic'
   s['LD_RUNPATH_SEARCH_PATHS'] = ['$(inherited)', '@executable_path/Frameworks', '@executable_path/../../Frameworks']
 end
-# The extension's version follows the app's (pubspec: 1.0.24+25).
+# The extension's version follows the app's (pubspec version).
 ext.build_configurations.each { |c| c.base_configuration_reference = xcconfig }
 runner.build_configurations.each do |rc|
   rc.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'Runner/Runner.entitlements'

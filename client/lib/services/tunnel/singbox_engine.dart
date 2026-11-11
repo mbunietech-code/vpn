@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../models.dart';
 import '../api_client.dart';
 import '../relay.dart';
+import 'clash_traffic.dart';
 import 'rule_sets.dart';
 import 'tunnel_engine.dart';
 
@@ -42,9 +43,7 @@ class SingboxEngine implements TunnelEngine {
   final _http = Relay.client();
 
   Process? _proc;
-  Timer? _poll;
-  int _lastUp = 0, _lastDown = 0;
-  DateTime _lastPoll = DateTime.now();
+  late final _poller = ClashTraffic(_http, _traffic);
   final _errBuf = <String>[];
   bool _up = false;
   int? _exitCode; // last engine exit code, for the start-up error
@@ -490,55 +489,11 @@ class SingboxEngine implements TunnelEngine {
     throw StateError(_diagnose(-2));
   }
 
-  // ---- traffic polling -------------------------------------------
+  // ---- traffic polling (only while the window is showing) ------------
 
-  void _startPolling() {
-    _lastUp = 0;
-    _lastDown = 0;
-    _lastPoll = DateTime.now();
-    _poll = Timer.periodic(const Duration(seconds: 1), (_) => _pollTraffic());
-  }
+  void _startPolling() => _poller.start();
 
-  void _stopPolling() {
-    _poll?.cancel();
-    _poll = null;
-  }
-
-  Future<void> _pollTraffic() async {
-    try {
-      final r = await _http
-          .get(Uri.parse('$_clashApi/connections'))
-          .timeout(const Duration(seconds: 3));
-      if (r.statusCode != 200) return;
-      final j = jsonDecode(r.body) as Map<String, dynamic>;
-      final up = (j['uploadTotal'] as num?)?.toInt() ?? 0;
-      final down = (j['downloadTotal'] as num?)?.toInt() ?? 0;
-
-      final now = DateTime.now();
-      final dt = now.difference(_lastPoll).inMilliseconds / 1000.0;
-      final upBps = dt > 0
-          ? ((up - _lastUp) / dt).round().clamp(0, 1 << 34)
-          : 0;
-      final downBps = dt > 0
-          ? ((down - _lastDown) / dt).round().clamp(0, 1 << 34)
-          : 0;
-
-      _lastUp = up;
-      _lastDown = down;
-      _lastPoll = now;
-
-      _traffic.add(
-        EngineTraffic(
-          upBytes: up,
-          downBytes: down,
-          upBps: upBps,
-          downBps: downBps,
-        ),
-      );
-    } catch (_) {
-      /* transient */
-    }
-  }
+  void _stopPolling() => _poller.stop();
 
   // ---- diagnostics --------------------------------------------
 

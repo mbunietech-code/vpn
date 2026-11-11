@@ -10,6 +10,10 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    // Closing only hides the window (DesktopTray); keep it so the menu bar
+    // icon and the Dock icon can always bring it back.
+    self.isReleasedWhenClosed = false
+
     super.awakeFromNib()
   }
 }
