@@ -20,7 +20,7 @@ String friendlyErrorKey(String? raw) {
   if (any(['mac password', 'enter your mac password'])) {
     return 'vpn.err.macPassword';
   }
-  if (any(['android vpn request', 'did not start within'])) {
+  if (any(['android vpn request', 'iphone vpn request', 'did not start within'])) {
     return 'vpn.err.permission';
   }
   if (any(['reinstall'])) return 'vpn.err.reinstall';

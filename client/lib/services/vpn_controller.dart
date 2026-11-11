@@ -8,20 +8,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models.dart';
 import 'friendly_error.dart';
 import 'tunnel/android_hiddify_engine.dart';
+import 'tunnel/ios_engine.dart';
 import 'tunnel/simulated_engine.dart';
 import 'tunnel/singbox_engine.dart';
 import 'tunnel/tunnel_engine.dart';
 
 /// Connection state + live stats, backed by a [TunnelEngine].
 ///
-/// Android uses the embedded Hiddify mobile core; desktop uses the
-/// standalone sing-box process; unsupported platforms fall back to demo mode.
+/// Android uses the embedded Hiddify mobile core; iPhone runs libbox in a
+/// Network Extension; desktop uses the standalone sing-box process;
+/// unsupported platforms fall back to demo mode.
 class VpnController extends ChangeNotifier {
   VpnController({TunnelEngine? engine})
     : _engine =
           engine ??
           (Platform.isAndroid
               ? AndroidHiddifyEngine()
+              : IosEngine.supported
+              ? IosEngine()
               : SingboxEngine.supported
               ? SingboxEngine()
               : SimulatedEngine()) {
@@ -391,6 +395,12 @@ class VpnController extends ChangeNotifier {
           .timeout(const Duration(seconds: 9));
       if (res.statusCode != 200) fail = 'HTTP ${res.statusCode} ${res.body}';
     } catch (e) {
+      // iPhone: sing-box runs in the Network Extension; if the app cannot
+      // reach its Clash API at all, skip the check rather than warn falsely.
+      if (Platform.isIOS && e is SocketException) {
+        _probeTimer = null;
+        return;
+      }
       fail = '$e';
     }
     if (_status != VpnStatus.connected) return;

@@ -136,6 +136,10 @@ void main() {
         'vpn.err.deviceRemoved',
       );
       expect(friendlyErrorKey('vpn.noSub'), 'vpn.noSub');
+      expect(
+        friendlyErrorKey('iPhone VPN request failed: permission denied'),
+        'vpn.err.permission',
+      );
     });
   });
 }
