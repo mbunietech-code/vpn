@@ -14,6 +14,7 @@ import '../config.dart';
 import 'api_client.dart';
 import 'app_updater.dart';
 import 'sub_parser.dart';
+import 'tunnel/clash_traffic.dart';
 import 'vpn_controller.dart';
 
 /// [offline]: signed in, but the server could not be reached and no saved
@@ -397,6 +398,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Live traffic only while the app is on screen (saves CPU and battery).
+    // Phones; on desktop DesktopTray follows the window (hiding it to the
+    // tray also reports "inactive", which would read as on screen).
+    if (Platform.isAndroid || Platform.isIOS) {
+      ClashTraffic.visible.value =
+          state == AppLifecycleState.resumed || state == AppLifecycleState.inactive;
+    }
     if (state == AppLifecycleState.resumed) {
       unawaited(checkForUpdate());
       updater.onResume();

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../../models.dart';
 import '../api_client.dart';
 import '../relay.dart';
+import 'clash_traffic.dart';
 import 'rule_sets.dart';
 import 'tunnel_engine.dart';
 
@@ -26,19 +27,16 @@ class IosEngine implements TunnelEngine {
 
   static const _method = MethodChannel('com.mbunie.mvpn/vpn');
   static const _status = EventChannel('com.mbunie.mvpn/vpn.status');
-  static const _clashApi = 'http://127.0.0.1:9095';
 
   final _reports = StreamController<EngineReport>.broadcast();
   final _traffic = StreamController<EngineTraffic>.broadcast();
   final _http = Relay.client();
 
+  late final _poller = ClashTraffic(_http, _traffic);
+
   StreamSubscription? _statusSub;
-  Timer? _poll;
   Timer? _watchdog;
   bool _started = false;
-  int _lastUp = 0;
-  int _lastDown = 0;
-  DateTime _lastPoll = DateTime.now();
 
   @override
   bool get isReal => true;
@@ -200,49 +198,11 @@ class IosEngine implements TunnelEngine {
     );
   }
 
-  // ---- traffic, from the extension's Clash API -------------------------
+  // ---- traffic, from the extension's Clash API (while on screen) -------
 
-  void _startPolling() {
-    _stopPolling();
-    _lastUp = 0;
-    _lastDown = 0;
-    _lastPoll = DateTime.now();
-    _poll = Timer.periodic(const Duration(seconds: 1), (_) => _pollTraffic());
-  }
+  void _startPolling() => _poller.start();
 
-  void _stopPolling() {
-    _poll?.cancel();
-    _poll = null;
-  }
-
-  Future<void> _pollTraffic() async {
-    try {
-      final r = await _http
-          .get(Uri.parse('$_clashApi/connections'))
-          .timeout(const Duration(seconds: 3));
-      if (r.statusCode != 200) return;
-      final j = jsonDecode(r.body) as Map<String, dynamic>;
-      final up = (j['uploadTotal'] as num?)?.toInt() ?? 0;
-      final down = (j['downloadTotal'] as num?)?.toInt() ?? 0;
-      final now = DateTime.now();
-      final dt = now.difference(_lastPoll).inMilliseconds / 1000.0;
-      _traffic.add(
-        EngineTraffic(
-          upBytes: up,
-          downBytes: down,
-          upBps: dt > 0 ? ((up - _lastUp) / dt).round().clamp(0, 1 << 34) : 0,
-          downBps: dt > 0
-              ? ((down - _lastDown) / dt).round().clamp(0, 1 << 34)
-              : 0,
-        ),
-      );
-      _lastUp = up;
-      _lastDown = down;
-      _lastPoll = now;
-    } catch (_) {
-      /* transient */
-    }
-  }
+  void _stopPolling() => _poller.stop();
 
   @override
   void dispose() {

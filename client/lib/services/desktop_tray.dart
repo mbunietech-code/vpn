@@ -7,16 +7,19 @@ import 'package:window_manager/window_manager.dart';
 import '../l10n/app_text.dart';
 import '../models.dart';
 import 'app_state.dart';
+import 'tunnel/clash_traffic.dart';
 
-/// Windows: keeps Mbunie VPN in the notification area. Closing the window
-/// only hides it and the VPN keeps running; the tray icon shows whether the
-/// VPN is on, and its menu connects, disconnects or quits.
+/// Windows: keeps Mbunie VPN in the notification area. macOS: an icon in
+/// the menu bar, next to the Dock icon. Closing the window only hides it and
+/// the VPN keeps running; clicking the icon brings the window back, and its
+/// menu (right-click) connects, disconnects, opens or quits. On macOS the
+/// Dock icon also reopens the window (AppDelegate.swift).
 class DesktopTray with TrayListener, WindowListener {
   DesktopTray(this.state);
 
   final AppState state;
 
-  static bool get supported => Platform.isWindows;
+  static bool get supported => Platform.isWindows || Platform.isMacOS;
 
   // The app ships in English only.
   static final _tr = AppText('en');
@@ -49,7 +52,15 @@ class DesktopTray with TrayListener, WindowListener {
       VpnStatus.error || VpnStatus.disconnected => 'home.disconnected',
     });
     try {
-      await trayManager.setIcon(on ? 'assets/tray/on.ico' : 'assets/tray/off.ico');
+      if (Platform.isMacOS) {
+        // Template images: macOS tints them for light and dark menu bars.
+        await trayManager.setIcon(
+          on ? 'assets/tray/mac-on.png' : 'assets/tray/mac-off.png',
+          isTemplate: true,
+        );
+      } else {
+        await trayManager.setIcon(on ? 'assets/tray/on.ico' : 'assets/tray/off.ico');
+      }
       await trayManager.setToolTip('Mbunie VPN · $label');
       await trayManager.setContextMenu(
         Menu(
@@ -75,6 +86,12 @@ class DesktopTray with TrayListener, WindowListener {
     if (await windowManager.isMinimized()) await windowManager.restore();
     await windowManager.show();
     await windowManager.focus();
+    ClashTraffic.visible.value = true;
+  }
+
+  Future<void> _hide() async {
+    await windowManager.hide();
+    ClashTraffic.visible.value = false;
   }
 
   Future<void> _quit() async {
@@ -117,7 +134,17 @@ class DesktopTray with TrayListener, WindowListener {
 
   // ---- window ----------------------------------------------------------
 
-  /// The close button hides the window to the tray; Quit is in the menu.
+  /// The close button hides the window to the tray / menu bar; Quit is in
+  /// the menu (and Cmd+Q on macOS).
   @override
-  void onWindowClose() => unawaited(windowManager.hide());
+  void onWindowClose() => unawaited(_hide());
+
+  @override
+  void onWindowMinimize() => ClashTraffic.visible.value = false;
+
+  @override
+  void onWindowRestore() => ClashTraffic.visible.value = true;
+
+  @override
+  void onWindowFocus() => ClashTraffic.visible.value = true;
 }
