@@ -42,7 +42,9 @@ class DevicesTable
                     }),
                 TextColumn::make('platform')->label('App')->visibleFrom('md')
                     ->badge()->placeholder('—')
-                    ->formatStateUsing(fn ($state, Device $r) => ucfirst((string) $state).($r->app_version ? ' '.$r->app_version : ''))
+                    ->formatStateUsing(fn ($state, Device $r) => match ((string) $state) {
+                        'ios' => 'iOS', 'macos' => 'macOS', 'tvos' => 'tvOS', default => ucfirst((string) $state),
+                    }.($r->app_version ? ' '.$r->app_version : ''))
                     ->description(fn (Device $r) => $r->protocol ? 'protocol '.$r->protocol : null),
                 TextColumn::make('last_error')->visibleFrom('lg')->label('Last error')
                     ->placeholder('—')->color('danger')->wrap()->limit(90)
