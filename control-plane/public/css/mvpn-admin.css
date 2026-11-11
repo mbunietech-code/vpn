@@ -154,3 +154,60 @@ a.fi-wi-stats-overview-stat.mvpn-stat:hover {
     :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { min-width: 7rem; }
     .fi-ta-cell .fi-ta-text-description { font-size: .72rem; }
 }
+
+/* ---------- Settings & Keys: a tab per area ---------- */
+
+.mvpn-settings-tabs { border-radius: 1rem; box-shadow: var(--mvpn-card-shadow); }
+.mvpn-settings-tabs > .fi-tabs {
+    position: sticky;
+    top: 4rem;
+    z-index: 10;
+    gap: .25rem;
+    padding: .4rem;
+    border-radius: 1rem 1rem 0 0;
+    background: #fff;
+    border-bottom: 1px solid rgba(10, 29, 46, .08);
+    overflow-x: auto;
+}
+.dark .mvpn-settings-tabs > .fi-tabs { background: var(--mvpn-navy-2); border-color: rgba(255, 255, 255, .08); }
+.mvpn-settings-tabs .fi-tabs-item { border-radius: .7rem; padding: .55rem .9rem; font-weight: 600; white-space: nowrap; }
+.mvpn-settings-tabs .fi-tabs-item:hover { background: rgba(37, 99, 235, .06); }
+.mvpn-settings-tabs .fi-tabs-item.fi-active {
+    background: linear-gradient(90deg, rgba(37, 99, 235, .12), rgba(45, 212, 191, .12));
+    box-shadow: inset 0 -2px 0 var(--mvpn-blue);
+}
+.mvpn-settings-tabs .fi-sc-tabs-tab { padding: 1.25rem; }
+.mvpn-settings-tabs .fi-sc-tabs-tab > .fi-sc > * + * { margin-top: 1.25rem; }
+.mvpn-settings-tabs .fi-section { box-shadow: none; border: 1px solid rgba(10, 29, 46, .08); }
+.dark .mvpn-settings-tabs .fi-section { border-color: rgba(255, 255, 255, .08); }
+.mvpn-settings-tabs .fi-section-header-heading { font-size: 1rem; }
+.mvpn-settings-tabs .fi-fo-field-label-content { font-weight: 600; }
+.mvpn-settings-tabs .fi-fo-field-wrp-hint { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; }
+
+@media (max-width: 640px) {
+    .mvpn-settings-tabs .fi-sc-tabs-tab { padding: .85rem; }
+    .mvpn-settings-tabs .fi-tabs-item { padding: .5rem .7rem; }
+}
+
+/* ---------- Alerts: a coloured edge per severity ---------- */
+
+.fi-ta-row.mvpn-alert > .fi-ta-cell:first-child { box-shadow: inset 4px 0 0 var(--mvpn-alert-edge, transparent); }
+.fi-ta-row.mvpn-alert-critical { --mvpn-alert-edge: #dc2626; background: rgba(220, 38, 38, .035); }
+.fi-ta-row.mvpn-alert-warn { --mvpn-alert-edge: #d97706; }
+.fi-ta-row.mvpn-alert-info { --mvpn-alert-edge: #2563eb; }
+.fi-ta-row.mvpn-alert-resolved { --mvpn-alert-edge: #94a3b8; }
+.fi-ta-row.mvpn-alert-resolved .fi-ta-text-item-label { color: #64748b; }
+.dark .fi-ta-row.mvpn-alert-critical { background: rgba(248, 113, 113, .07); }
+.fi-ta-row.mvpn-alert .fi-ta-text-description { line-height: 1.35; margin-top: .15rem; }
+.fi-ta-row.mvpn-alert .fi-ta-icon { width: 1.4rem; height: 1.4rem; }
+
+/* Tabs above tables (Alerts: Open / Critical / Resolved / All) */
+.fi-resource-list-records-page .fi-tabs {
+    border-radius: .9rem;
+    padding: .3rem;
+    box-shadow: var(--mvpn-card-shadow);
+}
+.fi-resource-list-records-page .fi-tabs-item { border-radius: .6rem; font-weight: 600; }
+.fi-resource-list-records-page .fi-tabs-item.fi-active {
+    background: linear-gradient(90deg, rgba(37, 99, 235, .12), rgba(45, 212, 191, .12));
+}

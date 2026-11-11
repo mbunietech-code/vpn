@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Mail\AlertMail;
 use App\Models\Alert;
 use App\Models\Node;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * AI anomaly alerting (05-Addendum-MVPN.md §A5.4).
@@ -52,7 +54,11 @@ class AlertAnalyzer
         }
     }
 
-    public function raise(string $severity, string $source, string $title, string $body, ?Node $node = null, array $context = []): Alert
+    /**
+     * The one way to raise an alert: an open alert with the same source and
+     * title is reused (no repeats), a new one is analysed and the admins are told.
+     */
+    public function raise(string $severity, string $source, string $title, ?string $body = null, ?Node $node = null, array $context = []): Alert
     {
         $alert = Alert::firstOrCreate(
             ['source' => $source, 'title' => $title, 'acknowledged_at' => null],
@@ -61,7 +67,11 @@ class AlertAnalyzer
 
         if ($alert->wasRecentlyCreated) {
             $this->enrichWithAi($alert);
-            $this->notify($alert);
+            try {
+                $this->notify($alert->refresh());
+            } catch (\Throwable $e) {
+                report($e); // telling the admins must never break the caller (a node report, a webhook)
+            }
         }
 
         return $alert;
@@ -108,30 +118,69 @@ class AlertAnalyzer
         }
     }
 
-    private function notify(Alert $alert): void
+    /**
+     * Tell the admins: email for warnings and critical alerts (to the
+     * Notifications list, else every admin), Telegram for critical ones when
+     * a bot is set.
+     *
+     * @return array{email: list<string>, failed: list<string>, telegram: bool|null}
+     */
+    public function notify(Alert $alert): array
     {
-        if ($alert->severity !== 'critical') {
-            return;
+        $result = ['email' => [], 'failed' => [], 'telegram' => null];
+
+        if (in_array($alert->severity, ['warn', 'critical'], true)) {
+            foreach (app(PaymentAlerts::class)->recipients() as $to) {
+                try {
+                    app(Mailer::class)->send($to, new AlertMail($alert));
+                    $result['email'][] = $to;
+                } catch (\Throwable $e) {
+                    $result['failed'][] = $to;
+                    Log::warning('Alert email failed', ['to' => $to, 'alert' => $alert->id, 'error' => $e->getMessage()]);
+                }
+            }
         }
 
+        if ($alert->severity === 'critical') {
+            $result['telegram'] = $this->telegram($alert);
+        }
+
+        return $result;
+    }
+
+    /** null = Telegram not set up; true/false = sent or not. */
+    private function telegram(Alert $alert): ?bool
+    {
         $token = config('services.telegram.bot_token');
         $chat = config('services.telegram.chat_id');
         if (! $token || ! $chat) {
-            return;
+            return null;
         }
 
-        $msg = "🚨 *MVPN {$alert->severity}*\n{$alert->title}\n\n"
-            . ($alert->ai_summary ?: $alert->body) . "\n"
-            . ($alert->ai_action ? "\n_Action:_ {$alert->ai_action}" : '');
+        // HTML, escaped: Markdown broke on names with _ or * and the message was dropped.
+        $e = fn (?string $s) => htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $msg = "🚨 <b>Mbunie VPN {$e($alert->severity)}</b>\n{$e($alert->title)}\n\n"
+            .$e($alert->ai_summary ?: $alert->body)
+            .($alert->ai_action ? "\n\n<i>Action:</i> {$e($alert->ai_action)}" : '');
 
         try {
-            Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", [
+            $resp = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", [
                 'chat_id' => $chat,
                 'text' => $msg,
-                'parse_mode' => 'Markdown',
+                'parse_mode' => 'HTML',
+                'disable_web_page_preview' => true,
             ]);
+            if ($resp->failed()) {
+                Log::warning('Alert Telegram failed', ['alert' => $alert->id, 'status' => $resp->status(), 'body' => $resp->body()]);
+
+                return false;
+            }
+
+            return true;
         } catch (\Throwable $e) {
             report($e);
+
+            return false;
         }
     }
 }

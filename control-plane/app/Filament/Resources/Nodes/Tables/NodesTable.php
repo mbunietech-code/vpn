@@ -11,6 +11,10 @@ class NodesTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->poll('30s') // health changes show without a reload
+            ->emptyStateIcon('heroicon-o-server-stack')
+            ->emptyStateHeading('No nodes yet')
+            ->emptyStateDescription('Add a VPN server with "New node", then install the agent on it.')
             ->columns([
                 // Host and region under the name; health under status - keeps
                 // the table inside the screen next to the sidebar.
@@ -22,6 +26,7 @@ class NodesTable
                         'online' => 'success',
                         'degraded' => 'warning',
                         'provisioning' => 'info',
+                        'draining', 'disabled' => 'gray', // switched off on purpose, not a fault
                         default => 'danger',
                     })
                     ->description(fn ($record) => $record->last_health_at

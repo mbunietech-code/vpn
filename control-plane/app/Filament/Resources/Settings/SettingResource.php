@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Settings;
 
 use App\Filament\Resources\Settings\Pages\EditSetting;
-use App\Filament\Resources\Settings\Pages\ListSettings;
+use App\Filament\Resources\Settings\Pages\ManageSettings;
 use App\Filament\Resources\Settings\Schemas\SettingForm;
 use App\Filament\Resources\Settings\Tables\SettingsTable;
 use App\Models\Setting;
@@ -48,7 +48,8 @@ class SettingResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListSettings::route('/'),
+            // One page with a tab per area; the single-setting editor stays for old links.
+            'index' => ManageSettings::route('/'),
             'edit' => EditSetting::route('/{record}/edit'),
         ];
     }
