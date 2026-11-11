@@ -497,6 +497,56 @@ const _map = <String, Map<String, String>>{
     'sw': 'Itumie kwenye app ya OpenVPN Connect',
     'zh': '用于 OpenVPN Connect 应用',
   },
+  'iphone.title': {
+    'en': 'Use on iPhone',
+    'sw': 'Tumia kwenye iPhone',
+    'zh': '在 iPhone 上使用',
+  },
+  'iphone.sub': {
+    'en': 'Scan a code to set up the sing-box app',
+    'sw': 'Scan code ili kuweka app ya sing-box',
+    'zh': '扫码设置 sing-box 应用',
+  },
+  'iphone.step1': {
+    'en': 'On the iPhone, install sing-box from the App Store (it needs an Apple ID from outside mainland China).',
+    'sw': 'Kwenye iPhone, sakinisha sing-box kutoka App Store (inahitaji Apple ID ya nje ya China bara).',
+    'zh': '在 iPhone 上从 App Store 安装 sing-box（需要中国大陆以外的 Apple ID）。',
+  },
+  'iphone.appStore': {
+    'en': 'sing-box on the App Store',
+    'sw': 'sing-box kwenye App Store',
+    'zh': 'App Store 上的 sing-box',
+  },
+  'iphone.step2': {
+    'en': 'Scan this code with the iPhone camera, tap "Open in sing-box", then tap Create.',
+    'sw': 'Scan code hii kwa kamera ya iPhone, bonyeza "Open in sing-box", kisha Create.',
+    'zh': '用 iPhone 相机扫描此码，点击“在 sing-box 中打开”，然后点击“创建”。',
+  },
+  'iphone.step3': {
+    'en': 'In sing-box, open Dashboard and tap Start. Allow the VPN request the first time.',
+    'sw': 'Ndani ya sing-box, fungua Dashboard na bonyeza Start. Ruhusu ombi la VPN mara ya kwanza.',
+    'zh': '在 sing-box 中打开“仪表盘”并点击“启动”。首次请允许 VPN 请求。',
+  },
+  'iphone.private': {
+    'en': 'This code is your personal access. Do not share it.',
+    'sw': 'Code hii ni ufikiaji wako binafsi. Usiishiriki na wengine.',
+    'zh': '此码是您的个人访问凭证，请勿分享。',
+  },
+  'iphone.copy': {
+    'en': 'Copy iPhone link',
+    'sw': 'Nakili link ya iPhone',
+    'zh': '复制 iPhone 链接',
+  },
+  'iphone.copied': {
+    'en': 'iPhone link copied',
+    'sw': 'Link ya iPhone imenakiliwa',
+    'zh': '已复制 iPhone 链接',
+  },
+  'iphone.manual': {
+    'en': 'No camera? Send the link to the iPhone, then in sing-box tap Profiles → New Profile → Remote, paste it and tap Create.',
+    'sw': 'Hakuna kamera? Tuma link kwa iPhone, kisha ndani ya sing-box bonyeza Profiles → New Profile → Remote, ibandike na bonyeza Create.',
+    'zh': '无法扫码？把链接发到 iPhone，在 sing-box 中点击“配置”→“新建配置”→“远程”，粘贴后点击“创建”。',
+  },
   'settings.ovpnNotReady': {
     'en': 'Your OpenVPN profile is not ready yet. Try again in a minute.',
     'sw': 'Profile yako ya OpenVPN bado haijawa tayari. Jaribu tena baada ya dakika moja.',

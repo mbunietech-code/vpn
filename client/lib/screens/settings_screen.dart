@@ -12,6 +12,7 @@ import '../services/app_state.dart';
 import '../services/mvpn_scope.dart';
 import '../theme/mvpn_theme.dart';
 import '../widgets/common.dart';
+import 'iphone_screen.dart';
 import 'onboarding.dart';
 
 /// `<sub link>?format=ovpn`: the subscriber's own OpenVPN profile.
@@ -148,6 +149,27 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   onTap: () => _downloadOvpn(context, vpn.subUrl, tr),
                 ),
+                // iPhone: the sing-box app, until the Mbunie VPN iPhone app.
+                if (!Platform.isIOS) ...[
+                  Divider(color: c.border, height: 1),
+                  SettingRow(
+                    title: tr.t('iphone.title'),
+                    subtitle: tr.t('iphone.sub'),
+                    trailing: Icon(Icons.qr_code_2_rounded, size: 18, color: c.textHint),
+                    onTap: () {
+                      final sub = vpn.subUrl;
+                      if (sub == null || sub.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(tr.t('settings.ovpnNoPlan'))),
+                        );
+                        return;
+                      }
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => IphoneScreen(subUrl: sub)),
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),

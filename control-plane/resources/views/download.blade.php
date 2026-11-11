@@ -141,10 +141,12 @@
     </ol>
     <p><strong>iPhone / iPad:</strong> the Mbunie VPN app for iPhone is coming. Until then, install
       <a href="https://apps.apple.com/app/sing-box-mt/id6785326793" target="_blank" rel="noopener">sing-box</a>
-      from the App Store (it needs an Apple ID from outside mainland China) and email
-      <a href="mailto:support@mbuniehub.com?subject=iPhone%20link">support@mbuniehub.com</a> for your personal iPhone link.
-      In sing-box tap <strong>Profiles → New Profile</strong>, choose <strong>Remote</strong>, paste the link,
-      tap <strong>Create</strong>, then start it from <strong>Dashboard</strong>.</p>
+      from the App Store (it needs an Apple ID from outside mainland China). Then open Mbunie VPN on
+      your computer or Android phone, go to <strong>Settings → Use on iPhone</strong> and scan the code with
+      the iPhone camera: sing-box opens with your profile, tap <strong>Create</strong>, then start it from
+      <strong>Dashboard</strong>. No other device? Email
+      <a href="mailto:support@mbuniehub.com?subject=iPhone%20link">support@mbuniehub.com</a> for your personal iPhone link
+      and paste it in sing-box under <strong>Profiles → New Profile → Remote</strong>.</p>
     <p class="muted">No plan yet? Buy one at <a href="https://mbuniehub.com">mbuniehub.com</a> or inside the app.</p>
   </div>
 
