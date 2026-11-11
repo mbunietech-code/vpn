@@ -16,7 +16,7 @@ Keep code, comments and commit messages in English.
 ```bash
 git clone https://github.com/mbunietech-code/vpn.git mbunie-vpn   # or: git fetch origin
 cd mbunie-vpn
-git checkout claude/app-1.0.22          # the branch that holds Windows/Android 1.0.24
+git checkout main && git pull --ff-only # main holds Windows/Android 1.0.24
 git checkout -b claude/apple-1.0.24     # do your work here
 ```
 
