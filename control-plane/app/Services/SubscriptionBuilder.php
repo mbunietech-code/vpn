@@ -405,7 +405,7 @@ class SubscriptionBuilder
                     // unreachable from the foreign node.
                     ['rule_set' => ['geosite-cn', 'geoip-cn'], 'outbound' => 'direct'],
                 ]),
-                'rule_set' => $this->chinaRuleSets(),
+                'rule_set' => $this->chinaRuleSets($platform),
                 'final' => 'proxy',
                 'auto_detect_interface' => true,
                 // sing-box >= 1.14 refuses to start without a resolver for
@@ -421,6 +421,11 @@ class SubscriptionBuilder
         ];
         if ($openVpnEndpoints) {
             $config['endpoints'] = $openVpnEndpoints;
+        }
+        if ($platform === 'ios') {
+            // The rule sets' download client (see chinaRuleSets): no dial
+            // fields, so it connects directly, not through the tunnel.
+            $config['http_clients'] = [['tag' => 'direct-http']];
         }
 
         return $config;
@@ -570,16 +575,25 @@ class SubscriptionBuilder
      * China, and a remote rule set that cannot load stops sing-box starting.
      * Refresh public/rules/ with control-plane/scripts/fetch-rulesets.sh.
      *
+     * iPhone (the sing-box app, 1.14+): `http_client` naming a direct client.
+     * sing-box 1.14 deprecated `download_detour` and shows a warning for it;
+     * `http_client: {detour: direct}` would fail ("detour to an empty direct
+     * outbound"). Other platforms keep `download_detour`: our apps turn these
+     * into local files before the engine starts, and older engines (< 1.14)
+     * reject `http_client`.
+     *
      * @return array<int,array<string,string>>
      */
-    private function chinaRuleSets(): array
+    private function chinaRuleSets(string $platform = 'windows'): array
     {
         return array_map(fn (string $tag) => [
             'type' => 'remote',
             'tag' => $tag,
             'format' => 'binary',
             'url' => url("/rules/{$tag}.srs"),
-            'download_detour' => 'direct',
+            ...($platform === 'ios'
+                ? ['http_client' => 'direct-http']
+                : ['download_detour' => 'direct']),
         ], ['geosite-cn', 'geoip-cn']);
     }
 

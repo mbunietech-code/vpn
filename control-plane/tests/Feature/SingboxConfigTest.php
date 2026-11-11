@@ -220,6 +220,30 @@ class SingboxConfigTest extends TestCase
         $this->assertSame(300, $auto['tolerance']);
     }
 
+    public function test_ios_rule_sets_use_a_direct_http_client_not_download_detour(): void
+    {
+        $sub = $this->activeSub();
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=ios&protocol=auto")->assertOk()->json();
+
+        // sing-box 1.14 warns about download_detour; a named client without
+        // dial fields downloads directly.
+        $this->assertSame([['tag' => 'direct-http']], $cfg['http_clients']);
+        foreach ($cfg['route']['rule_set'] as $set) {
+            $this->assertSame('direct-http', $set['http_client']);
+            $this->assertArrayNotHasKey('download_detour', $set);
+        }
+        // China rules unchanged.
+        $this->assertContains(
+            ['rule_set' => ['geosite-cn', 'geoip-cn'], 'outbound' => 'direct'],
+            $cfg['route']['rules'],
+        );
+
+        $win = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=windows")->assertOk()->json();
+        $this->assertArrayNotHasKey('http_clients', $win);
+        $this->assertSame('direct', $win['route']['rule_set'][0]['download_detour']);
+    }
+
     public function test_macos_tun_has_no_interface_name(): void
     {
         $sub = $this->activeSub();
