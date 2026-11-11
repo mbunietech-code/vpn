@@ -31,6 +31,7 @@ class ApiClient {
 
   final List<String> _bases;
   int _active = 0;
+  DateTime _switchedAt = DateTime.now();
   String? token;
   final http.Client _http;
 
@@ -178,6 +179,13 @@ class ApiClient {
   /// (no route, DNS, TLS, timeout) advances to the next base and retries.
   Future<Map<String, dynamic>> _send(
       Future<http.Response> Function(String base) attempt) async {
+    // A fallback is for while the main address is unreachable: go back to it
+    // after a while. One drop (e.g. no internet at start-up) used to keep the
+    // whole session on the relay.
+    if (_active != 0 &&
+        DateTime.now().difference(_switchedAt) > const Duration(minutes: 10)) {
+      _active = 0;
+    }
     Object? lastErr;
     for (var i = 0; i < _bases.length; i++) {
       try {
@@ -194,6 +202,7 @@ class ApiClient {
         lastErr = e;
       }
       _active = (_active + 1) % _bases.length;
+      _switchedAt = DateTime.now();
     }
     throw ApiException(0, {'message': 'Server unreachable. Check your internet connection.', 'cause': '$lastErr'});
   }

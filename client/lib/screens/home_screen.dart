@@ -29,7 +29,7 @@ class HomeScreen extends StatelessWidget {
       VpnStatus.connected => (tr.t('home.connected'), tr.t('home.subConnected'), c.success),
       VpnStatus.connecting => (tr.t('home.connecting'), tr.t('home.subConnecting'), c.brand),
       VpnStatus.reconnecting => (tr.t('home.reconnecting'), tr.t('home.subReconnecting'), c.warning),
-      VpnStatus.error => (tr.t('home.failed'), tr.t(vpn.error ?? 'home.subFailed'), c.danger),
+      VpnStatus.error => (tr.t('home.failed'), tr.t('home.subFailed'), c.danger),
       VpnStatus.disconnected => (tr.t('home.disconnected'), tr.t('home.subIdle'), c.stateIdle),
     };
 
@@ -145,10 +145,17 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-          if (vpn.status == VpnStatus.error && vpn.error != null)
+          // Customers get one short line; the full reason goes to the admin
+          // (device heartbeat → Admin > Devices > Last error).
+          if (vpn.status == VpnStatus.error && vpn.errorKey != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
-              child: InlineNotice(text: tr.t(vpn.error!), tone: NoticeTone.danger),
+              child: InlineNotice(text: tr.t(vpn.errorKey!), tone: NoticeTone.danger),
+            ),
+          if (vpn.noInternet)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: InlineNotice(text: tr.t('vpn.err.noTraffic'), tone: NoticeTone.warning),
             ),
           if (!vpn.isRealTunnel)
             Padding(

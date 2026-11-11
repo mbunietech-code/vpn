@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../models.dart';
 import '../api_client.dart';
 import '../relay.dart';
+import 'rule_sets.dart';
 import 'tunnel_engine.dart';
 
 class AndroidHiddifyEngine implements TunnelEngine {
@@ -190,6 +191,8 @@ class AndroidHiddifyEngine implements TunnelEngine {
     _normalizeAndroidTunConfig(decoded);
     _normalizeDnsConfig(decoded);
     _normalizeBootstrapDnsRules(decoded);
+    // China rule sets: the app fetches them (the core can't trust the relay).
+    await localizeRuleSets(decoded, dirs.configs, _http);
     final json = const JsonEncoder.withIndent('  ').convert(decoded);
     await file.writeAsString(json, flush: true);
     await last.writeAsString(json, flush: true);

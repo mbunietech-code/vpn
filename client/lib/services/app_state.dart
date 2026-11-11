@@ -56,7 +56,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   void _onVpnChanged() {
     // Diagnostics: report each new failure (same one at most every 2 min, so a
     // reconnect loop doesn't flood the server).
-    final err = vpn.status == VpnStatus.error ? vpn.error : null;
+    final err = vpn.status == VpnStatus.error ? vpn.error : vpn.noInternetDetail;
     if (err != null &&
         (err != _lastReportedError ||
             _lastReportedAt == null ||
@@ -89,7 +89,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         connected: vpn.isConnected,
         protocol: vpn.protocol.name,
         appVersion: MvpnConfig.appVersion,
-        error: error,
+        // The server keeps up to 2000 characters.
+        error: error != null && error.length > 1990 ? error.substring(0, 1990) : error,
         model: info['model'],
         osVersion: info['os_version'],
       );

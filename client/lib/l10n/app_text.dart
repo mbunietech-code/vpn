@@ -571,4 +571,55 @@ const _map = <String, Map<String, String>>{
     'sw': 'Muunganisho umeshindwa.',
     'zh': '连接失败。',
   },
+  // Short messages for customers; the full reason goes to the admin.
+  'vpn.err.generic': {
+    'en': 'Could not connect. Please try again.',
+    'sw': 'Imeshindwa kuunganisha. Tafadhali jaribu tena.',
+    'zh': '无法连接，请重试。',
+  },
+  'vpn.err.offline': {
+    'en': 'No internet. Check your Wi-Fi or mobile data, then try again.',
+    'sw': 'Hakuna internet. Angalia Wi-Fi au data, kisha jaribu tena.',
+    'zh': '没有网络。请检查 Wi-Fi 或移动数据后重试。',
+  },
+  'vpn.err.noTraffic': {
+    'en': 'Connected, but the internet is not reachable. Check your network or try another server.',
+    'sw': 'Imeunganishwa, lakini internet haipatikani. Angalia mtandao wako au jaribu server nyingine.',
+    'zh': '已连接，但无法访问互联网。请检查网络或换一个服务器。',
+  },
+  'vpn.err.otherVpn': {
+    'en': 'Another VPN is on. Turn it off, then try again.',
+    'sw': 'VPN nyingine imewashwa. Izime, kisha jaribu tena.',
+    'zh': '另一个 VPN 正在运行。请先关闭它再重试。',
+  },
+  'vpn.err.admin': {
+    'en': 'Open Mbunie VPN as Administrator (right-click → Run as administrator), then try again.',
+    'sw': 'Fungua Mbunie VPN kama Administrator (right-click → Run as administrator), kisha jaribu tena.',
+    'zh': '请以管理员身份运行 Mbunie VPN（右键 → 以管理员身份运行）后重试。',
+  },
+  'vpn.err.macPassword': {
+    'en': 'Mbunie VPN needs your Mac password once. Press Connect and enter it.',
+    'sw': 'Mbunie VPN inahitaji password ya Mac mara moja. Bonyeza Connect na uiweke.',
+    'zh': 'Mbunie VPN 需要输入一次 Mac 密码。请点击连接并输入。',
+  },
+  'vpn.err.permission': {
+    'en': 'Allow the VPN request when your phone asks, then try again.',
+    'sw': 'Ruhusu ombi la VPN simu inapouliza, kisha jaribu tena.',
+    'zh': '手机询问时请允许 VPN 请求，然后重试。',
+  },
+  'vpn.err.reinstall': {
+    'en': 'Mbunie VPN is incomplete. Please reinstall it.',
+    'sw': 'Mbunie VPN haijakamilika. Tafadhali isakinishe upya.',
+    'zh': 'Mbunie VPN 安装不完整，请重新安装。',
+  },
+  'vpn.err.account': {
+    'en': 'Your plan could not be checked. Sign in again or contact support.',
+    'sw': 'Kifurushi chako hakijathibitishwa. Ingia tena au wasiliana na support.',
+    'zh': '无法验证您的套餐。请重新登录或联系客服。',
+  },
+  'vpn.err.deviceRemoved': {
+    'en': 'This device was removed from your account. Contact support@mbuniehub.com.',
+    'sw': 'Kifaa hiki kimeondolewa kwenye akaunti yako. Wasiliana na support@mbuniehub.com.',
+    'zh': '此设备已从您的账户中移除。请联系 support@mbuniehub.com。',
+  },
 };

@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../models.dart';
 import '../api_client.dart';
 import '../relay.dart';
+import 'rule_sets.dart';
 import 'tunnel_engine.dart';
 
 /// Real tunnel for Windows / Linux / macOS.
@@ -48,6 +49,7 @@ class SingboxEngine implements TunnelEngine {
   bool _up = false;
   int? _exitCode; // last engine exit code, for the start-up error
   String? _otherVpn; // another VPN adapter that was up when we started
+  List<String> _ruleNotes = const []; // rule sets taken from cache / dropped
 
   /// Full engine output of the current run: `<support>/engine/engine.log`.
   IOSink? _logSink;
@@ -422,6 +424,12 @@ class SingboxEngine implements TunnelEngine {
       if (changed) body = jsonEncode(json);
     }
 
+    // China rule sets: the app fetches them (sing-box can't trust the relay).
+    if (json is Map<String, dynamic>) {
+      _ruleNotes = await localizeRuleSets(json, dir, _http);
+      body = jsonEncode(json);
+    }
+
     await config.writeAsString(body, flush: true);
     await last.writeAsString(body, flush: true);
     return config;
@@ -578,14 +586,18 @@ class SingboxEngine implements TunnelEngine {
     return 'Run with root privileges (sudo): the TUN device needs CAP_NET_ADMIN.';
   }
 
+  /// The full reason, for Admin > Devices (the app shows users a short
+  /// message, see friendlyError).
   String _diagnose(int code) {
     final tail = _errBuf.reversed.take(6).toList().reversed.join('\n');
-    if (tail.toLowerCase().contains('permission') ||
-        tail.toLowerCase().contains('denied') ||
-        tail.toLowerCase().contains('not permitted')) {
-      return _privilegeHint();
+    final notes = _ruleNotes.isEmpty ? '' : '\n${_ruleNotes.join('\n')}';
+    final t = tail.toLowerCase();
+    if (t.contains('permission') ||
+        t.contains('denied') ||
+        t.contains('not permitted')) {
+      return '${_privilegeHint()}\n$tail$notes';
     }
-    if (tail.isNotEmpty) return 'VPN engine failed:\n$tail';
-    return 'VPN engine failed to start (code $code).';
+    if (tail.isNotEmpty) return 'VPN engine failed (code $code):\n$tail$notes';
+    return 'VPN engine failed to start (code $code).$notes';
   }
 }

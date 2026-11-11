@@ -33,6 +33,12 @@ class Relay {
       ? uri.replace(scheme: 'https', host: host, port: port)
       : null;
 
+  /// The relay URL [uri] on the control plane's own address, or null when
+  /// [uri] isn't on the relay.
+  static Uri? primary(Uri uri) => uri.host == host && uri.port == port
+      ? uri.replace(scheme: 'https', host: _primaryHost, port: 443)
+      : null;
+
   /// GET [uri]; if the control plane can't be reached at all, try once more
   /// through the relay.
   static Future<http.Response> get(

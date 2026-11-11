@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart';
+import 'friendly_error.dart';
 import 'tunnel/android_hiddify_engine.dart';
 import 'tunnel/simulated_engine.dart';
 import 'tunnel/singbox_engine.dart';
@@ -57,8 +59,23 @@ class VpnController extends ChangeNotifier {
   VpnStatus _status = VpnStatus.disconnected;
   VpnStatus get status => _status;
 
+  /// The full failure text: sent to Admin > Devices, never shown as is.
   String? _error;
   String? get error => _error;
+
+  /// What the customer sees for [error]: a short `vpn.err.*` message key.
+  String? get errorKey => _error == null ? null : friendlyErrorKey(_error);
+
+  /// Connected, but nothing gets through the tunnel (no internet on this
+  /// network, or the server is unreachable). Checked every 30 s while up.
+  bool _noInternet = false;
+  bool get noInternet => _noInternet && _status == VpnStatus.connected;
+  String? _probeDetail;
+
+  /// Admin detail for [noInternet].
+  String? get noInternetDetail => noInternet ? _probeDetail : null;
+  Timer? _probeTimer;
+  int _probeFails = 0;
 
   late List<VpnNode> _nodes;
   List<VpnNode> get nodes => List.unmodifiable(_nodes);
@@ -189,6 +206,7 @@ class VpnController extends ChangeNotifier {
     _userWantsConnected = false;
     _reconnectAttempts = 0;
     _reconnectTimer?.cancel();
+    _stopProbe();
     await _engine.stop();
     _connectedAt = null;
     _stats = SessionStats.empty;
@@ -283,10 +301,12 @@ class VpnController extends ChangeNotifier {
         // opened, from the Quick Settings tile, or after a reboot/update).
         _userWantsConnected = true;
         _set(VpnStatus.connected);
+        _startProbe();
         // Re-apply the picked server: a new engine starts on "auto" (or on
         // what its cache remembers).
         unawaited(_applyServer());
       case EngineStatus.down:
+        _stopProbe();
         _connectedAt = null;
         _stats = SessionStats.empty;
         if (r.external) {
@@ -301,6 +321,7 @@ class VpnController extends ChangeNotifier {
           _set(VpnStatus.disconnected);
         }
       case EngineStatus.error:
+        _stopProbe();
         _error = r.message ?? 'vpn.failed';
         _set(VpnStatus.error);
         _scheduleReconnect();
@@ -335,6 +356,65 @@ class VpnController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---- "connected, but no internet" probe ----------------------------
+
+  void _startProbe() {
+    _stopProbe();
+    if (!_engine.isReal) return;
+    _probeTimer = Timer(const Duration(seconds: 4), _probe);
+  }
+
+  void _stopProbe() {
+    _probeTimer?.cancel();
+    _probeTimer = null;
+    _probeFails = 0;
+    if (_noInternet) {
+      _noInternet = false;
+      _probeDetail = null;
+      notifyListeners();
+    }
+  }
+
+  /// One request through the tunnel via the engine's Clash API (the same
+  /// test URL the server's url-test groups use).
+  Future<void> _probe() async {
+    if (_status != VpnStatus.connected) return;
+    String? fail;
+    try {
+      final res = await http
+          .get(
+            Uri.parse(
+              'http://127.0.0.1:9095/proxies/proxy/delay?timeout=6000'
+              '&url=${Uri.encodeQueryComponent('https://www.apple.com/library/test/success.html')}',
+            ),
+          )
+          .timeout(const Duration(seconds: 9));
+      if (res.statusCode != 200) fail = 'HTTP ${res.statusCode} ${res.body}';
+    } catch (e) {
+      fail = '$e';
+    }
+    if (_status != VpnStatus.connected) return;
+    if (fail == null) {
+      _probeFails = 0;
+      if (_noInternet) {
+        _noInternet = false;
+        _probeDetail = null;
+        notifyListeners();
+      }
+    } else if (++_probeFails >= 2 && !_noInternet) {
+      // Two in a row: one slow answer is not "no internet".
+      _noInternet = true;
+      _probeDetail =
+          'Connected, but nothing gets through the tunnel '
+          '(server ${_currentNode.name}): $fail';
+      notifyListeners();
+    }
+    _probeTimer = Timer(
+      Duration(seconds: fail == null || _noInternet ? 30 : 5),
+      _probe,
+    );
+  }
+
   void _set(VpnStatus s) {
     _status = s;
     notifyListeners();
@@ -343,6 +423,7 @@ class VpnController extends ChangeNotifier {
   @override
   void dispose() {
     _reconnectTimer?.cancel();
+    _probeTimer?.cancel();
     _repSub.cancel();
     _trafSub.cancel();
     _engine.dispose();
