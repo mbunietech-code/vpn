@@ -70,6 +70,22 @@ Option B (App Store / cleanest): a Network Extension like iOS below, shared with
 
 ## iPhone — needs a Network Extension
 
+**Status (2026-11-11, on the Mac, branch `claude/apple-1.0.24`):** built, not yet run on a real iPhone
+(no Apple Developer account in Xcode and no iPhone plugged in). What exists:
+- `client/ios/` — bundle `com.mbunie.mvpn` ("Mbunie VPN", 1.0.24 (25)), iOS 15+, App Group
+  `group.com.mbunie.mvpn`, Packet Tunnel extension `com.mbunie.mvpn.tunnel` (`ios/PacketTunnel/`,
+  modelled on SFI 1.14.0). `ios/engine-scripts/add-tunnel-target.rb` shows how the target was added.
+- `ios/Frameworks/Libbox.xcframework` is not in git: `sh ios/engine-scripts/build-libbox.sh 1.14.0`.
+- Bridge `ios/Runner/VpnBridge.swift` (channel `com.mbunie.mvpn/vpn`: `appGroupPath`, `start`, `stop`;
+  events `com.mbunie.mvpn/vpn.status`) ↔ `lib/services/tunnel/ios_engine.dart`. Config and rule sets go
+  to the App Group container (`config.json`, `rules/*.srs`); the extension writes its start error
+  to `last-error.txt` there.
+- `flutter build ios --simulator` and `flutter build ios --release --no-codesign` pass; the app opens in
+  the simulator (Network Extensions do not run in the simulator).
+- Still to do with the account: in Xcode pick the team for Runner and PacketTunnel (both need the
+  Network Extensions + App Groups capabilities), run on an iPhone, test connect / IP / China rules /
+  no-internet warning / memory, then archive to TestFlight.
+
 iOS does not allow a normal app to create a VPN. It needs:
 - a **Packet Tunnel Provider** app extension (NetworkExtension framework),
 - the **Network Extensions** capability (Packet Tunnel) and an **App Group** shared by app + extension,

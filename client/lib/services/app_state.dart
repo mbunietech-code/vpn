@@ -325,8 +325,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool _reconnectAfterUpdate = false;
 
   Future<void> checkForUpdate() async {
-    // Play builds update through Google Play only (Play policy).
-    if (MvpnConfig.playStore) return;
+    // Play builds update through Google Play only (Play policy). iPhone
+    // apps cannot install from a link; updates come from TestFlight/App Store.
+    if (MvpnConfig.playStore || Platform.isIOS) return;
     final last = _lastUpdateCheck;
     if (last != null && DateTime.now().difference(last) < const Duration(hours: 6)) return;
     _lastUpdateCheck = DateTime.now();

@@ -1,0 +1,3 @@
+// Only for FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER (pubspec version), so the
+// extension's version matches the app's. No Flutter or CocoaPods linking here.
+#include "../Flutter/Generated.xcconfig"
