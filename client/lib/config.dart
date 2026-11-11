@@ -46,7 +46,7 @@ class MvpnConfig {
   }
 
   /// Keep in sync with pubspec.yaml `version` (reported in device heartbeats).
-  static const appVersion = '1.0.24';
+  static const appVersion = '1.0.25';
 
   /// Google Play build (`--dart-define=MVPN_PLAY=true`): Play's payments
   /// policy forbids selling the service with our own checkout, so this build
