@@ -85,7 +85,7 @@ return [
         // Public installers shown on /download (files under storage/app/public/downloads).
         'download_android' => env('MVPN_DOWNLOAD_ANDROID', '/storage/downloads/Mbunie-VPN-1.0.23.apk'),
         'download_windows' => env('MVPN_DOWNLOAD_WINDOWS', '/storage/downloads/Mbunie-VPN-Setup-1.0.23.exe'),
-        'download_macos' => env('MVPN_DOWNLOAD_MACOS', '/storage/downloads/Mbunie-VPN-1.0.17-macos.dmg'),
+        'download_macos' => env('MVPN_DOWNLOAD_MACOS', '/storage/downloads/Mbunie-VPN-1.0.24-macos.dmg'),
         'app_version' => env('MVPN_APP_VERSION', '1.0.17'),
         // Android can ship ahead of the desktop installers.
         'android_version' => env('MVPN_ANDROID_VERSION', '1.0.23'),
