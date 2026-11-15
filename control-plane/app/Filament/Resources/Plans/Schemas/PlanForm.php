@@ -56,6 +56,10 @@ class PlanForm
                         Toggle::make('is_active')
                             ->label('Available for sale')
                             ->default(true),
+                        Toggle::make('is_trial')
+                            ->label('Free trial')
+                            ->helperText('Given once, automatically, to each new customer and phone. Never sold; hidden once it ends.')
+                            ->default(false),
                     ]),
 
                 // Prices are typed in normal amounts ($8, ¥58, TSh 20,000) and stored in cents.

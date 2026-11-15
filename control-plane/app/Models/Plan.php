@@ -11,7 +11,14 @@ class Plan extends Model
     protected $casts = [
         'node_scope' => 'array',
         'is_active' => 'boolean',
+        'is_trial' => 'boolean',
     ];
+
+    /** The free trial every new customer gets once (never sold). */
+    public static function trial(): ?self
+    {
+        return static::where('is_trial', true)->where('is_active', true)->orderBy('sort')->first();
+    }
 
     public function priceCents(string $currency): int
     {

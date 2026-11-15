@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\OtpCode;
+use App\Http\Middleware\RejectRevokedDevice;
 use App\Models\User;
+use App\Services\FreeTrial;
 use App\Services\OtpDelivery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -66,7 +68,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function verifyOtp(Request $request): JsonResponse
+    public function verifyOtp(Request $request, FreeTrial $trial): JsonResponse
     {
         $data = $request->validate([
             'identifier' => ['required', 'string', 'max:120'],
@@ -95,6 +97,12 @@ class AuthController extends Controller
                 'message' => 'This account is suspended. Contact support@mbuniehub.com.',
             ], 403);
         }
+
+        // New customer: 2 free days, once per account and once per phone.
+        $trial->grantIfEligible($user, [
+            (string) $request->header(RejectRevokedDevice::HEADER, ''),
+            (string) $request->header(RejectRevokedDevice::PREVIOUS_HEADER, ''),
+        ]);
 
         $token = $user->createToken($data['device_name'] ?? 'mvpn-app')->plainTextToken;
 
