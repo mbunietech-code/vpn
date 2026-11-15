@@ -98,8 +98,9 @@ class SubscriptionAdmin
                     'started_at' => $sub->started_at ?? now(),
                 ]);
             } else {
-                $plan = Plan::where('is_active', true)->orderByDesc('max_devices')->orderByDesc('days')->first()
-                    ?? Plan::orderByDesc('max_devices')->first();
+                // Never the free trial: it is one device and only for new customers.
+                $plan = Plan::where('is_active', true)->where('is_trial', false)->orderByDesc('max_devices')->orderByDesc('days')->first()
+                    ?? Plan::where('is_trial', false)->orderByDesc('max_devices')->first();
                 if (! $plan) {
                     return null;
                 }

@@ -48,6 +48,22 @@ class AdminUnlimitedVpnTest extends TestCase
         $this->assertNotNull($this->getJson('/api/subscription')->json('sub_url'));
     }
 
+    public function test_admin_unlimited_vpn_never_uses_the_free_trial_plan(): void
+    {
+        // The trial (1 device) can be the only active plan, e.g. on a fresh install.
+        \App\Models\Plan::where('is_trial', false)->update(['is_active' => false]);
+        $admin = User::factory()->create();
+        $admin->forceFill(['is_admin' => true])->save();
+
+        $sub = $admin->subscriptions()->sole();
+        $this->assertNotSame('trial', $sub->plan_code);
+        $this->assertSame('y1', $sub->plan_code, 'the plan with the most devices, even if not for sale');
+        $this->assertTrue($sub->isUnlimited());
+
+        // And the seeded admin (created before any paid plan existed) got none.
+        $this->assertFalse(Subscription::where('plan_code', 'trial')->exists());
+    }
+
     public function test_an_expired_admin_subscription_comes_back_unlimited(): void
     {
         $admin = User::factory()->create();
