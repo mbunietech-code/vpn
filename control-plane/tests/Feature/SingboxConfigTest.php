@@ -172,6 +172,62 @@ class SingboxConfigTest extends TestCase
         $this->assertStringContainsString('#MVPN%20Tokyo%201%20%28IPv6%29', $links);
     }
 
+    public function test_hysteria2_uses_brutal_bandwidth_and_servers_are_retested_every_minute(): void
+    {
+        $sub = $this->activeSub();
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android")->assertOk()->json();
+        $ob = collect($cfg['outbounds'])->keyBy('tag');
+
+        $this->assertSame(20, $ob['Tokyo 1 · Hysteria2']['up_mbps']);
+        $this->assertSame(50, $ob['Tokyo 1 · Hysteria2']['down_mbps']);
+        $this->assertArrayNotHasKey('up_mbps', $ob['Tokyo 1 · REALITY'], 'Brutal is Hysteria2 only');
+        $this->assertSame('1m', $ob['auto']['interval']);
+        $this->assertArrayNotHasKey('Tokyo 1 · Hysteria2 Obfs', $ob, 'no obfs until the node reports it');
+
+        // 0 turns Brutal off (back to BBR).
+        config(['services.mvpn.hysteria_down_mbps' => 0]);
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android")->json();
+        $this->assertArrayNotHasKey('up_mbps', collect($cfg['outbounds'])->firstWhere('tag', 'Tokyo 1 · Hysteria2'));
+    }
+
+    public function test_obfuscated_hysteria2_comes_first_and_keeps_the_plain_one(): void
+    {
+        $sub = $this->activeSub();
+        Node::first()->update([
+            'public_host_v6' => 'n1v6.mbuniehub.com',
+            'hysteria_port' => 8443,
+            'hysteria_obfs_port' => 8444,
+            'hysteria_obfs_port_range' => '50000-60000',
+            'hysteria_obfs_password' => 'SALAMANDER-PW',
+        ]);
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android&protocol=auto")->assertOk()->json();
+        $ob = collect($cfg['outbounds'])->keyBy('tag');
+
+        $obfs = $ob['Tokyo 1 · Hysteria2 Obfs'];
+        $this->assertSame(['type' => 'salamander', 'password' => 'SALAMANDER-PW'], $obfs['obfs']);
+        $this->assertSame(8444, $obfs['server_port']);
+        $this->assertSame(['50000:60000'], $obfs['server_ports']);
+        $this->assertSame($ob['Tokyo 1 · Hysteria2']['password'], $obfs['password'], 'same user credentials');
+        $this->assertSame(50, $obfs['down_mbps']);
+
+        $plain = $ob['Tokyo 1 · Hysteria2'];
+        $this->assertArrayNotHasKey('obfs', $plain, 'old listener stays plain for old configs');
+        $this->assertSame(8443, $plain['server_port']);
+        $this->assertSame(['20000:30000'], $plain['server_ports']);
+
+        $this->assertSame('Tokyo 1 · Hysteria2 Obfs', $ob['auto']['outbounds'][0], 'phones try obfs first');
+        $this->assertContains('Tokyo 1 · Hysteria2', $ob['auto']['outbounds']);
+        $this->assertSame('SALAMANDER-PW', $ob['Tokyo 1 (IPv6) · Hysteria2 Obfs']['obfs']['password']);
+        $this->assertSame('n1v6.mbuniehub.com', $ob['Tokyo 1 (IPv6) · Hysteria2 Obfs']['server']);
+
+        $links = base64_decode($this->get("/sub/{$sub->sub_token}")->getContent());
+        $this->assertStringContainsString(':8444?', $links);
+        $this->assertStringContainsString('obfs=salamander', $links);
+        $this->assertStringContainsString('obfs-password=SALAMANDER-PW', $links);
+    }
+
     public function test_android_auto_prefers_hysteria2_desktop_unchanged(): void
     {
         $sub = $this->activeSub();

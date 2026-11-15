@@ -125,6 +125,9 @@ class NodeController extends Controller
             'node_info.hysteria_port_range' => ['nullable', 'regex:/^\d+-\d+$/'],
             'node_info.hysteria_cert_sha256' => ['nullable', 'string', 'max:128'],
             'node_info.hysteria_cert_pem' => ['nullable', 'string', 'max:8000'],
+            'node_info.hysteria_obfs_port' => ['nullable', 'integer', 'between:1,65535'],
+            'node_info.hysteria_obfs_port_range' => ['nullable', 'regex:/^\d+-\d+$/'],
+            'node_info.hysteria_obfs_password' => ['nullable', 'string', 'max:128'],
         ]);
 
         $engines = $data['engines'] ?? [];
@@ -144,7 +147,11 @@ class NodeController extends Controller
 
         // The node is the source of truth for its protocol parameters; the
         // admin never has to copy keys. public_host stays admin-owned once set.
-        foreach ($data['node_info'] ?? [] as $key => $value) {
+        // Only known keys: anything else in node-info.json is not a column.
+        $known = ['public_host', 'reality_pubkey', 'reality_short_id', 'reality_sni', 'reality_port',
+            'hysteria_port', 'hysteria_port_range', 'hysteria_cert_sha256', 'hysteria_cert_pem',
+            'hysteria_obfs_port', 'hysteria_obfs_port_range', 'hysteria_obfs_password'];
+        foreach (array_intersect_key($data['node_info'] ?? [], array_flip($known)) as $key => $value) {
             if ($value === null || $value === '' || ($key === 'public_host' && $node->public_host)) {
                 continue;
             }

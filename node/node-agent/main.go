@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-const version = "0.3.0"
+const version = "0.4.0"
 
 type config struct {
 	ControlPlane  string
@@ -340,15 +340,23 @@ func applyPeers(cfg config, peers []peer) (int, error) {
 	}
 
 	sbChanged, err := patchJSONFile(cfg.SingboxConfig, func(root map[string]any) error {
-		in, err := inboundByTag(root, "hy2-in")
-		if err != nil {
+		if _, err := inboundByTag(root, "hy2-in"); err != nil {
 			return err
 		}
-		in["users"] = hy2
-		// Same fix as Xray above; legacy fields, valid up to sing-box 1.12.
-		in["sniff"] = true
-		in["sniff_override_destination"] = true
-		in["domain_strategy"] = "prefer_ipv4"
+		// Every Hysteria2 listener gets the same users: "hy2-in" (plain) and
+		// e.g. "hy2-obfs-in" (Salamander) run side by side.
+		ins, _ := root["inbounds"].([]any)
+		for _, raw := range ins {
+			in, ok := raw.(map[string]any)
+			if !ok || in["type"] != "hysteria2" {
+				continue
+			}
+			in["users"] = hy2
+			// Same fix as Xray above; legacy fields, valid up to sing-box 1.12.
+			in["sniff"] = true
+			in["sniff_override_destination"] = true
+			in["domain_strategy"] = "prefer_ipv4"
+		}
 		return nil
 	}, func(path string) error {
 		return runCheck(cfg.SingboxBin, "check", "-c", path)

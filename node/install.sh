@@ -334,6 +334,13 @@ jq -n \
 }' > "$MVPN_DIR/config/node-info.json"
 chmod 600 "$MVPN_DIR/config/node-info.json"
 
+# A node with Salamander Hysteria2 (enable-hysteria-obfs.sh) keeps it, with the
+# same password, when it is re-installed (configs above were re-rendered).
+if [[ -s "$MVPN_DIR/config/hysteria-obfs.pw" && -f "$SCRIPT_DIR/enable-hysteria-obfs.sh" ]]; then
+  log "keeping Salamander Hysteria2"
+  bash "$SCRIPT_DIR/enable-hysteria-obfs.sh" --patch-only
+fi
+
 # ---------- 9. systemd units -----------------------------------------
 cat > /etc/systemd/system/mvpn-xray.service <<EOF
 [Unit]

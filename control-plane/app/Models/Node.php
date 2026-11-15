@@ -22,9 +22,10 @@ class Node extends Model
         'openvpn_config' => 'encrypted',
         'openvpn_username' => 'encrypted',
         'openvpn_password' => 'encrypted',
+        'hysteria_obfs_password' => 'encrypted',
     ];
 
-    protected $hidden = ['api_secret', 'openvpn_config', 'openvpn_username', 'openvpn_password'];
+    protected $hidden = ['api_secret', 'openvpn_config', 'openvpn_username', 'openvpn_password', 'hysteria_obfs_password'];
 
     protected static function booted(): void
     {

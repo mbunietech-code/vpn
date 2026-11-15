@@ -107,6 +107,24 @@ class NodeAgentTest extends TestCase
         $this->assertSame([8443], $ports);
     }
 
+    public function test_health_stores_salamander_params_and_ignores_unknown_keys(): void
+    {
+        $node = $this->freshNode();
+
+        $this->health(['node_info' => [
+            'hysteria_obfs_port' => 8444,
+            'hysteria_obfs_port_range' => '50000-60000',
+            'hysteria_obfs_password' => 'pw-123',
+            'something_new' => 'not a column',
+        ]])->assertOk();
+
+        $node->refresh();
+        $this->assertSame(8444, (int) $node->hysteria_obfs_port);
+        $this->assertSame('50000-60000', $node->hysteria_obfs_port_range);
+        $this->assertSame('pw-123', $node->hysteria_obfs_password);
+        $this->assertArrayNotHasKey('hysteria_obfs_password', $node->toArray(), 'secret is hidden');
+    }
+
     public function test_expiry_changes_peer_list_version_without_the_sweep(): void
     {
         $sub = $this->activeSubscription();

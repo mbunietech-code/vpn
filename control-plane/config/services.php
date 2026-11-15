@@ -105,6 +105,14 @@ return [
         // Their addresses are looked up when a config is built.
         'direct_hosts' => array_values(array_filter(array_map('trim', explode(',',
             (string) env('MVPN_DIRECT_HOSTS', 'live.mbuniehub.com,turn.mbuniehub.com'))))),
+        // Hysteria2 "Brutal": the app tells the server its real speed, so the
+        // server keeps sending at that rate when China's lines drop packets
+        // (plain BBR backs off and stalls). Moderate on purpose: set it far
+        // above real speed and it only adds loss. 0 = off (BBR).
+        'hysteria_up_mbps' => (int) env('MVPN_HYSTERIA_UP_MBPS', 20),
+        'hysteria_down_mbps' => (int) env('MVPN_HYSTERIA_DOWN_MBPS', 50),
+        // How often the app re-tests servers and moves off a failing one.
+        'urltest_interval' => env('MVPN_URLTEST_INTERVAL', '1m'),
     ],
 
     // MbunieEduHub (mbuniehub.com): signed partner API (EduHub sells/activates VPN plans).

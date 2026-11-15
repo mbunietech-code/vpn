@@ -33,6 +33,15 @@ class SubscriptionBuilder
             ->values();
     }
 
+    /** Hysteria2 Brutal speeds (see services.mvpn.hysteria_*_mbps); empty = BBR. */
+    private function hysteriaBandwidth(): array
+    {
+        $up = (int) config('services.mvpn.hysteria_up_mbps', 0);
+        $down = (int) config('services.mvpn.hysteria_down_mbps', 0);
+
+        return $up > 0 && $down > 0 ? ['up_mbps' => $up, 'down_mbps' => $down] : [];
+    }
+
     /**
      * Our own services that always go direct, never through the tunnel: the live
      * classroom (its video is real-time UDP, which stutters inside a tunnel and
@@ -139,6 +148,18 @@ class SubscriptionBuilder
                     'pinSHA256' => $node->hysteria_cert_sha256,
                     'mport' => $node->hysteria_port_range,
                 ]);
+                if ($node->hysteria_obfs_port && $node->hysteria_obfs_password) {
+                    $obfsQuery = http_build_query([
+                        'sni' => $node->reality_sni,
+                        'insecure' => 1,
+                        'pinSHA256' => $node->hysteria_cert_sha256,
+                        'mport' => $node->hysteria_obfs_port_range,
+                        'obfs' => 'salamander',
+                        'obfs-password' => $node->hysteria_obfs_password,
+                    ]);
+                    $obfsTag = rawurlencode("MVPN {$node->name} Obfs");
+                    $links[] = "hysteria2://{$peer->secret}@{$node->public_host}:{$node->hysteria_obfs_port}?{$obfsQuery}#{$obfsTag}";
+                }
                 $links[] = "hysteria2://{$peer->secret}@{$node->public_host}:{$node->hysteria_port}?{$query}#{$tag}";
                 if ($node->public_host_v6) {
                     $links[] = "hysteria2://{$peer->secret}@{$node->public_host_v6}:{$node->hysteria_port}?{$query}#{$tagV6}";
@@ -206,12 +227,8 @@ class SubscriptionBuilder
 
             if ($peer->protocol === 'hysteria2') {
                 $nodeHosts[] = $node->public_host;
-                $tag = "{$node->name} · Hysteria2";
-                $proxyOutbounds[] = $tag;
-                $nodeByTag[$tag] = $node;
                 $hy = [
                     'type' => 'hysteria2',
-                    'tag' => $tag,
                     'server' => $node->public_host,
                     'server_port' => (int) $node->hysteria_port,
                     'password' => $peer->secret,
@@ -221,12 +238,32 @@ class SubscriptionBuilder
                         'insecure' => true,
                     ],
                 ];
-                if ($node->hysteria_port_range) {
-                    $hy['server_ports'] = [str_replace('-', ':', $node->hysteria_port_range)];
-                }
                 if ($node->hysteria_cert_sha256) {
                     $hy['tls']['certificate'] = [];
                 }
+                $hy += $this->hysteriaBandwidth();
+
+                // Salamander-obfuscated twin first (random-looking UDP, not
+                // QUIC), on its own port; the plain one stays as a fallback.
+                if ($node->hysteria_obfs_port && $node->hysteria_obfs_password) {
+                    $obfs = $hy;
+                    $obfs['tag'] = "{$node->name} · Hysteria2 Obfs";
+                    $obfs['server_port'] = (int) $node->hysteria_obfs_port;
+                    $obfs['obfs'] = ['type' => 'salamander', 'password' => $node->hysteria_obfs_password];
+                    if ($node->hysteria_obfs_port_range) {
+                        $obfs['server_ports'] = [str_replace('-', ':', $node->hysteria_obfs_port_range)];
+                    }
+                    $proxyOutbounds[] = $obfs['tag'];
+                    $nodeByTag[$obfs['tag']] = $node;
+                    $outbounds[] = $obfs;
+                }
+
+                $hy['tag'] = "{$node->name} · Hysteria2";
+                if ($node->hysteria_port_range) {
+                    $hy['server_ports'] = [str_replace('-', ':', $node->hysteria_port_range)];
+                }
+                $proxyOutbounds[] = $hy['tag'];
+                $nodeByTag[$hy['tag']] = $node;
                 $outbounds[] = $hy;
             }
         }
@@ -244,7 +281,8 @@ class SubscriptionBuilder
             }
             $group = "{$node->name} (IPv6)";
             $v6 = $ob;
-            $v6['tag'] = $group.' · '.($ob['type'] === 'vless' ? 'REALITY' : 'Hysteria2');
+            // Same suffix as the IPv4 one ("REALITY", "Hysteria2", "Hysteria2 Obfs").
+            $v6['tag'] = $group.' · '.substr($ob['tag'], strlen("{$node->name} · "));
             $v6['server'] = $node->public_host_v6;
             $outbounds[] = $v6;
             $proxyOutbounds[] = $v6['tag'];
@@ -306,7 +344,7 @@ class SubscriptionBuilder
                 'tag' => $group,
                 'outbounds' => $members,
                 'url' => 'https://www.apple.com/library/test/success.html',
-                'interval' => '3m',
+                'interval' => config('services.mvpn.urltest_interval', '1m'),
                 'tolerance' => $preferHysteria ? 300 : 50,
             ];
         }
@@ -389,7 +427,7 @@ class SubscriptionBuilder
                     'tag' => 'auto',
                     'outbounds' => $proxyOutbounds ?: ['direct'],
                     'url' => 'https://www.apple.com/library/test/success.html',
-                    'interval' => '3m',
+                    'interval' => config('services.mvpn.urltest_interval', '1m'),
                     'tolerance' => $preferHysteria ? 300 : 50,
                 ],
             ], $v6GroupOutbounds, $outbounds, [
