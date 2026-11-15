@@ -41,20 +41,22 @@ class ManageSettingsTest extends TestCase
 
     public function test_the_whole_email_setup_is_saved_at_once(): void
     {
+        // Values unlike .env.example (CI copies it to .env): a value equal to the
+        // server .env is shown but deliberately not copied into settings.
         Livewire::test(ManageSettings::class)
             ->fillForm([
-                'v_mail_host' => 'smtp.hostinger.com',
-                'v_mail_port' => '465',
-                'v_mail_username' => 'noreply@mbuniehub.com',
+                'v_mail_host' => 'smtp.example-mail.com',
+                'v_mail_port' => '587',
+                'v_mail_username' => 'login@mbuniehub.com',
                 'v_mail_password' => 'new-mailbox-password',
-                'v_mail_from_address' => 'noreply@mbuniehub.com',
+                'v_mail_from_address' => 'login@mbuniehub.com',
                 'v_mail_from_name' => 'Mbunie VPN Login',
             ])
             ->call('save')
             ->assertHasNoFormErrors();
 
-        $this->assertSame('smtp.hostinger.com', Setting::value('mail_host'));
-        $this->assertSame('465', Setting::value('mail_port'));
+        $this->assertSame('smtp.example-mail.com', Setting::value('mail_host'));
+        $this->assertSame('587', Setting::value('mail_port'));
         $this->assertSame('new-mailbox-password', Setting::value('mail_password'));
         $this->assertSame('Mbunie VPN Login', Setting::value('mail_from_name'));
         $this->assertSame(6, AuditLog::where('action', 'setting.updated')->count());
