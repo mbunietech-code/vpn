@@ -14,15 +14,24 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('plans', function (Blueprint $t) {
-            $t->boolean('is_trial')->default(false)->after('is_active');
-        });
+        // Guarded so a half-applied run (MySQL DDL is not transactional) can be re-run.
+        if (! Schema::hasColumn('plans', 'is_trial')) {
+            Schema::table('plans', function (Blueprint $t) {
+                $t->boolean('is_trial')->default(false)->after('is_active');
+            });
+        }
 
-        Schema::table('users', function (Blueprint $t) {
-            $t->timestamp('trial_started_at')->nullable();
-            // Device that claimed the trial: one free trial per phone, not per email.
-            $t->string('trial_device')->nullable()->index();
-        });
+        if (! Schema::hasColumn('users', 'trial_started_at')) {
+            Schema::table('users', function (Blueprint $t) {
+                $t->timestamp('trial_started_at')->nullable();
+            });
+        }
+        if (! Schema::hasColumn('users', 'trial_device')) {
+            Schema::table('users', function (Blueprint $t) {
+                // Device that claimed the trial: one free trial per phone, not per email.
+                $t->string('trial_device')->nullable()->index();
+            });
+        }
 
         DB::table('plans')->updateOrInsert(['code' => 'trial'], [
             'name' => 'Jaribio Bure Siku 2',
@@ -33,7 +42,7 @@ return new class extends Migration
             'price_usd_cents' => 0,
             'price_cny_cents' => 0,
             'price_tzs_cents' => 0,
-            'sort' => -1,
+            'sort' => 0,   // column is unsigned on MySQL
             'is_active' => true,
             'is_trial' => true,
             'created_at' => now(),
