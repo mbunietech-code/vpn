@@ -108,11 +108,14 @@ if ! ufw status 2>/dev/null | grep -q 'Status: active'; then
 fi
 ufw status 2>/dev/null | grep -E 'ALLOW|DENY|LIMIT' >"$CUR/ufw"
 compare ufw warn "Firewall rule added" warn "Firewall rule removed"
-# Listeners reachable from outside (loopback skipped; random UDP ports of the VPN engines skipped).
+# Listeners reachable from outside (loopback skipped). Random high UDP ports
+# are skipped for the programs that open one per call/session: the VPN engines,
+# coturn, and LiveKit (a new media port in 50000-60000 for every live class,
+# which used to send a "New open port" email each time).
 ss -tulpnH 2>/dev/null | awk '{
   split($7, p, "\""); proc=p[2]; addr=$5; n=split(addr, a, ":"); port=a[n]; host=substr(addr, 1, length(addr)-length(port)-1);
   if (host ~ /^(127\.|\[::1\]|::1)/) next;
-  if ($1=="udp" && port>=32768 && proc ~ /sing-box|xray|turnserver/) next;
+  if ($1=="udp" && port>=32768 && proc ~ /sing-box|xray|turnserver|livekit-server/) next;
   print $1"/"port" "proc
 }' | sort -u >"$CUR/listen"
 compare listen warn "New open port"

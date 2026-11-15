@@ -9,6 +9,7 @@ use App\Services\AlertAnalyzer;
 use App\Models\Peer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -27,6 +28,12 @@ class NodeController extends Controller
         }
 
         return Node::all()->first(fn (Node $n) => hash_equals((string) $n->api_secret, $token));
+    }
+
+    /** Cache key: the peer-list version last served to this node, and when it changed. */
+    public static function servedKey(Node $node): string
+    {
+        return "node:{$node->id}:peers_served";
     }
 
     public function peers(Request $request): JsonResponse
@@ -55,8 +62,17 @@ class NodeController extends Controller
         // if nothing bumped peer_version (e.g. the sweep cron isn't running).
         $fingerprint = $peers->map(fn ($p) => $p['protocol'] . ':' . $p['remote_id'] . ':' . $p['openvpn_serial'])->sort()->implode(',');
 
+        $version = (int) sprintf('%u', crc32($node->peer_version . '|' . $fingerprint));
+
+        // Remember what we served and since when: the agent reports back the
+        // version it applied, and AlertAnalyzer compares the two.
+        $servedKey = self::servedKey($node);
+        if ((Cache::get($servedKey)['version'] ?? null) !== $version) {
+            Cache::forever($servedKey, ['version' => $version, 'at' => now()->timestamp]);
+        }
+
         return response()->json([
-            'version' => (int) sprintf('%u', crc32($node->peer_version . '|' . $fingerprint)),
+            'version' => $version,
             'peers' => $peers,
         ]);
     }

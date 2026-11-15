@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Http\Controllers\Api\NodeController;
 use App\Mail\AlertMail;
 use App\Models\Alert;
 use App\Models\Node;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -46,11 +48,19 @@ class AlertAnalyzer
             }
         }
 
-        // Applied peer version lagging the desired version
+        // The agent fails to apply the peer list. It reports the version it
+        // applied, which is the `version` /api/node/peers served (a hash, not
+        // peer_version - comparing those only ever fired on the -1 a freshly
+        // restarted agent reports). Alert when they have differed for 5+
+        // minutes; the agent polls every ~15 s.
         $applied = $health['applied_version'] ?? null;
-        if ($applied !== null && $applied < $node->peer_version - 1) {
+        $served = Cache::get(NodeController::servedKey($node));
+        $justStarted = (int) $applied < 0 && (int) ($health['uptime_seconds'] ?? 0) < 300;
+        if ($applied !== null && $served && (int) $applied !== (int) $served['version']
+            && now()->timestamp - (int) $served['at'] >= 300 && ! $justStarted) {
             $this->raise('warn', 'node.sync', "Node {$node->name} peer list is stale",
-                "Agent applied v{$applied}, control plane is at v{$node->peer_version}.", $node);
+                "The agent still runs peer list v{$applied}; v{$served['version']} has been waiting since "
+                .now()->setTimestamp((int) $served['at'])->toDateTimeString().' UTC. New or expired customers are not applied yet. Check: journalctl -u mvpn-agent', $node);
         }
     }
 

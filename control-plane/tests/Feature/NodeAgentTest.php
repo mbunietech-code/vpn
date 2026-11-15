@@ -125,6 +125,43 @@ class NodeAgentTest extends TestCase
         $this->assertArrayNotHasKey('hysteria_obfs_password', $node->toArray(), 'secret is hidden');
     }
 
+    public function test_stale_peer_list_alert_only_when_the_agent_really_lags(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        $this->freshNode(['status' => 'online', 'last_health_at' => now()]);
+        $served = $this->withToken(self::TOKEN)->getJson('/api/node/peers')->assertOk()->json('version');
+        $scan = fn () => app(\App\Services\AlertAnalyzer::class)->scan();
+        $stale = fn () => \App\Models\Alert::where('source', 'node.sync')->count();
+
+        // A restarted agent reports -1 for its first seconds: not an alert.
+        $this->health(['applied_version' => -1, 'uptime_seconds' => 5])->assertOk();
+        $this->travel(10)->minutes();
+        $this->health(['applied_version' => -1, 'uptime_seconds' => 5]);
+        $scan();
+        $this->assertSame(0, $stale());
+
+        // Applied what we served: fine, however long ago that was.
+        $this->health(['applied_version' => $served, 'uptime_seconds' => 900]);
+        $scan();
+        $this->assertSame(0, $stale(), 'version is a hash, never compared with peer_version');
+
+        // A new list was just served and not applied yet: give it time.
+        Node::first()->bumpPeerVersion();
+        $newer = $this->withToken(self::TOKEN)->getJson('/api/node/peers')->json('version');
+        $this->assertNotSame($served, $newer);
+        $this->travel(2)->minutes();
+        $this->health(['applied_version' => $served, 'uptime_seconds' => 1020]);
+        $scan();
+        $this->assertSame(0, $stale());
+
+        // Still the old one 5+ minutes later: the agent is stuck.
+        $this->travel(4)->minutes();
+        $this->health(['applied_version' => $served, 'uptime_seconds' => 1260]);
+        $scan();
+        $this->assertSame(1, $stale());
+        $this->assertStringContainsString("v{$newer}", \App\Models\Alert::where('source', 'node.sync')->first()->body);
+    }
+
     public function test_expiry_changes_peer_list_version_without_the_sweep(): void
     {
         $sub = $this->activeSubscription();
