@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Device;
 use App\Models\Subscription;
 use App\Services\SubscriptionAdmin;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -112,7 +113,17 @@ class SubscriptionController extends Controller
             $device->last_error = $data['error'];
             $device->last_error_at = now();
         }
-        $device->save();
+        try {
+            $device->save();
+        } catch (QueryException $e) {
+            // During a deploy the code can land a moment before the migration
+            // that adds devices.last_ip; keep the heartbeat working meanwhile.
+            if (! str_contains($e->getMessage(), 'last_ip')) {
+                throw $e;
+            }
+            $device->offsetUnset('last_ip');
+            $device->save();
+        }
 
         // Recorded either way so the admin sees it; the limit is reported,
         // not yet enforced by the client.

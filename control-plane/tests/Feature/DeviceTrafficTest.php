@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\TrafficRecorder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class DeviceTrafficTest extends TestCase
@@ -167,6 +168,24 @@ class DeviceTrafficTest extends TestCase
             ->assertOk();
 
         $this->assertSame('114.80.9.9', Device::sole()->last_ip);
+    }
+
+    public function test_heartbeat_still_works_before_the_last_ip_migration_runs(): void
+    {
+        // Deploy order: git pull lands this code a moment before `migrate`.
+        Schema::table('devices', fn ($t) => $t->dropColumn('last_ip'));
+
+        $user = User::factory()->create(['phone' => '+255700000072']);
+        $user->subscriptions()->create([
+            'plan_code' => 'm1', 'status' => 'active', 'max_devices' => 2,
+            'started_at' => now(), 'expires_at' => now()->addDays(30),
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/subscription/device', ['fingerprint' => 'p2', 'platform' => 'android', 'connected' => true])
+            ->assertOk();
+
+        $this->assertTrue((bool) Device::sole()->vpn_connected);
     }
 
     public function test_category_totals_count_unsplit_bytes_as_unknown(): void
