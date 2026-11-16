@@ -242,6 +242,33 @@ class SingboxConfigTest extends TestCase
         $this->assertSame(50, collect($windows['outbounds'])->firstWhere('tag', 'auto')['tolerance']);
     }
 
+    public function test_desktop_sends_udp_calls_over_hysteria2_and_tcp_keeps_auto(): void
+    {
+        $sub = $this->activeSub();
+
+        foreach (['windows', 'macos'] as $platform) {
+            $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform={$platform}&protocol=auto")->assertOk()->json();
+            $ob = collect($cfg['outbounds'])->keyBy('tag');
+
+            $udp = $ob['udp-auto'];
+            $this->assertSame('urltest', $udp['type']);
+            $this->assertSame('Tokyo 1 · Hysteria2', $udp['outbounds'][0], 'Hysteria2 first for calls');
+            $this->assertContains('Tokyo 1 · REALITY', $udp['outbounds'], 'REALITY when UDP is blocked');
+            $this->assertSame(300, $udp['tolerance']);
+            $this->assertNotContains('udp-auto', $ob['proxy']['outbounds'], 'not a server in the app list');
+
+            $rules = $cfg['route']['rules'];
+            $this->assertSame(['network' => ['udp'], 'outbound' => 'udp-auto'], end($rules), 'after the China-direct rules');
+            $this->assertSame('proxy', $cfg['route']['final'], 'TCP still follows the user choice');
+        }
+
+        // Phones already prefer Hysteria2 in auto; a forced protocol has nothing to choose.
+        $android = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android&protocol=auto")->json();
+        $this->assertNull(collect($android['outbounds'])->firstWhere('tag', 'udp-auto'));
+        $reality = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=windows&protocol=reality")->json();
+        $this->assertNull(collect($reality['outbounds'])->firstWhere('tag', 'udp-auto'));
+    }
+
     public function test_android_tun_excludes_debug_and_system_packages(): void
     {
         $sub = $this->activeSub();
