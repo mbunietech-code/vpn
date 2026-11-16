@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Devices;
 
-use App\Filament\Resources\Devices\Pages\CreateDevice;
+use App\Filament\Resources\Devices\Pages\DeviceTraffic;
 use App\Filament\Resources\Devices\Pages\EditDevice;
 use App\Filament\Resources\Devices\Pages\ListDevices;
 use App\Filament\Resources\Devices\Schemas\DeviceForm;
@@ -46,6 +46,7 @@ class DeviceResource extends Resource
         return [
             'index' => ListDevices::route('/'),
             'edit' => EditDevice::route('/{record}/edit'),
+            'traffic' => DeviceTraffic::route('/{record}/traffic'),
         ];
     }
 }

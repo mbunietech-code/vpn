@@ -39,6 +39,12 @@ class Device extends Model
         return $this->belongsTo(Subscription::class);
     }
 
+    /** @return \Illuminate\Database\Eloquent\Relations\HasMany<TrafficSample> */
+    public function trafficSamples(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TrafficSample::class);
+    }
+
     public function isActive(): bool
     {
         return $this->revoked_at === null;

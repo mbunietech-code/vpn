@@ -15,6 +15,10 @@ class EditDevice extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('traffic')
+                ->label('Traffic & speed')
+                ->icon('heroicon-m-chart-bar')
+                ->url(fn (Device $record) => DeviceResource::getUrl('traffic', ['record' => $record])),
             // Same as the list's Delete (audited); a removed device stays as a block.
             Action::make('delete')
                 ->label('Delete')

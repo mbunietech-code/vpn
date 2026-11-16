@@ -60,6 +60,8 @@ Route::prefix('node')->group(function () {
     Route::get('peers', [NodeController::class, 'peers']);
     Route::post('health', [NodeController::class, 'health']);
     Route::post('openvpn-profile', [NodeController::class, 'openvpnProfile']);
+    // Per-customer traffic, once a minute (agent >= 0.5.0).
+    Route::post('usage', [NodeController::class, 'usage'])->middleware('throttle:20,1');
     // Daily security check of the server (node/security/mbunie-security-check.sh).
     Route::post('security', [NodeController::class, 'security'])->middleware('throttle:30,60');
 });

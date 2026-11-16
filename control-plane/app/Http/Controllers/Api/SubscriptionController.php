@@ -103,6 +103,7 @@ class SubscriptionController extends Controller
             'model' => $data['model'] ?? $device->model,
             'os_version' => $data['os_version'] ?? $device->os_version,
             'last_seen_at' => now(),
+            'last_ip' => $request->ip(),
             'vpn_connected' => $connected,
             'protocol' => $connected ? ($data['protocol'] ?? $device->protocol) : $device->protocol,
             'connected_at' => $connected ? ($device->vpn_connected ? $device->connected_at : now()) : null,

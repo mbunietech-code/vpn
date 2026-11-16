@@ -7,6 +7,7 @@
 //  3. Renders the Xray (VLESS+REALITY) and sing-box (Hysteria2) client
 //     lists into their config files, validates them, and reloads the engines.
 //  4. Reports node health back.
+//  5. Reports per-customer traffic, speed and traffic kinds (usage.go).
 //
 // It holds NO business data - only opaque peer IDs + protocol credentials.
 // See 05-Addendum-MVPN.md §A1, §A2.
@@ -28,7 +29,7 @@ import (
 	"time"
 )
 
-const version = "0.4.0"
+const version = "0.5.0"
 
 type config struct {
 	ControlPlane  string
@@ -40,6 +41,7 @@ type config struct {
 	XrayBin       string
 	SingboxBin    string
 	Openvpn       ovpnConfig
+	Usage         usageConfig
 }
 
 func envConfig() config {
@@ -57,6 +59,7 @@ func envConfig() config {
 			ServerDir: getenv("MVPN_OPENVPN_SERVER_DIR", "/etc/openvpn/server"),
 			Host:      getenv("MVPN_OPENVPN_HOST", os.Getenv("MVPN_DOMAIN")),
 		},
+		Usage: envUsageConfig(),
 	}
 }
 
@@ -184,6 +187,10 @@ func main() {
 			return
 		}
 		bo.ok()
+	}
+
+	if cfg.Usage.Enabled {
+		go newUsageCollector(cfg, cfg.Usage).run(ctx)
 	}
 
 	// Health first: on a brand-new node it registers the protocol params and
@@ -331,6 +338,9 @@ func applyPeers(cfg config, peers []peer) (int, error) {
 			"destOverride": []any{"http", "tls", "quic"},
 			"routeOnly":    false,
 		}
+		if cfg.Usage.Enabled {
+			patchXrayUsage(root)
+		}
 		return nil
 	}, func(path string) error {
 		return runCheck(cfg.XrayBin, "run", "-test", "-config", path)
@@ -356,6 +366,9 @@ func applyPeers(cfg config, peers []peer) (int, error) {
 			in["sniff"] = true
 			in["sniff_override_destination"] = true
 			in["domain_strategy"] = "prefer_ipv4"
+		}
+		if cfg.Usage.Enabled {
+			patchSingboxUsage(root, cfg.Usage)
 		}
 		return nil
 	}, func(path string) error {

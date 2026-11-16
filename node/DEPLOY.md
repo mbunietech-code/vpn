@@ -88,6 +88,28 @@ network, then repeat from inside China for the 24–72 h field test.
 - **Agent can't apply a config:** it keeps the last good one and raises a
   `node.sync` alert with the engine's error text.
 
+## Per-customer traffic (agent 0.5.0+)
+
+Feeds Admin › Network › Traffic and Devices › (device) › Traffic. Every minute
+the agent posts, per customer session, bytes, peak Mbps and bytes per kind of
+traffic (calls, video, downloads…) to `POST /api/node/usage`. Host names stay
+on the node; the control plane keeps 5-minute buckets for 3 days.
+
+On its first sync the agent changes the engine configs once:
+- **sing-box:** `experimental.clash_api` on `127.0.0.1:9095` with a random
+  secret, and `log` at `info` into `/run/mvpn-singbox.log` (RAM). The agent
+  reads and empties that file every 2 s; `/etc/cron.d/mvpn-usage-log` empties
+  it if it passes 100 MB while the agent is down. sing-box reloads (SIGHUP).
+- **Xray:** `policy.levels.0.statsUserOnline` (online IP per user). Xray
+  restarts once (VLESS clients reconnect in ~1 s).
+
+Turn it off with `MVPN_USAGE_STATS=0` in `/etc/mvpn/config/agent.env` (then
+put sing-box's `log` back to `warn` by hand). Other knobs: `MVPN_SINGBOX_CLASH`,
+`MVPN_SINGBOX_LOG`, `MVPN_XRAY_API`, `MVPN_OPENVPN_STATUS`.
+
+Check after an upgrade: `journalctl -u mvpn-agent -f` shows no `usage:` errors,
+and Admin › Network › Traffic lists customers within ~2 minutes.
+
 ## Control-plane relay (KL1 only)
 
 vpn.mbuniehub.com sits behind Cloudflare, which China often blocks. KL1 runs a

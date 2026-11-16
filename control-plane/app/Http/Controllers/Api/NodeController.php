@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Alert;
 use App\Models\Node;
 use App\Services\AlertAnalyzer;
+use App\Services\TrafficRecorder;
 use App\Models\Peer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -205,6 +206,38 @@ class NodeController extends Controller
         }
 
         return response()->json(['status' => 'ok', 'peer_version' => $node->peer_version]);
+    }
+
+    /**
+     * Per-customer traffic for the last minute (agent >= 0.5.0): bytes, peak
+     * speed and coarse traffic kinds per session. No host names.
+     */
+    public function usage(Request $request): JsonResponse
+    {
+        $node = $this->node($request);
+        if (! $node) {
+            return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $data = $request->validate([
+            'window_seconds' => ['nullable', 'integer', 'between:1,3600'],
+            'sessions' => ['present', 'array', 'max:5000'],
+            'sessions.*.remote_id' => ['required', 'string', 'max:64'],
+            'sessions.*.protocol' => ['required', 'string', 'in:vless-reality,hysteria2,openvpn'],
+            'sessions.*.inbound' => ['nullable', 'string', 'max:64'],
+            'sessions.*.source_ip' => ['nullable', 'ip'],
+            'sessions.*.up' => ['required', 'integer', 'min:0'],
+            'sessions.*.down' => ['required', 'integer', 'min:0'],
+            'sessions.*.peak_up_mbps' => ['nullable', 'numeric', 'min:0'],
+            'sessions.*.peak_down_mbps' => ['nullable', 'numeric', 'min:0'],
+            'sessions.*.connections' => ['nullable', 'integer', 'min:0'],
+            'sessions.*.categories' => ['nullable', 'array', 'max:20'],
+            'unattributed' => ['nullable', 'array'],
+        ]);
+
+        $stored = app(TrafficRecorder::class)->record($node, $data);
+
+        return response()->json(['status' => 'ok', 'stored' => $stored]);
     }
 
     /**
