@@ -335,6 +335,25 @@ class SubscriptionBuilder
                 <=> [$nodeOrder[strstr($b, ' · ', true) ?: $b], ! str_contains($b, 'Hysteria2')]);
         }
 
+        // Desktop: `auto` often lands on REALITY, which carries UDP inside TCP.
+        // WhatsApp and other voice/video calls stutter there on lossy China
+        // paths, so UDP gets its own group: Hysteria2 (native UDP datagrams)
+        // first, REALITY and OpenVPN only when Hysteria2 fails its test
+        // (UDP blocked). Phones already prefer Hysteria2 in `auto`.
+        $udpGroup = null;
+        $hysteriaTags = array_values(array_filter($proxyOutbounds, fn ($t) => str_contains($t, 'Hysteria2')));
+        $otherTags = array_values(array_filter($proxyOutbounds, fn ($t) => ! str_contains($t, 'Hysteria2')));
+        if (! $preferHysteria && $protocol === 'auto' && $hysteriaTags && $otherTags) {
+            $udpGroup = [
+                'type' => 'urltest',
+                'tag' => 'udp-auto',
+                'outbounds' => array_merge($hysteriaTags, $otherTags, array_column($openVpnEndpoints, 'tag')),
+                'url' => 'https://www.apple.com/library/test/success.html',
+                'interval' => config('services.mvpn.urltest_interval', '1m'),
+                'tolerance' => 300,
+            ];
+        }
+
         // Selector + auto (urltest) sit in front of the peers.
         $selectorMembers = array_merge(['auto'], $proxyOutbounds, array_keys($v6Groups), array_column($openVpnEndpoints, 'tag'));
         $v6GroupOutbounds = [];
@@ -430,7 +449,7 @@ class SubscriptionBuilder
                     'interval' => config('services.mvpn.urltest_interval', '1m'),
                     'tolerance' => $preferHysteria ? 300 : 50,
                 ],
-            ], $v6GroupOutbounds, $outbounds, [
+            ], $udpGroup ? [$udpGroup] : [], $v6GroupOutbounds, $outbounds, [
                 ['type' => 'direct', 'tag' => 'direct'],
             ]),
             'route' => [
@@ -442,7 +461,7 @@ class SubscriptionBuilder
                     // Mainland China sites go direct: they are slow or
                     // unreachable from the foreign node.
                     ['rule_set' => ['geosite-cn', 'geoip-cn'], 'outbound' => 'direct'],
-                ]),
+                ], $udpGroup ? [['network' => ['udp'], 'outbound' => 'udp-auto']] : []),
                 'rule_set' => $this->chinaRuleSets($platform),
                 'final' => 'proxy',
                 'auto_detect_interface' => true,
