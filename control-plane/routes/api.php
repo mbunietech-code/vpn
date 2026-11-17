@@ -60,10 +60,13 @@ Route::prefix('node')->group(function () {
     Route::get('peers', [NodeController::class, 'peers']);
     Route::post('health', [NodeController::class, 'health']);
     Route::post('openvpn-profile', [NodeController::class, 'openvpnProfile']);
-    // Per-customer traffic, once a minute (agent >= 0.5.0).
-    Route::post('usage', [NodeController::class, 'usage'])->middleware('throttle:20,1');
+    // Per-customer traffic, once a minute (agent >= 0.5.0). Each throttle has
+    // its own prefix: a plain one is keyed by IP alone, so it would share its
+    // counter with every other throttled call from the node's IP (the hourly
+    // security post, apps going through the KL1 relay).
+    Route::post('usage', [NodeController::class, 'usage'])->middleware('throttle:20,1,node-usage');
     // Daily security check of the server (node/security/mbunie-security-check.sh).
-    Route::post('security', [NodeController::class, 'security'])->middleware('throttle:30,60');
+    Route::post('security', [NodeController::class, 'security'])->middleware('throttle:30,60,node-security');
 });
 
 /*

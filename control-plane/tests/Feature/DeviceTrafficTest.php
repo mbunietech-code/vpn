@@ -73,6 +73,18 @@ class DeviceTrafficTest extends TestCase
         return User::where('is_admin', true)->firstOrFail();
     }
 
+    public function test_other_throttled_calls_from_the_node_ip_do_not_block_usage(): void
+    {
+        // Laravel keys plain throttles by IP only, so without its own prefix the
+        // usage limit (20/min) counted the node's hourly security posts and the
+        // relayed app calls too, and 429'd for most of every hour.
+        for ($i = 0; $i < 21; $i++) {
+            $this->withToken(self::TOKEN)->postJson('/api/node/security', []);
+        }
+
+        $this->usage([])->assertOk();
+    }
+
     public function test_usage_requires_the_node_token(): void
     {
         $this->postJson('/api/node/usage', ['sessions' => []])->assertUnauthorized();
