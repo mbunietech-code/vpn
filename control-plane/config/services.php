@@ -100,6 +100,9 @@ return [
         ],
         // Who gets "payment to review" emails (comma separated). Empty = every VPN admin.
         'payment_alert_emails' => env('MVPN_PAYMENT_ALERT_EMAILS'),
+        // Node capacity alerts (Admin > Alerts + email to the alert recipients).
+        'quota_alert_percent' => (int) env('MVPN_QUOTA_ALERT_PERCENT', 80),
+        'subscriber_alert' => (int) env('MVPN_SUBSCRIBER_ALERT', 80),
         // Our own services the tunnel must never carry (comma separated host names).
         // Live-class video is real-time UDP: inside the tunnel (often TCP) it freezes.
         // Their addresses are looked up when a config is built.
