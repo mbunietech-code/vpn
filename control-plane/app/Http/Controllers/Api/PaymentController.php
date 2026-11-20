@@ -62,7 +62,7 @@ class PaymentController extends Controller
             'method_id' => ['nullable', 'integer', 'exists:payment_methods,id'],
         ]);
 
-        $plan = Plan::where('code', $data['plan'])->where('is_active', true)->firstOrFail();
+        $plan = Plan::where('code', $data['plan'])->where('is_active', true)->where('is_trial', false)->firstOrFail();
         $method = isset($data['method_id']) ? PaymentMethod::find($data['method_id']) : null;
 
         $invoice = Invoice::create([

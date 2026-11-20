@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\Invoice;
 use App\Services\ManualPaymentService;
+use App\Services\RevenueSummary;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -38,20 +39,25 @@ class PendingApprovals extends TableWidget
                     ->latest()
             )
             ->columns([
-                TextColumn::make('user.email')
+                // OTP customers often have no name: fall back to email / phone.
+                TextColumn::make('customer')
                     ->label('Customer')
-                    ->description(fn (Invoice $r) => $r->user?->phone),
-                TextColumn::make('plan_code')->label('Plan')->badge(),
-                TextColumn::make('payment_method')->label('Method')->placeholder('—'),
+                    ->state(fn (Invoice $r) => $r->user?->name ?: ($r->user?->email ?: ($r->user?->phone ?: '#'.$r->user_id)))
+                    ->description(fn (Invoice $r) => RevenueSummary::money((int) $r->amount_cents, $r->currency)
+                        .' · '.$r->plan_code.($r->payment_method ? ' · '.$r->payment_method : '')),
+                TextColumn::make('plan_code')->label('Plan')->badge()->visibleFrom('md'),
+                TextColumn::make('payment_method')->label('Method')->placeholder('—')->visibleFrom('lg'),
                 TextColumn::make('amount_cents')
                     ->label('Amount')
-                    ->formatStateUsing(fn ($state, Invoice $r) => number_format($state / 100, 2) . ' ' . strtoupper($r->currency)),
+                    ->visibleFrom('md')
+                    ->formatStateUsing(fn ($state, Invoice $r) => RevenueSummary::money((int) $state, $r->currency))
+                    ->weight('semibold'),
                 TextColumn::make('proof_path')
                     ->label('Proof')
                     ->badge()
-                    ->formatStateUsing(fn ($state) => $state ? 'Ipo' : 'Haipo')
+                    ->formatStateUsing(fn ($state) => $state ? 'Uploaded' : 'Missing')
                     ->color(fn ($state) => $state ? 'success' : 'gray'),
-                TextColumn::make('created_at')->label('Time')->since(),
+                TextColumn::make('created_at')->label('Time')->since()->visibleFrom('md'),
             ])
             ->recordActions([
                 Action::make('proof')

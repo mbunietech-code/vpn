@@ -1,3 +1,4 @@
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -31,6 +32,13 @@ if (keystorePropertiesFile != null && keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
+// Google Play build: --dart-define=MVPN_PLAY=true (Flutter passes the defines
+// to Gradle base64-encoded).
+val playBuild = (project.findProperty("dart-defines") as String?)
+    ?.split(",")
+    ?.any { define: String -> runCatching { String(Base64.getDecoder().decode(define)) }.getOrNull() == "MVPN_PLAY=true" }
+    ?: false
+
 android {
     namespace = "com.mbunie.mvpn"
     // Some plugins (flutter_plugin_android_lifecycle) require compileSdk 36+.
@@ -54,6 +62,10 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+        // Only the sideloaded APK installs its own updates: Play forbids
+        // REQUEST_INSTALL_PACKAGES for apps that are not app stores.
+        manifestPlaceholders["installPackagesPermission"] =
+            if (playBuild) "com.mbunie.mvpn.permission.UNUSED" else "android.permission.REQUEST_INSTALL_PACKAGES"
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a")
         }

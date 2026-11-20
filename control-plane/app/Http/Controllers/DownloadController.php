@@ -54,13 +54,22 @@ class DownloadController extends Controller
      */
     public function appVersion(Request $request): JsonResponse
     {
-        $deviceId = (string) $request->header(RejectRevokedDevice::HEADER, '');
-        $platform = $deviceId !== '' ? Device::where('fingerprint', $deviceId)->value('platform') : null;
-        $latest = match ($platform) {
+        $ids = array_filter([
+            (string) $request->header(RejectRevokedDevice::HEADER, ''),
+            (string) $request->header(RejectRevokedDevice::PREVIOUS_HEADER, ''),
+        ]);
+        $platform = $ids ? Device::whereIn('fingerprint', $ids)->value('platform') : null;
+        $versions = array_filter([
             'android' => config('services.mvpn.android_version'),
             'windows' => config('services.mvpn.windows_version'),
-            default => null,
-        } ?: config('services.mvpn.app_version');
+            'base' => config('services.mvpn.app_version'),
+        ]);
+        // An app that is not known yet (its first call can go out before it
+        // has its hardware id) gets the newest version: under-reporting it
+        // told Windows 1.0.18 there was no update.
+        $latest = $platform === null
+            ? array_reduce($versions, fn ($newest, $v) => $newest === null || version_compare($v, $newest, '>') ? $v : $newest)
+            : ($versions[$platform] ?? $versions['base'] ?? null);
 
         return response()->json([
             'latest' => (string) $latest,

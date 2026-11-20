@@ -32,13 +32,10 @@ class WebhookProcessor
         );
 
         if (! $signatureOk) {
-            Alert::create([
-                'severity' => 'warn',
-                'source' => 'webhook',
-                'title' => "Bad webhook signature ({$provider})",
-                'body' => 'A webhook was rejected for an invalid signature. Possible misconfiguration or probing.',
-                'context' => ['ip' => $request->ip()],
-            ]);
+            app(AlertAnalyzer::class)->raise('warn', 'webhook',
+                "Bad webhook signature ({$provider})",
+                'A webhook was rejected for an invalid signature. Possible misconfiguration or probing.',
+                null, ['ip' => $request->ip()]);
             return ['status' => 400, 'body' => ['error' => 'bad signature']];
         }
 
@@ -88,13 +85,10 @@ class WebhookProcessor
         $currencyOk = ! $event['currency'] || $event['currency'] === $invoice->currency;
 
         if (! $currencyOk || $got < $expected - 2) {
-            Alert::create([
-                'severity' => 'critical',
-                'source' => 'webhook',
-                'title' => "Payment amount/currency mismatch on invoice {$invoice->id}",
-                'body' => "expected {$expected} {$invoice->currency}, got {$got} " . ($event['currency'] ?? '?'),
-                'context' => $event,
-            ]);
+            app(AlertAnalyzer::class)->raise('critical', 'webhook',
+                "Payment amount/currency mismatch on invoice {$invoice->id}",
+                "expected {$expected} {$invoice->currency}, got {$got} ".($event['currency'] ?? '?'),
+                null, (array) $event);
             return 'amount mismatch - not activated';
         }
 

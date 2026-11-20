@@ -83,13 +83,13 @@ return [
         'default_currency' => env('MVPN_DEFAULT_CURRENCY', 'usd'),
         'provision_timeout' => (int) env('MVPN_PROVISION_TIMEOUT', 60),
         // Public installers shown on /download (files under storage/app/public/downloads).
-        'download_android' => env('MVPN_DOWNLOAD_ANDROID', '/storage/downloads/Mbunie-VPN-1.0.17.apk'),
-        'download_windows' => env('MVPN_DOWNLOAD_WINDOWS', '/storage/downloads/Mbunie-VPN-Setup-1.0.17.exe'),
-        'download_macos' => env('MVPN_DOWNLOAD_MACOS', '/storage/downloads/Mbunie-VPN-1.0.13-macos.dmg'),
-        'app_version' => env('MVPN_APP_VERSION', '1.0.13'),
+        'download_android' => env('MVPN_DOWNLOAD_ANDROID', '/storage/downloads/Mbunie-VPN-1.0.26.apk'),
+        'download_windows' => env('MVPN_DOWNLOAD_WINDOWS', '/storage/downloads/Mbunie-VPN-Setup-1.0.26.exe'),
+        'download_macos' => env('MVPN_DOWNLOAD_MACOS', '/storage/downloads/Mbunie-VPN-1.0.26-macos.dmg'),
+        'app_version' => env('MVPN_APP_VERSION', '1.0.26'),
         // Android can ship ahead of the desktop installers.
-        'android_version' => env('MVPN_ANDROID_VERSION', '1.0.17'),
-        'windows_version' => env('MVPN_WINDOWS_VERSION', '1.0.17'),
+        'android_version' => env('MVPN_ANDROID_VERSION', '1.0.26'),
+        'windows_version' => env('MVPN_WINDOWS_VERSION', '1.0.26'),
         // Apps older than this must update before they can be used (null = never forced).
         'min_app_version' => env('MVPN_MIN_APP_VERSION'),
         // Units of each currency per 1 USD, for rough revenue totals on the dashboard.
@@ -103,6 +103,19 @@ return [
         // Node capacity alerts (Admin > Alerts + email to the alert recipients).
         'quota_alert_percent' => (int) env('MVPN_QUOTA_ALERT_PERCENT', 80),
         'subscriber_alert' => (int) env('MVPN_SUBSCRIBER_ALERT', 80),
+        // Our own services the tunnel must never carry (comma separated host names).
+        // Live-class video is real-time UDP: inside the tunnel (often TCP) it freezes.
+        // Their addresses are looked up when a config is built.
+        'direct_hosts' => array_values(array_filter(array_map('trim', explode(',',
+            (string) env('MVPN_DIRECT_HOSTS', 'live.mbuniehub.com,turn.mbuniehub.com'))))),
+        // Hysteria2 "Brutal": the app tells the server its real speed, so the
+        // server keeps sending at that rate when China's lines drop packets
+        // (plain BBR backs off and stalls). Moderate on purpose: set it far
+        // above real speed and it only adds loss. 0 = off (BBR).
+        'hysteria_up_mbps' => (int) env('MVPN_HYSTERIA_UP_MBPS', 20),
+        'hysteria_down_mbps' => (int) env('MVPN_HYSTERIA_DOWN_MBPS', 50),
+        // How often the app re-tests servers and moves off a failing one.
+        'urltest_interval' => env('MVPN_URLTEST_INTERVAL', '1m'),
     ],
 
     // MbunieEduHub (mbuniehub.com): signed partner API (EduHub sells/activates VPN plans).

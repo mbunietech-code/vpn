@@ -1,15 +1,30 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../../models.dart';
 
+/// The server could not be reached at all (no route, DNS, TLS, timeout), as
+/// opposed to an HTTP error from it.
+bool isUnreachable(Object e) =>
+    e is TimeoutException ||
+    e is SocketException ||
+    e is HandshakeException ||
+    e is http.ClientException;
+
 enum EngineStatus { down, starting, up, error }
 
 class EngineReport {
-  const EngineReport(this.status, {this.message});
+  const EngineReport(this.status, {this.message, this.external = false});
   final EngineStatus status;
   final String? message;
+
+  /// [EngineStatus.down] because the user turned the VPN off outside the
+  /// app (Quick Settings tile, Android settings, another VPN took over):
+  /// not a drop to reconnect from.
+  final bool external;
 }
 
 /// Cumulative byte counters + instantaneous speed (bytes/sec).

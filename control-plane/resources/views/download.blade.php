@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Download Mbunie VPN</title>
-<link rel="icon" href="{{ asset('images/favicon-64.png') }}?v=4">
+<link rel="icon" href="{{ asset('images/favicon-64.png') }}?v=5">
 <style>
   :root { color-scheme: light dark; --blue: #2563eb; --card: #fff; --line: #e3e8f2; --muted: #6b7385; --disc: #f1f3f7; --ink: #141b2d; }
   @media (prefers-color-scheme: dark) { :root { --card: #121a2b; --line: #22304a; --muted: #9aa6bd; --disc: #1b2538; --ink: #eef2fb; } body { background: #0b111e !important; } }
@@ -47,7 +47,7 @@
 <body>
 <div class="wrap">
   <div class="brand">
-    <img src="{{ asset('images/mvpn-icon.png') }}?v=4" alt="Mbunie">
+    <img src="{{ asset('images/mvpn-icon.png') }}?v=5" alt="Mbunie">
     <div>
       <h1>Mbunie VPN</h1>
       <p class="muted" style="margin:0">Fast, private access that works in China.</p>
@@ -85,20 +85,21 @@
       <div class="meta">Version {{ $windowsVersion }}@if ($windowsDate)<br>{{ $windowsDate }}@endif</div>
     </a>
 
-    {{-- iOS --}}
-    <div class="tile soon" aria-label="iOS, coming soon">
+    {{-- iOS: our own app needs Apple signing first; until then the official
+         sing-box app runs the same config (?platform=ios) from the user's link. --}}
+    <a class="tile" href="https://apps.apple.com/app/sing-box-mt/id6785326793" target="_blank" rel="noopener" aria-label="Get sing-box for iPhone on the App Store">
       <div class="disc">
         <svg class="os" viewBox="0 0 64 64" fill="none" stroke="#5f6675" stroke-width="3.2" stroke-linecap="round" aria-hidden="true">
           <circle cx="32" cy="32" r="25"/>
           <path d="M26.5 17.5 39 41M37.5 17.5 25 41M20 41h24M43 34l3.5 7"/>
         </svg>
         <span class="badge" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
         </span>
       </div>
       <div class="name">iOS</div>
-      <div class="meta">iPhone / iPad<br><span class="pill">Coming soon</span></div>
-    </div>
+      <div class="meta">iPhone / iPad<br><span class="pill">via the sing-box app</span></div>
+    </a>
 
     {{-- Android: the tile downloads; its badge shows a QR to scan from a computer --}}
     <div class="android">
@@ -138,6 +139,14 @@
       <li>Open it and sign in with your email or phone number. We send you a one-time code.</li>
       <li>Tap <strong>Connect</strong>. Protocol <strong>Auto</strong> picks the best route for your network.</li>
     </ol>
+    <p><strong>iPhone / iPad:</strong> the Mbunie VPN app for iPhone is coming. Until then, install
+      <a href="https://apps.apple.com/app/sing-box-mt/id6785326793" target="_blank" rel="noopener">sing-box</a>
+      from the App Store (it needs an Apple ID from outside mainland China). Then open Mbunie VPN on
+      your computer or Android phone, go to <strong>Settings → Use on iPhone</strong> and scan the code with
+      the iPhone camera: sing-box opens with your profile, tap <strong>Create</strong>, then start it from
+      <strong>Dashboard</strong>. No other device? Email
+      <a href="mailto:support@mbuniehub.com?subject=iPhone%20link">support@mbuniehub.com</a> for your personal iPhone link
+      and paste it in sing-box under <strong>Profiles → New Profile → Remote</strong>.</p>
     <p class="muted">No plan yet? Buy one at <a href="https://mbuniehub.com">mbuniehub.com</a> or inside the app.</p>
   </div>
 

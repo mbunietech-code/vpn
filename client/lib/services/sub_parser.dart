@@ -11,6 +11,7 @@ class SubParser {
   static const _regionByCity = <String, String>{
     'hong kong': 'Asia-Pacific',
     'tokyo': 'Asia-Pacific',
+    'kuala lumpur': 'Asia-Pacific',
     'singapore': 'Asia-Pacific',
     'seoul': 'Asia-Pacific',
     'osaka': 'Asia-Pacific',

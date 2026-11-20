@@ -20,7 +20,7 @@ class NodeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedServerStack;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Infrastructure';
+    protected static string|\UnitEnum|null $navigationGroup = 'Network';
 
     protected static ?int $navigationSort = 10;
 

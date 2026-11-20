@@ -12,10 +12,12 @@ class DownloadPageTest extends TestCase
             ->assertSee('Download APK')
             ->assertSee('Download for Windows')
             ->assertSee('Download for macOS')
-            ->assertSee('Mbunie-VPN-1.0.13-macos.dmg', false)
+            // From config, so a version bump does not break this test.
+            ->assertSee(basename(config('services.mvpn.download_macos')), false)
             ->assertSee(route('download.qr'), false)
             ->assertSee(route('download.qr.android'), false)
-            ->assertSee('Coming soon');
+            ->assertSee('apps.apple.com/app/sing-box-mt/id6785326793', false)
+            ->assertDontSee('Coming soon');
     }
 
     public function test_android_qr_is_an_svg(): void

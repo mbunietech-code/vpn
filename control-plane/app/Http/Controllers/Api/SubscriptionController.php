@@ -5,15 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Device;
 use App\Models\Subscription;
+use App\Services\SubscriptionAdmin;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SubscriptionController extends Controller
 {
     /** App polls this after checkout to detect auto-activation. */
-    public function show(Request $request): JsonResponse
+    public function show(Request $request, SubscriptionAdmin $admin): JsonResponse
     {
         $user = $request->user();
+        $admin->ensureAdminAccess($user);
         $sub = $user->activeSubscription()
             ?? $user->subscriptions()->latest()->first();
 
@@ -42,7 +45,8 @@ class SubscriptionController extends Controller
         return response()->json([
             'status' => $sub->status,                  // pending | active | expired | suspended
             'plan' => $sub->plan_code,
-            'expires_at' => $sub->expires_at?->toIso8601String(),
+            'expires_at' => $sub->expiresAtForApp(),
+            'unlimited' => $sub->isUnlimited(),
             'max_devices' => $sub->max_devices,
             'data_used_mb' => $sub->data_used_mb,
             'sub_url' => $sub->isActive()
@@ -100,6 +104,7 @@ class SubscriptionController extends Controller
             'model' => $data['model'] ?? $device->model,
             'os_version' => $data['os_version'] ?? $device->os_version,
             'last_seen_at' => now(),
+            'last_ip' => $request->ip(),
             'vpn_connected' => $connected,
             'protocol' => $connected ? ($data['protocol'] ?? $device->protocol) : $device->protocol,
             'connected_at' => $connected ? ($device->vpn_connected ? $device->connected_at : now()) : null,
@@ -108,7 +113,17 @@ class SubscriptionController extends Controller
             $device->last_error = $data['error'];
             $device->last_error_at = now();
         }
-        $device->save();
+        try {
+            $device->save();
+        } catch (QueryException $e) {
+            // During a deploy the code can land a moment before the migration
+            // that adds devices.last_ip; keep the heartbeat working meanwhile.
+            if (! str_contains($e->getMessage(), 'last_ip')) {
+                throw $e;
+            }
+            $device->offsetUnset('last_ip');
+            $device->save();
+        }
 
         // Recorded either way so the admin sees it; the limit is reported,
         // not yet enforced by the client.

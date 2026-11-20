@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Subscription;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Builds the client subscription payload for /sub/{token}.
@@ -30,6 +31,87 @@ class SubscriptionBuilder
                 fn ($a, $b) => strcmp($a->node->name, $b->node->name),
             ])
             ->values();
+    }
+
+    /** Hysteria2 Brutal speeds (see services.mvpn.hysteria_*_mbps); empty = BBR. */
+    private function hysteriaBandwidth(): array
+    {
+        $up = (int) config('services.mvpn.hysteria_up_mbps', 0);
+        $down = (int) config('services.mvpn.hysteria_down_mbps', 0);
+
+        return $up > 0 && $down > 0 ? ['up_mbps' => $up, 'down_mbps' => $down] : [];
+    }
+
+    /**
+     * Our own services that always go direct, never through the tunnel: the live
+     * classroom (its video is real-time UDP, which stutters inside a tunnel and
+     * would only come back out on the same server anyway).
+     *
+     * @return array{hosts: list<string>, cidrs: list<string>}
+     */
+    private function directBypass(): array
+    {
+        $hosts = array_values(array_filter((array) config('services.mvpn.direct_hosts', [])));
+        if (! $hosts) {
+            return ['hosts' => [], 'cidrs' => []];
+        }
+
+        $key = 'mvpn.direct_cidrs.'.md5(implode(',', $hosts));
+        $cidrs = Cache::get($key);
+        if (! is_array($cidrs)) {
+            $cidrs = $this->resolveCidrs($hosts);
+            // A failed lookup is retried on the next config, not remembered.
+            if ($cidrs) {
+                Cache::put($key, $cidrs, now()->addMinutes(10));
+            }
+        }
+
+        return ['hosts' => $hosts, 'cidrs' => $cidrs];
+    }
+
+    /**
+     * IPv4 and IPv6 addresses of the hosts, as single-address ranges.
+     *
+     * @param  list<string>  $hosts
+     * @return list<string>
+     */
+    protected function resolveCidrs(array $hosts): array
+    {
+        $cidrs = [];
+        foreach ($hosts as $host) {
+            foreach (@dns_get_record($host, DNS_A | DNS_AAAA) ?: [] as $record) {
+                if (! empty($record['ip'])) {
+                    $cidrs[] = $record['ip'].'/32';
+                }
+                if (! empty($record['ipv6'])) {
+                    $cidrs[] = $record['ipv6'].'/128';
+                }
+            }
+        }
+
+        return array_values(array_unique($cidrs));
+    }
+
+    /**
+     * The same bypass for a config: kept off the TUN by the OS (route_exclude_address)
+     * and, where an OS ignores that, sent direct by sing-box (by name and by address).
+     *
+     * @param  array<string,mixed>  $tunInbound
+     * @return array{0: array<string,mixed>, 1: list<array<string,mixed>>, 2: list<array<string,mixed>>}
+     */
+    private function applyDirectBypass(array $tunInbound): array
+    {
+        ['hosts' => $hosts, 'cidrs' => $cidrs] = $this->directBypass();
+        if ($cidrs) {
+            $tunInbound['route_exclude_address'] = array_values(array_unique(array_merge($tunInbound['route_exclude_address'] ?? [], $cidrs)));
+        }
+        $dnsRules = $hosts ? [['domain' => $hosts, 'server' => 'direct-dns']] : [];
+        $routeRules = array_merge(
+            $hosts ? [['domain' => $hosts, 'outbound' => 'direct']] : [],
+            $cidrs ? [['ip_cidr' => $cidrs, 'outbound' => 'direct']] : [],
+        );
+
+        return [$tunInbound, $dnsRules, $routeRules];
     }
 
     public function build(Subscription $sub): string
@@ -66,6 +148,18 @@ class SubscriptionBuilder
                     'pinSHA256' => $node->hysteria_cert_sha256,
                     'mport' => $node->hysteria_port_range,
                 ]);
+                if ($node->hysteria_obfs_port && $node->hysteria_obfs_password) {
+                    $obfsQuery = http_build_query([
+                        'sni' => $node->reality_sni,
+                        'insecure' => 1,
+                        'pinSHA256' => $node->hysteria_cert_sha256,
+                        'mport' => $node->hysteria_obfs_port_range,
+                        'obfs' => 'salamander',
+                        'obfs-password' => $node->hysteria_obfs_password,
+                    ]);
+                    $obfsTag = rawurlencode("MVPN {$node->name} Obfs");
+                    $links[] = "hysteria2://{$peer->secret}@{$node->public_host}:{$node->hysteria_obfs_port}?{$obfsQuery}#{$obfsTag}";
+                }
                 $links[] = "hysteria2://{$peer->secret}@{$node->public_host}:{$node->hysteria_port}?{$query}#{$tag}";
                 if ($node->public_host_v6) {
                     $links[] = "hysteria2://{$peer->secret}@{$node->public_host_v6}:{$node->hysteria_port}?{$query}#{$tagV6}";
@@ -78,7 +172,8 @@ class SubscriptionBuilder
 
     /**
      * Full sing-box client config. `stack` differs per platform:
-     *   windows/linux → "mixed",  macos → "system",  android/ios → "gvisor".
+     *   windows/linux → "mixed",  macos/android/ios → "gvisor".
+     *   (macOS "system": IPv4 TCP died, its NAT replies to 172.19.0.2 left via en0.)
      *
      * @return array<string,mixed>
      */
@@ -132,12 +227,8 @@ class SubscriptionBuilder
 
             if ($peer->protocol === 'hysteria2') {
                 $nodeHosts[] = $node->public_host;
-                $tag = "{$node->name} · Hysteria2";
-                $proxyOutbounds[] = $tag;
-                $nodeByTag[$tag] = $node;
                 $hy = [
                     'type' => 'hysteria2',
-                    'tag' => $tag,
                     'server' => $node->public_host,
                     'server_port' => (int) $node->hysteria_port,
                     'password' => $peer->secret,
@@ -147,12 +238,32 @@ class SubscriptionBuilder
                         'insecure' => true,
                     ],
                 ];
-                if ($node->hysteria_port_range) {
-                    $hy['server_ports'] = [str_replace('-', ':', $node->hysteria_port_range)];
-                }
                 if ($node->hysteria_cert_sha256) {
                     $hy['tls']['certificate'] = [];
                 }
+                $hy += $this->hysteriaBandwidth();
+
+                // Salamander-obfuscated twin first (random-looking UDP, not
+                // QUIC), on its own port; the plain one stays as a fallback.
+                if ($node->hysteria_obfs_port && $node->hysteria_obfs_password) {
+                    $obfs = $hy;
+                    $obfs['tag'] = "{$node->name} · Hysteria2 Obfs";
+                    $obfs['server_port'] = (int) $node->hysteria_obfs_port;
+                    $obfs['obfs'] = ['type' => 'salamander', 'password' => $node->hysteria_obfs_password];
+                    if ($node->hysteria_obfs_port_range) {
+                        $obfs['server_ports'] = [str_replace('-', ':', $node->hysteria_obfs_port_range)];
+                    }
+                    $proxyOutbounds[] = $obfs['tag'];
+                    $nodeByTag[$obfs['tag']] = $node;
+                    $outbounds[] = $obfs;
+                }
+
+                $hy['tag'] = "{$node->name} · Hysteria2";
+                if ($node->hysteria_port_range) {
+                    $hy['server_ports'] = [str_replace('-', ':', $node->hysteria_port_range)];
+                }
+                $proxyOutbounds[] = $hy['tag'];
+                $nodeByTag[$hy['tag']] = $node;
                 $outbounds[] = $hy;
             }
         }
@@ -170,7 +281,8 @@ class SubscriptionBuilder
             }
             $group = "{$node->name} (IPv6)";
             $v6 = $ob;
-            $v6['tag'] = $group.' · '.($ob['type'] === 'vless' ? 'REALITY' : 'Hysteria2');
+            // Same suffix as the IPv4 one ("REALITY", "Hysteria2", "Hysteria2 Obfs").
+            $v6['tag'] = $group.' · '.substr($ob['tag'], strlen("{$node->name} · "));
             $v6['server'] = $node->public_host_v6;
             $outbounds[] = $v6;
             $proxyOutbounds[] = $v6['tag'];
@@ -223,6 +335,25 @@ class SubscriptionBuilder
                 <=> [$nodeOrder[strstr($b, ' · ', true) ?: $b], ! str_contains($b, 'Hysteria2')]);
         }
 
+        // Desktop: `auto` often lands on REALITY, which carries UDP inside TCP.
+        // WhatsApp and other voice/video calls stutter there on lossy China
+        // paths, so UDP gets its own group: Hysteria2 (native UDP datagrams)
+        // first, REALITY and OpenVPN only when Hysteria2 fails its test
+        // (UDP blocked). Phones already prefer Hysteria2 in `auto`.
+        $udpGroup = null;
+        $hysteriaTags = array_values(array_filter($proxyOutbounds, fn ($t) => str_contains($t, 'Hysteria2')));
+        $otherTags = array_values(array_filter($proxyOutbounds, fn ($t) => ! str_contains($t, 'Hysteria2')));
+        if (! $preferHysteria && $protocol === 'auto' && $hysteriaTags && $otherTags) {
+            $udpGroup = [
+                'type' => 'urltest',
+                'tag' => 'udp-auto',
+                'outbounds' => array_merge($hysteriaTags, $otherTags, array_column($openVpnEndpoints, 'tag')),
+                'url' => 'https://www.apple.com/library/test/success.html',
+                'interval' => config('services.mvpn.urltest_interval', '1m'),
+                'tolerance' => 300,
+            ];
+        }
+
         // Selector + auto (urltest) sit in front of the peers.
         $selectorMembers = array_merge(['auto'], $proxyOutbounds, array_keys($v6Groups), array_column($openVpnEndpoints, 'tag'));
         $v6GroupOutbounds = [];
@@ -232,7 +363,7 @@ class SubscriptionBuilder
                 'tag' => $group,
                 'outbounds' => $members,
                 'url' => 'https://www.apple.com/library/test/success.html',
-                'interval' => '3m',
+                'interval' => config('services.mvpn.urltest_interval', '1m'),
                 'tolerance' => $preferHysteria ? 300 : 50,
             ];
         }
@@ -254,7 +385,7 @@ class SubscriptionBuilder
                 'fe80::/10',
                 'ff00::/8',
             ],
-            'stack' => match ($platform) { 'macos' => 'system', 'android', 'ios' => 'gvisor', default => 'mixed' },
+            'stack' => match ($platform) { 'macos', 'android', 'ios' => 'gvisor', default => 'mixed' },
         ];
 
         // iOS: the Network Extension owns the interface; desktop-only options break it.
@@ -273,6 +404,7 @@ class SubscriptionBuilder
                 // is blocked in China, and YouTube needs it to verify the device.
             ];
         }
+        [$tunInbound, $directDnsRules, $directRouteRules] = $this->applyDirectBypass($tunInbound);
 
         $config = [
             'log' => ['level' => 'warn', 'timestamp' => true],
@@ -295,7 +427,7 @@ class SubscriptionBuilder
                 // Chinese domains resolve locally (fast, correct CDN answers);
                 // everything else goes through the tunnel so the GFW cannot
                 // poison it.
-                'rules' => array_merge($bootstrapDnsRules, [
+                'rules' => array_merge($bootstrapDnsRules, $directDnsRules, [
                     ['rule_set' => ['geosite-cn'], 'server' => 'direct-dns'],
                 ]),
                 'final' => 'proxy-dns',
@@ -314,23 +446,23 @@ class SubscriptionBuilder
                     'tag' => 'auto',
                     'outbounds' => $proxyOutbounds ?: ['direct'],
                     'url' => 'https://www.apple.com/library/test/success.html',
-                    'interval' => '3m',
+                    'interval' => config('services.mvpn.urltest_interval', '1m'),
                     'tolerance' => $preferHysteria ? 300 : 50,
                 ],
-            ], $v6GroupOutbounds, $outbounds, [
+            ], $udpGroup ? [$udpGroup] : [], $v6GroupOutbounds, $outbounds, [
                 ['type' => 'direct', 'tag' => 'direct'],
             ]),
             'route' => [
                 'rules' => array_merge([
                     ['action' => 'sniff'],
                     ['protocol' => 'dns', 'action' => 'hijack-dns'],
-                ], $bootstrapRouteRules, [
+                ], $bootstrapRouteRules, $directRouteRules, [
                     ['ip_is_private' => true, 'outbound' => 'direct'],
                     // Mainland China sites go direct: they are slow or
                     // unreachable from the foreign node.
                     ['rule_set' => ['geosite-cn', 'geoip-cn'], 'outbound' => 'direct'],
-                ]),
-                'rule_set' => $this->chinaRuleSets(),
+                ], $udpGroup ? [['network' => ['udp'], 'outbound' => 'udp-auto']] : []),
+                'rule_set' => $this->chinaRuleSets($platform),
                 'final' => 'proxy',
                 'auto_detect_interface' => true,
                 // sing-box >= 1.14 refuses to start without a resolver for
@@ -346,6 +478,11 @@ class SubscriptionBuilder
         ];
         if ($openVpnEndpoints) {
             $config['endpoints'] = $openVpnEndpoints;
+        }
+        if ($platform === 'ios') {
+            // The rule sets' download client (see chinaRuleSets): no dial
+            // fields, so it connects directly, not through the tunnel.
+            $config['http_clients'] = [['tag' => 'direct-http']];
         }
 
         return $config;
@@ -412,7 +549,7 @@ class SubscriptionBuilder
                 'fe80::/10',
                 'ff00::/8',
             ],
-            'stack' => match ($platform) { 'macos' => 'system', 'android', 'ios' => 'gvisor', default => 'mixed' },
+            'stack' => match ($platform) { 'macos', 'android', 'ios' => 'gvisor', default => 'mixed' },
         ];
 
         // iOS: the Network Extension owns the interface; desktop-only options break it.
@@ -433,6 +570,7 @@ class SubscriptionBuilder
         }
 
         $nodeHosts = array_values(array_unique(array_filter($nodeHosts)));
+        [$tunInbound, $directDnsRules, $directRouteRules] = $this->applyDirectBypass($tunInbound);
 
         return [
             'log' => ['level' => 'warn', 'timestamp' => true],
@@ -452,13 +590,13 @@ class SubscriptionBuilder
                         'path' => '/dns-query',
                     ],
                 ],
-                'rules' => [
+                'rules' => array_merge($directDnsRules, [
                     [
                         'preferred_by' => 'ovpn-dns',
                         'action' => 'route',
                         'server' => 'ovpn-dns',
                     ],
-                ],
+                ]),
                 'final' => 'ovpn-dns',
                 'strategy' => 'prefer_ipv4',
             ],
@@ -473,7 +611,7 @@ class SubscriptionBuilder
                     ['protocol' => 'dns', 'action' => 'hijack-dns'],
                 ], $nodeHosts ? [
                     ['domain' => $nodeHosts, 'outbound' => 'direct'],
-                ] : [], [
+                ] : [], $directRouteRules, [
                     ['ip_is_private' => true, 'outbound' => 'direct'],
                 ]),
                 'final' => 'direct',
@@ -494,16 +632,25 @@ class SubscriptionBuilder
      * China, and a remote rule set that cannot load stops sing-box starting.
      * Refresh public/rules/ with control-plane/scripts/fetch-rulesets.sh.
      *
+     * iPhone (the sing-box app, 1.14+): `http_client` naming a direct client.
+     * sing-box 1.14 deprecated `download_detour` and shows a warning for it;
+     * `http_client: {detour: direct}` would fail ("detour to an empty direct
+     * outbound"). Other platforms keep `download_detour`: our apps turn these
+     * into local files before the engine starts, and older engines (< 1.14)
+     * reject `http_client`.
+     *
      * @return array<int,array<string,string>>
      */
-    private function chinaRuleSets(): array
+    private function chinaRuleSets(string $platform = 'windows'): array
     {
         return array_map(fn (string $tag) => [
             'type' => 'remote',
             'tag' => $tag,
             'format' => 'binary',
             'url' => url("/rules/{$tag}.srs"),
-            'download_detour' => 'direct',
+            ...($platform === 'ios'
+                ? ['http_client' => 'direct-http']
+                : ['download_detour' => 'direct']),
         ], ['geosite-cn', 'geoip-cn']);
     }
 

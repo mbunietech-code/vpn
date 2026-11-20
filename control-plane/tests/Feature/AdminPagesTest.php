@@ -41,6 +41,27 @@ class AdminPagesTest extends TestCase
         ];
     }
 
+    public function test_dashboard_shows_sales_and_renewals(): void
+    {
+        $admin = User::where('is_admin', true)->first();
+        $customer = User::create(['name' => 'Gao Wei', 'email' => 'gao@example.com', 'password' => 'x']);
+        \App\Models\Subscription::create([
+            'user_id' => $customer->id, 'plan_code' => 'm1', 'status' => 'active',
+            'max_devices' => 2, 'started_at' => now()->subDays(27), 'expires_at' => now()->addDays(3),
+        ]);
+        \App\Models\Invoice::create([
+            'user_id' => $customer->id, 'plan_code' => 'm1', 'provider' => 'manual', 'currency' => 'cny',
+            'amount_cents' => 2800, 'status' => 'paid', 'paid_at' => now(), 'idempotency_key' => 'dash-test',
+        ]);
+
+        $this->actingAs($admin)->get('/admin')
+            ->assertSuccessful()
+            ->assertSee('This month')
+            ->assertSee('¥28')
+            ->assertSee('Renewals due in the next 7 days')
+            ->assertSee('Gao Wei');
+    }
+
     public function test_setting_edit_page_loads(): void
     {
         $admin = User::where('is_admin', true)->first();

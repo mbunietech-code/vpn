@@ -13,7 +13,7 @@ class OpenAlerts extends TableWidget
 {
     protected static bool $isLazy = false;
 
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 7;
 
     protected static ?string $heading = 'Tahadhari (hazijashughulikiwa)';
 
@@ -38,13 +38,15 @@ class OpenAlerts extends TableWidget
                         'warn' => 'warning',
                         default => 'gray',
                     }),
-                TextColumn::make('title')->wrap(),
+                TextColumn::make('title')->wrap()
+                    ->description(fn (Alert $r) => $r->created_at?->diffForHumans()),
                 TextColumn::make('ai_summary')
                     ->label('AI')
+                    ->visibleFrom('lg')
                     ->wrap()
                     ->placeholder('—')
                     ->toggleable(),
-                TextColumn::make('created_at')->since(),
+                TextColumn::make('created_at')->since()->visibleFrom('md'),
             ])
             ->recordActions([
                 Action::make('ack')

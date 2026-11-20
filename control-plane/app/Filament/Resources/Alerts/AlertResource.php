@@ -19,9 +19,9 @@ class AlertResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBellAlert;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Infrastructure';
+    protected static string|\UnitEnum|null $navigationGroup = 'Network';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 40;
 
     public static function getNavigationBadge(): ?string
     {

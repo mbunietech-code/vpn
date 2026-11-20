@@ -7,6 +7,25 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  // One copy only: the app stays in the tray when its window is closed, so
+  // opening it again shows that window instead of starting a second engine.
+  // After an update the installer starts us while the old copy may still be
+  // closing, so wait for it then.
+  const bool after_update = wcsstr(command_line, L"--after-update") != nullptr;
+  HANDLE instance_mutex =
+      ::CreateMutexW(nullptr, FALSE, L"Local\\MbunieVpnSingleInstance");
+  const DWORD owned =
+      ::WaitForSingleObject(instance_mutex, after_update ? 20000 : 0);
+  if (owned != WAIT_OBJECT_0 && owned != WAIT_ABANDONED) {
+    HWND existing =
+        ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"Mbunie VPN");
+    if (existing != nullptr) {
+      ::ShowWindow(existing, ::IsIconic(existing) ? SW_RESTORE : SW_SHOW);
+      ::SetForegroundWindow(existing);
+    }
+    return EXIT_SUCCESS;
+  }
+
   // Attach to console when present (e.g., 'flutter run') or create a
   // new console when running with a debugger.
   if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {

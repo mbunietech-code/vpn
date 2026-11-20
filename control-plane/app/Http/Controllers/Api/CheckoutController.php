@@ -26,7 +26,7 @@ class CheckoutController extends Controller
         $forced = PaymentManager::CURRENCY[$data['provider']] ?? null;
         $currency = $forced ?? $data['currency'];
 
-        $plan = Plan::where('code', $data['plan'])->where('is_active', true)->firstOrFail();
+        $plan = Plan::where('code', $data['plan'])->where('is_active', true)->where('is_trial', false)->firstOrFail();
         $user = $request->user();
 
         $amount = $plan->priceCents($currency);

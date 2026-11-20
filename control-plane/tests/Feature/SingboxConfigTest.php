@@ -7,6 +7,7 @@ use App\Models\Node;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\ProvisioningService;
+use App\Services\SubscriptionBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -106,6 +107,43 @@ class SingboxConfigTest extends TestCase
         $this->assertSame('proxy', $cfg['dns']['servers'][0]['detour']);
     }
 
+    public function test_live_classroom_traffic_never_goes_through_the_tunnel(): void
+    {
+        config(['services.mvpn.direct_hosts' => ['live.example.test']]);
+        $this->app->instance(SubscriptionBuilder::class, new class extends SubscriptionBuilder
+        {
+            protected function resolveCidrs(array $hosts): array
+            {
+                return ['203.0.113.7/32', '2001:db8::7/128'];
+            }
+        });
+        $sub = $this->activeSub();
+
+        foreach (['windows', 'android'] as $platform) {
+            foreach (['auto', 'openvpn'] as $protocol) {
+                $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform={$platform}&protocol={$protocol}")->assertOk()->json();
+
+                // Kept off the TUN by the OS, and sent direct by sing-box where the OS cannot.
+                $this->assertContains('203.0.113.7/32', $cfg['inbounds'][0]['route_exclude_address']);
+                $this->assertContains('2001:db8::7/128', $cfg['inbounds'][0]['route_exclude_address']);
+                $this->assertContains(['domain' => ['live.example.test'], 'outbound' => 'direct'], $cfg['route']['rules']);
+                $this->assertContains(['ip_cidr' => ['203.0.113.7/32', '2001:db8::7/128'], 'outbound' => 'direct'], $cfg['route']['rules']);
+                $this->assertContains(['domain' => ['live.example.test'], 'server' => 'direct-dns'], $cfg['dns']['rules']);
+            }
+        }
+    }
+
+    public function test_no_direct_hosts_leaves_the_config_unchanged(): void
+    {
+        config(['services.mvpn.direct_hosts' => []]);
+        $sub = $this->activeSub();
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=windows")->assertOk()->json();
+
+        $this->assertNotContains('203.0.113.7/32', $cfg['inbounds'][0]['route_exclude_address']);
+        $this->assertEmpty(collect($cfg['route']['rules'])->filter(fn ($r) => isset($r['ip_cidr'])));
+    }
+
     public function test_ipv6_host_adds_an_ipv6_server(): void
     {
         $sub = $this->activeSub();
@@ -134,6 +172,62 @@ class SingboxConfigTest extends TestCase
         $this->assertStringContainsString('#MVPN%20Tokyo%201%20%28IPv6%29', $links);
     }
 
+    public function test_hysteria2_uses_brutal_bandwidth_and_servers_are_retested_every_minute(): void
+    {
+        $sub = $this->activeSub();
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android")->assertOk()->json();
+        $ob = collect($cfg['outbounds'])->keyBy('tag');
+
+        $this->assertSame(20, $ob['Tokyo 1 · Hysteria2']['up_mbps']);
+        $this->assertSame(50, $ob['Tokyo 1 · Hysteria2']['down_mbps']);
+        $this->assertArrayNotHasKey('up_mbps', $ob['Tokyo 1 · REALITY'], 'Brutal is Hysteria2 only');
+        $this->assertSame('1m', $ob['auto']['interval']);
+        $this->assertArrayNotHasKey('Tokyo 1 · Hysteria2 Obfs', $ob, 'no obfs until the node reports it');
+
+        // 0 turns Brutal off (back to BBR).
+        config(['services.mvpn.hysteria_down_mbps' => 0]);
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android")->json();
+        $this->assertArrayNotHasKey('up_mbps', collect($cfg['outbounds'])->firstWhere('tag', 'Tokyo 1 · Hysteria2'));
+    }
+
+    public function test_obfuscated_hysteria2_comes_first_and_keeps_the_plain_one(): void
+    {
+        $sub = $this->activeSub();
+        Node::first()->update([
+            'public_host_v6' => 'n1v6.mbuniehub.com',
+            'hysteria_port' => 8443,
+            'hysteria_obfs_port' => 8444,
+            'hysteria_obfs_port_range' => '50000-60000',
+            'hysteria_obfs_password' => 'SALAMANDER-PW',
+        ]);
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android&protocol=auto")->assertOk()->json();
+        $ob = collect($cfg['outbounds'])->keyBy('tag');
+
+        $obfs = $ob['Tokyo 1 · Hysteria2 Obfs'];
+        $this->assertSame(['type' => 'salamander', 'password' => 'SALAMANDER-PW'], $obfs['obfs']);
+        $this->assertSame(8444, $obfs['server_port']);
+        $this->assertSame(['50000:60000'], $obfs['server_ports']);
+        $this->assertSame($ob['Tokyo 1 · Hysteria2']['password'], $obfs['password'], 'same user credentials');
+        $this->assertSame(50, $obfs['down_mbps']);
+
+        $plain = $ob['Tokyo 1 · Hysteria2'];
+        $this->assertArrayNotHasKey('obfs', $plain, 'old listener stays plain for old configs');
+        $this->assertSame(8443, $plain['server_port']);
+        $this->assertSame(['20000:30000'], $plain['server_ports']);
+
+        $this->assertSame('Tokyo 1 · Hysteria2 Obfs', $ob['auto']['outbounds'][0], 'phones try obfs first');
+        $this->assertContains('Tokyo 1 · Hysteria2', $ob['auto']['outbounds']);
+        $this->assertSame('SALAMANDER-PW', $ob['Tokyo 1 (IPv6) · Hysteria2 Obfs']['obfs']['password']);
+        $this->assertSame('n1v6.mbuniehub.com', $ob['Tokyo 1 (IPv6) · Hysteria2 Obfs']['server']);
+
+        $links = base64_decode($this->get("/sub/{$sub->sub_token}")->getContent());
+        $this->assertStringContainsString(':8444?', $links);
+        $this->assertStringContainsString('obfs=salamander', $links);
+        $this->assertStringContainsString('obfs-password=SALAMANDER-PW', $links);
+    }
+
     public function test_android_auto_prefers_hysteria2_desktop_unchanged(): void
     {
         $sub = $this->activeSub();
@@ -146,6 +240,33 @@ class SingboxConfigTest extends TestCase
 
         $windows = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=windows&protocol=auto")->assertOk()->json();
         $this->assertSame(50, collect($windows['outbounds'])->firstWhere('tag', 'auto')['tolerance']);
+    }
+
+    public function test_desktop_sends_udp_calls_over_hysteria2_and_tcp_keeps_auto(): void
+    {
+        $sub = $this->activeSub();
+
+        foreach (['windows', 'macos'] as $platform) {
+            $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform={$platform}&protocol=auto")->assertOk()->json();
+            $ob = collect($cfg['outbounds'])->keyBy('tag');
+
+            $udp = $ob['udp-auto'];
+            $this->assertSame('urltest', $udp['type']);
+            $this->assertSame('Tokyo 1 · Hysteria2', $udp['outbounds'][0], 'Hysteria2 first for calls');
+            $this->assertContains('Tokyo 1 · REALITY', $udp['outbounds'], 'REALITY when UDP is blocked');
+            $this->assertSame(300, $udp['tolerance']);
+            $this->assertNotContains('udp-auto', $ob['proxy']['outbounds'], 'not a server in the app list');
+
+            $rules = $cfg['route']['rules'];
+            $this->assertSame(['network' => ['udp'], 'outbound' => 'udp-auto'], end($rules), 'after the China-direct rules');
+            $this->assertSame('proxy', $cfg['route']['final'], 'TCP still follows the user choice');
+        }
+
+        // Phones already prefer Hysteria2 in auto; a forced protocol has nothing to choose.
+        $android = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=android&protocol=auto")->json();
+        $this->assertNull(collect($android['outbounds'])->firstWhere('tag', 'udp-auto'));
+        $reality = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=windows&protocol=reality")->json();
+        $this->assertNull(collect($reality['outbounds'])->firstWhere('tag', 'udp-auto'));
     }
 
     public function test_android_tun_excludes_debug_and_system_packages(): void
@@ -182,6 +303,30 @@ class SingboxConfigTest extends TestCase
         $this->assertSame(300, $auto['tolerance']);
     }
 
+    public function test_ios_rule_sets_use_a_direct_http_client_not_download_detour(): void
+    {
+        $sub = $this->activeSub();
+
+        $cfg = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=ios&protocol=auto")->assertOk()->json();
+
+        // sing-box 1.14 warns about download_detour; a named client without
+        // dial fields downloads directly.
+        $this->assertSame([['tag' => 'direct-http']], $cfg['http_clients']);
+        foreach ($cfg['route']['rule_set'] as $set) {
+            $this->assertSame('direct-http', $set['http_client']);
+            $this->assertArrayNotHasKey('download_detour', $set);
+        }
+        // China rules unchanged.
+        $this->assertContains(
+            ['rule_set' => ['geosite-cn', 'geoip-cn'], 'outbound' => 'direct'],
+            $cfg['route']['rules'],
+        );
+
+        $win = $this->getJson("/sub/{$sub->sub_token}?format=singbox&platform=windows")->assertOk()->json();
+        $this->assertArrayNotHasKey('http_clients', $win);
+        $this->assertSame('direct', $win['route']['rule_set'][0]['download_detour']);
+    }
+
     public function test_macos_tun_has_no_interface_name(): void
     {
         $sub = $this->activeSub();
@@ -190,7 +335,7 @@ class SingboxConfigTest extends TestCase
 
         // macOS rejects anything but utunN ("bad tun name: mvpn0").
         $this->assertArrayNotHasKey('interface_name', $tun);
-        $this->assertSame('system', $tun['stack']);
+        $this->assertSame('gvisor', $tun['stack']);
         $this->assertTrue($tun['strict_route']);
     }
 

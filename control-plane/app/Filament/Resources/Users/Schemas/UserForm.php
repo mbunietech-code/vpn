@@ -69,7 +69,11 @@ class UserForm
                             }),
                         TextEntry::make('vpn_until')
                             ->label('Until')
-                            ->state(fn (?User $record) => $record?->subscriptions()->latest('expires_at')->first()?->expires_at?->format('d M Y H:i') ?? '—'),
+                            ->state(function (?User $record) {
+                                $sub = $record?->subscriptions()->latest('expires_at')->first();
+
+                                return $sub?->isUnlimited() ? 'No limit (admin)' : ($sub?->expires_at?->format('d M Y H:i') ?? '—');
+                            }),
                         TextEntry::make('vpn_devices')
                             ->label('Devices')
                             ->state(function (?User $record) {
@@ -85,7 +89,7 @@ class UserForm
                     ]),
 
                 Section::make('Admin access')
-                    ->description('Only for people who run Mbunie VPN. Customers never need this.')
+                    ->description('Only for people who run Mbunie VPN. Customers never need this. Admins also get the VPN with no time limit when they sign in to the app with this email.')
                     ->columns(['default' => 1, 'sm' => 2])
                     ->schema([
                         Toggle::make('is_admin')
@@ -102,9 +106,12 @@ class UserForm
                             ->autocomplete('new-password')
                             ->minLength(10)
                             ->visible(fn (Get $get) => (bool) $get('is_admin'))
-                            // Only change it when something is typed; empty keeps the current one.
+                            // A new admin needs one to sign in; afterwards empty keeps it.
+                            ->required(fn (Get $get, ?User $record) => (bool) $get('is_admin') && ! ($record?->is_admin && filled($record?->password)))
                             ->dehydrated(fn ($state) => filled($state))
-                            ->helperText('Leave empty to keep the current password.')
+                            ->helperText(fn (?User $record) => $record?->is_admin && filled($record?->password)
+                                ? 'Leave empty to keep the current password.'
+                                : 'They sign in to this panel with their email and this password (at least 10 characters).')
                             ->columnSpanFull(),
                     ]),
 

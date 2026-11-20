@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SubscriptionAdmin;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -28,12 +29,27 @@ class User extends Authenticatable implements FilamentUser
             'password' => 'hashed',
             'is_admin' => 'boolean',
             'eduhub_user_id' => 'integer',
+            'trial_started_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Admin access turned on/off in the panel: unlimited VPN follows it.
+        static::saved(function (User $user) {
+            $changed = $user->wasChanged('is_admin') || ($user->wasRecentlyCreated && $user->is_admin);
+            if (! $changed) {
+                return;
+            }
+            $admin = app(SubscriptionAdmin::class);
+            $user->is_admin ? $admin->ensureAdminAccess($user) : $admin->endAdminAccess($user);
+        });
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->is_admin === true;
+        // A suspended or banned admin is locked out of the panel too.
+        return $this->is_admin === true && in_array($this->status ?? 'active', ['active'], true);
     }
 
     /** @return HasMany<Subscription> */

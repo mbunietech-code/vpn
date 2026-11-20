@@ -9,6 +9,9 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../models.dart';
 import '../api_client.dart';
+import '../relay.dart';
+import 'clash_traffic.dart';
+import 'rule_sets.dart';
 import 'tunnel_engine.dart';
 
 /// Real tunnel for Windows / Linux / macOS.
@@ -37,18 +40,17 @@ class SingboxEngine implements TunnelEngine {
 
   final _reports = StreamController<EngineReport>.broadcast();
   final _traffic = StreamController<EngineTraffic>.broadcast();
-  final _http = http.Client();
+  final _http = Relay.client();
 
   Process? _proc;
-  Timer? _poll;
-  int _lastUp = 0, _lastDown = 0;
-  DateTime _lastPoll = DateTime.now();
+  late final _poller = ClashTraffic(_http, _traffic);
   final _errBuf = <String>[];
   bool _up = false;
   int? _exitCode; // last engine exit code, for the start-up error
   String? _otherVpn; // another VPN adapter that was up when we started
+  List<String> _ruleNotes = const []; // rule sets taken from cache / dropped
 
-  /// Full engine output of the current run: <support>/engine/engine.log.
+  /// Full engine output of the current run: `<support>/engine/engine.log`.
   IOSink? _logSink;
 
   @override
@@ -172,8 +174,32 @@ class SingboxEngine implements TunnelEngine {
     }
     // Also clear an engine orphaned by a crashed/force-closed app session.
     if (Platform.isWindows) {
-      await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe']);
+      final r = await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe']);
+      if (r.exitCode == 0) await _waitEngineGone();
     }
+  }
+
+  /// taskkill returns before the engine has exited. Starting the next one
+  /// straight away failed with "initialize cache-file: timeout" (the old one
+  /// still held cache.db) or "create adapter: ... already exists" (its Wintun
+  /// adapter was not gone yet).
+  static Future<void> _waitEngineGone() async {
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final r = await Process.run('tasklist', [
+          '/FI',
+          'IMAGENAME eq sing-box.exe',
+          '/NH',
+        ]);
+        if (!r.stdout.toString().toLowerCase().contains('sing-box.exe')) break;
+      } catch (_) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+    // Let Wintun drop the adapter.
+    await Future<void>.delayed(const Duration(seconds: 1));
   }
 
   @override
@@ -339,10 +365,31 @@ class SingboxEngine implements TunnelEngine {
       '$subUrl${sep}format=singbox&platform=$platform&protocol=$protocol',
     );
 
-    final res = await _http.get(
-      uri,
-      headers: {'Authorization': 'Bearer $token', ...ApiClient.deviceHeaders},
+    // The last config that worked for this protocol: used when the server
+    // can't be reached (Cloudflare is often blocked in China) so a paid
+    // customer can still connect.
+    final last = File(
+      '${dir.path}${Platform.pathSeparator}last-$protocol.json',
     );
+    final config = File('${dir.path}${Platform.pathSeparator}config.json');
+    final http.Response res;
+    try {
+      res = await Relay.get(
+        _http,
+        uri,
+        headers: {'Authorization': 'Bearer $token', ...ApiClient.deviceHeaders},
+      );
+    } catch (e) {
+      if (!isUnreachable(e)) rethrow;
+      if (last.existsSync()) {
+        await last.copy(config.path);
+        return config;
+      }
+      throw StateError(
+        'Could not reach the server to get the VPN config. '
+        'Check your internet or try another network, then press Connect again.',
+      );
+    }
     if (res.statusCode != 200) {
       if (res.statusCode == 403 && res.body.contains('device_revoked')) {
         throw StateError(
@@ -358,6 +405,8 @@ class SingboxEngine implements TunnelEngine {
 
     // macOS only accepts utunN tun names; older servers sent "mvpn0"
     // ("bad tun name"). Without a name sing-box picks a free utun.
+    // Older servers also sent stack "system", where IPv4 TCP never passed
+    // (its NAT replies to 172.19.0.2 left via en0): use gvisor.
     if (Platform.isMacOS && json is Map && json['inbounds'] is List) {
       var changed = false;
       for (final ib in json['inbounds'] as List) {
@@ -366,13 +415,23 @@ class SingboxEngine implements TunnelEngine {
           ib.remove('interface_name');
           changed = true;
         }
+        if (ib is Map && ib['type'] == 'tun' && ib['stack'] == 'system') {
+          ib['stack'] = 'gvisor';
+          changed = true;
+        }
       }
       if (changed) body = jsonEncode(json);
     }
 
-    final f = File('${dir.path}${Platform.pathSeparator}config.json');
-    await f.writeAsString(body, flush: true);
-    return f;
+    // China rule sets: the app fetches them (sing-box can't trust the relay).
+    if (json is Map<String, dynamic>) {
+      _ruleNotes = await localizeRuleSets(json, dir, _http);
+      body = jsonEncode(json);
+    }
+
+    await config.writeAsString(body, flush: true);
+    await last.writeAsString(body, flush: true);
+    return config;
   }
 
   // ---- readiness + logs --------------------------------------------
@@ -404,7 +463,11 @@ class SingboxEngine implements TunnelEngine {
   }
 
   Future<void> _waitUntilUp() async {
-    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    // Windows: the first Wintun adapter, or an antivirus (Huorong, 360)
+    // checking it, can take well over 30 s.
+    final deadline = DateTime.now().add(
+      Duration(seconds: Platform.isWindows ? 60 : 30),
+    );
     while (DateTime.now().isBefore(deadline)) {
       if (_proc == null) {
         // The exit can arrive before the last stderr lines: let them land so
@@ -426,55 +489,11 @@ class SingboxEngine implements TunnelEngine {
     throw StateError(_diagnose(-2));
   }
 
-  // ---- traffic polling -------------------------------------------
+  // ---- traffic polling (only while the window is showing) ------------
 
-  void _startPolling() {
-    _lastUp = 0;
-    _lastDown = 0;
-    _lastPoll = DateTime.now();
-    _poll = Timer.periodic(const Duration(seconds: 1), (_) => _pollTraffic());
-  }
+  void _startPolling() => _poller.start();
 
-  void _stopPolling() {
-    _poll?.cancel();
-    _poll = null;
-  }
-
-  Future<void> _pollTraffic() async {
-    try {
-      final r = await _http
-          .get(Uri.parse('$_clashApi/connections'))
-          .timeout(const Duration(seconds: 3));
-      if (r.statusCode != 200) return;
-      final j = jsonDecode(r.body) as Map<String, dynamic>;
-      final up = (j['uploadTotal'] as num?)?.toInt() ?? 0;
-      final down = (j['downloadTotal'] as num?)?.toInt() ?? 0;
-
-      final now = DateTime.now();
-      final dt = now.difference(_lastPoll).inMilliseconds / 1000.0;
-      final upBps = dt > 0
-          ? ((up - _lastUp) / dt).round().clamp(0, 1 << 34)
-          : 0;
-      final downBps = dt > 0
-          ? ((down - _lastDown) / dt).round().clamp(0, 1 << 34)
-          : 0;
-
-      _lastUp = up;
-      _lastDown = down;
-      _lastPoll = now;
-
-      _traffic.add(
-        EngineTraffic(
-          upBytes: up,
-          downBytes: down,
-          upBps: upBps,
-          downBps: downBps,
-        ),
-      );
-    } catch (_) {
-      /* transient */
-    }
-  }
+  void _stopPolling() => _poller.stop();
 
   // ---- diagnostics --------------------------------------------
 
@@ -522,14 +541,18 @@ class SingboxEngine implements TunnelEngine {
     return 'Run with root privileges (sudo): the TUN device needs CAP_NET_ADMIN.';
   }
 
+  /// The full reason, for Admin > Devices (the app shows users a short
+  /// message, see friendlyError).
   String _diagnose(int code) {
     final tail = _errBuf.reversed.take(6).toList().reversed.join('\n');
-    if (tail.toLowerCase().contains('permission') ||
-        tail.toLowerCase().contains('denied') ||
-        tail.toLowerCase().contains('not permitted')) {
-      return _privilegeHint();
+    final notes = _ruleNotes.isEmpty ? '' : '\n${_ruleNotes.join('\n')}';
+    final t = tail.toLowerCase();
+    if (t.contains('permission') ||
+        t.contains('denied') ||
+        t.contains('not permitted')) {
+      return '${_privilegeHint()}\n$tail$notes';
     }
-    if (tail.isNotEmpty) return 'VPN engine failed:\n$tail';
-    return 'VPN engine failed to start (code $code).';
+    if (tail.isNotEmpty) return 'VPN engine failed (code $code):\n$tail$notes';
+    return 'VPN engine failed to start (code $code).$notes';
   }
 }

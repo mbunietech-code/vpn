@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Devices\Tables;
 
+use App\Filament\Resources\Devices\DeviceResource;
 use App\Models\Device;
 use App\Services\DeviceAdmin;
 use Filament\Actions\Action;
@@ -21,6 +22,8 @@ class DevicesTable
         return $table
             ->defaultSort('last_seen_at', 'desc')
             ->poll('30s')
+            // Clicking a device opens its traffic and speed.
+            ->recordUrl(fn (Device $r) => DeviceResource::getUrl('traffic', ['record' => $r]))
             ->columns([
                 // Few, dense columns so the table never scrolls sideways:
                 // details sit in each cell's second line.
@@ -42,7 +45,9 @@ class DevicesTable
                     }),
                 TextColumn::make('platform')->label('App')->visibleFrom('md')
                     ->badge()->placeholder('—')
-                    ->formatStateUsing(fn ($state, Device $r) => ucfirst((string) $state).($r->app_version ? ' '.$r->app_version : ''))
+                    ->formatStateUsing(fn ($state, Device $r) => match ((string) $state) {
+                        'ios' => 'iOS', 'macos' => 'macOS', 'tvos' => 'tvOS', default => ucfirst((string) $state),
+                    }.($r->app_version ? ' '.$r->app_version : ''))
                     ->description(fn (Device $r) => $r->protocol ? 'protocol '.$r->protocol : null),
                 TextColumn::make('last_error')->visibleFrom('lg')->label('Last error')
                     ->placeholder('—')->color('danger')->wrap()->limit(90)
@@ -50,7 +55,16 @@ class DevicesTable
                     ->description(fn (Device $r) => $r->last_error_at?->diffForHumans()),
             ])
             ->recordActions([
+                Action::make('traffic')
+                    ->label('Traffic')
+                    ->icon('heroicon-m-chart-bar')
+                    ->color('gray')
+                    ->url(fn (Device $r) => DeviceResource::getUrl('traffic', ['record' => $r])),
                 ActionGroup::make([
+                    Action::make('edit')
+                        ->label('Edit')
+                        ->icon('heroicon-m-pencil-square')
+                        ->url(fn (Device $r) => DeviceResource::getUrl('edit', ['record' => $r])),
                     Action::make('remove')
                         ->label('Remove device')
                         ->icon('heroicon-m-no-symbol')

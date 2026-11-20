@@ -8,10 +8,17 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../models.dart';
 import '../api_client.dart';
+import '../relay.dart';
+import 'clash_traffic.dart';
+import 'rule_sets.dart';
 import 'tunnel_engine.dart';
 
 class AndroidHiddifyEngine implements TunnelEngine {
-  AndroidHiddifyEngine();
+  /// Listens straight away: the VPN service outlives the app's screen, so a
+  /// reopened app learns from the first status event that it is still up.
+  AndroidHiddifyEngine() {
+    _listen();
+  }
 
   static bool get supported => Platform.isAndroid;
 
@@ -30,16 +37,15 @@ class AndroidHiddifyEngine implements TunnelEngine {
 
   final _reports = StreamController<EngineReport>.broadcast();
   final _traffic = StreamController<EngineTraffic>.broadcast();
-  final _http = http.Client();
+  final _http = Relay.client();
+  late final _poller = ClashTraffic(_http, _traffic);
 
   StreamSubscription? _statusSub;
   StreamSubscription? _alertsSub;
-  Timer? _tick;
   Timer? _watchdog;
   bool _started = false;
   bool _setupDone = false;
-  int _up = 0;
-  int _down = 0;
+  bool _stopping = false; // stop() asked for the next "Stopped"
 
   @override
   bool get isReal => true;
@@ -60,8 +66,8 @@ class AndroidHiddifyEngine implements TunnelEngine {
     _reports.add(const EngineReport(EngineStatus.starting));
     final dirs = await _ensureSetup();
     final config = await _fetchConfig(subUrl, apiToken, dirs, pref);
-    _listen();
     _started = false;
+    _stopping = false;
     await _method.invokeMethod('start', {
       'path': config.path,
       'name': 'Mbunie VPN',
@@ -83,6 +89,7 @@ class AndroidHiddifyEngine implements TunnelEngine {
         ),
       );
       try {
+        _stopping = true;
         await _method.invokeMethod('stop');
       } catch (_) {}
     });
@@ -94,8 +101,8 @@ class AndroidHiddifyEngine implements TunnelEngine {
   @override
   Future<void> stop() async {
     _watchdog?.cancel();
-    _tick?.cancel();
-    _tick = null;
+    _poller.stop();
+    _stopping = true;
     await _method.invokeMethod('stop');
     _reports.add(const EngineReport(EngineStatus.down));
   }
@@ -139,20 +146,29 @@ class AndroidHiddifyEngine implements TunnelEngine {
     final uri = Uri.parse(
       '$subUrl${sep}format=singbox&platform=android&protocol=$protocol',
     );
+    final file = File('${dirs.configs.path}/mbunie-singbox.json');
+    // The last config that worked for this protocol, for when the server
+    // can't be reached (Cloudflare is often blocked in China).
+    final last = File('${dirs.configs.path}/last-$protocol.json');
     final http.Response res;
     try {
-      res = await _http
-          .get(
-            uri,
-            headers: {
-              if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-              ...ApiClient.deviceHeaders,
-            },
-          )
-          .timeout(const Duration(seconds: 25));
-    } on TimeoutException {
+      res = await Relay.get(
+        _http,
+        uri,
+        headers: {
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+          ...ApiClient.deviceHeaders,
+        },
+        timeout: const Duration(seconds: 25),
+      );
+    } catch (e) {
+      if (!isUnreachable(e)) rethrow;
+      if (last.existsSync()) {
+        await last.copy(file.path);
+        return file;
+      }
       throw StateError(
-        'Could not download the VPN config within 25 seconds '
+        'Could not download the VPN config '
         '(${uri.host} is unreachable from this network).',
       );
     }
@@ -173,11 +189,11 @@ class AndroidHiddifyEngine implements TunnelEngine {
     _normalizeAndroidTunConfig(decoded);
     _normalizeDnsConfig(decoded);
     _normalizeBootstrapDnsRules(decoded);
-    final file = File('${dirs.configs.path}/mbunie-singbox.json');
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(decoded),
-      flush: true,
-    );
+    // China rule sets: the app fetches them (the core can't trust the relay).
+    await localizeRuleSets(decoded, dirs.configs, _http);
+    final json = const JsonEncoder.withIndent('  ').convert(decoded);
+    await file.writeAsString(json, flush: true);
+    await last.writeAsString(json, flush: true);
     return file;
   }
 
@@ -332,11 +348,16 @@ class AndroidHiddifyEngine implements TunnelEngine {
             _started = true;
             _watchdog?.cancel();
             _reports.add(const EngineReport(EngineStatus.up));
-            _startTrafficTicker();
-          case 'Stopped':
+            _poller.start();
           case 'Stopping':
-            _tick?.cancel();
-            _reports.add(const EngineReport(EngineStatus.down));
+            _poller.stop();
+          case 'Stopped':
+            _poller.stop();
+            // Failures arrive on the alerts channel; a plain stop we did
+            // not ask for was the user's choice.
+            final ours = _stopping;
+            _stopping = false;
+            _reports.add(EngineReport(EngineStatus.down, external: !ours));
         }
       },
       onError: (Object e) {
@@ -359,26 +380,10 @@ class AndroidHiddifyEngine implements TunnelEngine {
     });
   }
 
-  void _startTrafficTicker() {
-    _tick?.cancel();
-    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      _up += 512;
-      _down += 2048;
-      _traffic.add(
-        EngineTraffic(
-          upBytes: _up,
-          downBytes: _down,
-          upBps: 512,
-          downBps: 2048,
-        ),
-      );
-    });
-  }
-
   @override
   void dispose() {
     _watchdog?.cancel();
-    _tick?.cancel();
+    _poller.stop();
     _statusSub?.cancel();
     _alertsSub?.cancel();
     _http.close();

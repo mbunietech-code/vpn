@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\RejectRevokedDevice;
+use App\Models\Device;
 use App\Models\Subscription;
 use App\Services\SubscriptionBuilder;
 use Illuminate\Http\Request;
@@ -24,6 +26,8 @@ class SubscriptionLinkController extends Controller
         abort_unless($sub && $sub->isActive(), 404);
 
         $sub->update(['last_synced_at' => now()]);
+
+        $this->trackSingboxApp($request, $sub);
 
         $userinfo = sprintf(
             'upload=0; download=%d; total=%d; expire=%d',
@@ -61,5 +65,57 @@ class SubscriptionLinkController extends Controller
             'Profile-Update-Interval' => '12',
             'Subscription-Userinfo' => $userinfo,
         ]);
+    }
+
+    /** sing-box apps' User-Agent name → platform (SFI is the iPhone/iPad app). */
+    private const SINGBOX_APPS = [
+        'SFI' => ['ios', 'iPhone'],
+        'SFM' => ['macos', 'Mac'],
+        'SFA' => ['android', 'Android'],
+        'SFT' => ['tvos', 'Apple TV'],
+    ];
+
+    /**
+     * The official sing-box app (the iPhone route until our own iPhone app)
+     * only fetches this link, so it never registers like Mbunie VPN does.
+     * List it under Admin › Devices, one row per subscription and app, seen
+     * at each profile update (every ~12 h, or when the customer refreshes).
+     * It cannot report whether its VPN is on. A removed one gets no updates.
+     */
+    private function trackSingboxApp(Request $request, Subscription $sub): void
+    {
+        // Mbunie VPN registers itself (and RejectRevokedDevice checks it).
+        if ($request->hasHeader(RejectRevokedDevice::HEADER)) {
+            return;
+        }
+        // e.g. "SFI (sing-box 1.14.8; language en_US)"
+        if (! preg_match('/^(SF[IMAT])\b.*?sing-box ([0-9][0-9A-Za-z.\-]*)/', (string) $request->userAgent(), $m)) {
+            return;
+        }
+        [$platform, $model] = self::SINGBOX_APPS[$m[1]];
+
+        try {
+            $device = Device::firstOrNew([
+                'subscription_id' => $sub->id,
+                'fingerprint' => 'singbox-'.strtolower($m[1]),
+            ]);
+        } catch (\Throwable $e) {
+            report($e); // never fail the profile download over this
+
+            return;
+        }
+        abort_if($device->exists && $device->revoked_at !== null, 403, 'device_revoked');
+
+        try {
+            $device->fill([
+                'platform' => $platform,
+                'name' => $device->name ?? $model,
+                'model' => "{$model} (sing-box app)",
+                'app_version' => 'sing-box '.substr($m[2], 0, 23),
+                'last_seen_at' => now(),
+            ])->save();
+        } catch (\Throwable $e) {
+            report($e); // never fail the profile download over this
+        }
     }
 }

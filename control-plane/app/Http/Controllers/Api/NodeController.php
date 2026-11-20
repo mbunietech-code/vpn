@@ -7,10 +7,14 @@ use App\Models\Alert;
 use App\Models\Node;
 use App\Models\NodeTraffic;
 use App\Models\Peer;
+use App\Services\AlertAnalyzer;
 use App\Services\NodeCapacity;
+use App\Services\TrafficRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Node-agent facing API. The agent authenticates with its per-node bearer
@@ -27,6 +31,12 @@ class NodeController extends Controller
         }
 
         return Node::all()->first(fn (Node $n) => hash_equals((string) $n->api_secret, $token));
+    }
+
+    /** Cache key: the peer-list version last served to this node, and when it changed. */
+    public static function servedKey(Node $node): string
+    {
+        return "node:{$node->id}:peers_served";
     }
 
     public function peers(Request $request): JsonResponse
@@ -55,8 +65,17 @@ class NodeController extends Controller
         // if nothing bumped peer_version (e.g. the sweep cron isn't running).
         $fingerprint = $peers->map(fn ($p) => $p['protocol'] . ':' . $p['remote_id'] . ':' . $p['openvpn_serial'])->sort()->implode(',');
 
+        $version = (int) sprintf('%u', crc32($node->peer_version . '|' . $fingerprint));
+
+        // Remember what we served and since when: the agent reports back the
+        // version it applied, and AlertAnalyzer compares the two.
+        $servedKey = self::servedKey($node);
+        if ((Cache::get($servedKey)['version'] ?? null) !== $version) {
+            Cache::forever($servedKey, ['version' => $version, 'at' => now()->timestamp]);
+        }
+
         return response()->json([
-            'version' => (int) sprintf('%u', crc32($node->peer_version . '|' . $fingerprint)),
+            'version' => $version,
             'peers' => $peers,
         ]);
     }
@@ -143,6 +162,9 @@ class NodeController extends Controller
             'net.tx_bytes' => ['nullable', 'integer', 'min:0'],
             'net.peak_rx_mbps' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'net.peak_tx_mbps' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'node_info.hysteria_obfs_port' => ['nullable', 'integer', 'between:1,65535'],
+            'node_info.hysteria_obfs_port_range' => ['nullable', 'regex:/^\d+-\d+$/'],
+            'node_info.hysteria_obfs_password' => ['nullable', 'string', 'max:128'],
         ]);
 
         $engines = $data['engines'] ?? [];
@@ -162,7 +184,11 @@ class NodeController extends Controller
 
         // The node is the source of truth for its protocol parameters; the
         // admin never has to copy keys. public_host stays admin-owned once set.
-        foreach ($data['node_info'] ?? [] as $key => $value) {
+        // Only known keys: anything else in node-info.json is not a column.
+        $known = ['public_host', 'reality_pubkey', 'reality_short_id', 'reality_sni', 'reality_port',
+            'hysteria_port', 'hysteria_port_range', 'hysteria_cert_sha256', 'hysteria_cert_pem',
+            'hysteria_obfs_port', 'hysteria_obfs_port_range', 'hysteria_obfs_password'];
+        foreach (array_intersect_key($data['node_info'] ?? [], array_flip($known)) as $key => $value) {
             if ($value === null || $value === '' || ($key === 'public_host' && $node->public_host)) {
                 continue;
             }
@@ -188,28 +214,95 @@ class NodeController extends Controller
                 ->update(['bytes_down' => DB::raw('bytes_down + ' . (int) $bytes)]);
         }
 
+        // Through the analyzer, so the admins are emailed / sent a Telegram message.
+        $alerts = app(AlertAnalyzer::class);
+
         if ($enginesDown->isNotEmpty()) {
-            Alert::firstOrCreate(
-                [
-                    'source' => 'node.health',
-                    'title' => "Engine down on {$node->name}: " . $enginesDown->implode(', '),
-                    'acknowledged_at' => null,
-                ],
-                ['severity' => 'critical', 'node_id' => $node->id, 'context' => $engines]
-            );
+            $alerts->raise('critical', 'node.health',
+                "Engine down on {$node->name}: ".$enginesDown->implode(', '),
+                'The node reported these engines as down. Customers on it may not connect.',
+                $node, (array) $engines);
         }
 
         if (! empty($data['last_error'])) {
-            Alert::firstOrCreate(
-                [
-                    'source' => 'node.sync',
-                    'title' => "Agent on {$node->name} cannot apply peers",
-                    'acknowledged_at' => null,
-                ],
-                ['severity' => 'critical', 'node_id' => $node->id, 'body' => $data['last_error']]
-            );
+            $alerts->raise('critical', 'node.sync',
+                "Agent on {$node->name} cannot apply peers",
+                (string) $data['last_error'], $node);
         }
 
         return response()->json(['status' => 'ok', 'peer_version' => $node->peer_version]);
+    }
+
+    /**
+     * Per-customer traffic for the last minute (agent >= 0.5.0): bytes, peak
+     * speed and coarse traffic kinds per session. No host names.
+     */
+    public function usage(Request $request): JsonResponse
+    {
+        $node = $this->node($request);
+        if (! $node) {
+            return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $data = $request->validate([
+            'window_seconds' => ['nullable', 'integer', 'between:1,3600'],
+            'sessions' => ['present', 'array', 'max:5000'],
+            'sessions.*.remote_id' => ['required', 'string', 'max:64'],
+            'sessions.*.protocol' => ['required', 'string', 'in:vless-reality,hysteria2,openvpn'],
+            'sessions.*.inbound' => ['nullable', 'string', 'max:64'],
+            'sessions.*.source_ip' => ['nullable', 'ip'],
+            'sessions.*.up' => ['required', 'integer', 'min:0'],
+            'sessions.*.down' => ['required', 'integer', 'min:0'],
+            'sessions.*.peak_up_mbps' => ['nullable', 'numeric', 'min:0'],
+            'sessions.*.peak_down_mbps' => ['nullable', 'numeric', 'min:0'],
+            'sessions.*.connections' => ['nullable', 'integer', 'min:0'],
+            'sessions.*.categories' => ['nullable', 'array', 'max:20'],
+            'unattributed' => ['nullable', 'array'],
+        ]);
+
+        $stored = app(TrafficRecorder::class)->record($node, $data);
+
+        return response()->json(['status' => 'ok', 'stored' => $stored]);
+    }
+
+    /**
+     * The server's own security check (node/security/mbunie-security-check.sh)
+     * reports what it found. Each problem becomes an alert (emailed / sent to
+     * Telegram once while it stays open); problems no longer reported are
+     * resolved, so they alert again if they come back.
+     */
+    public function security(Request $request): JsonResponse
+    {
+        $node = $this->node($request);
+        if (! $node) {
+            return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $data = $request->validate([
+            'findings' => ['present', 'array', 'max:60'],
+            'findings.*.level' => ['required', 'in:critical,warn,info'],
+            'findings.*.title' => ['required', 'string', 'max:200'],
+            'findings.*.detail' => ['nullable', 'string', 'max:2000'],
+            'host' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $alerts = app(AlertAnalyzer::class);
+        $open = [];
+        foreach ($data['findings'] as $f) {
+            if ($f['level'] === 'info') {
+                continue;
+            }
+            $title = Str::limit("{$node->name}: {$f['title']}", 250, '');
+            $open[] = $title;
+            $alerts->raise($f['level'] === 'critical' ? 'critical' : 'warn', 'node.security', $title, $f['detail'] ?? null, $node);
+        }
+
+        $resolved = Alert::open()
+            ->where('source', 'node.security')
+            ->where('node_id', $node->id)
+            ->whereNotIn('title', $open)
+            ->update(['acknowledged_at' => now(), 'acknowledged_by' => 'node:security-check']);
+
+        return response()->json(['status' => 'ok', 'open' => count($open), 'resolved' => $resolved]);
     }
 }

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../config.dart';
+import 'relay.dart';
 
 /// Client for the MVPN control plane.
 ///
@@ -14,7 +15,7 @@ import '../config.dart';
 class ApiClient {
   ApiClient({String? baseUrl, this.token, http.Client? httpClient})
       : _bases = baseUrl != null ? [baseUrl] : MvpnConfig.apiBases,
-        _http = httpClient ?? http.Client();
+        _http = httpClient ?? Relay.client();
 
   /// This install's id, sent as X-Mvpn-Device so an admin can block a
   /// device the customer doesn't recognise.
@@ -30,6 +31,7 @@ class ApiClient {
 
   final List<String> _bases;
   int _active = 0;
+  DateTime _switchedAt = DateTime.now();
   String? token;
   final http.Client _http;
 
@@ -136,7 +138,15 @@ class ApiClient {
 
   /// Raw subscription bundle from an absolute /sub/{token} URL.
   Future<String> fetchSubscription(String subUrl) async {
-    final res = await _http.get(Uri.parse(subUrl), headers: _headers());
+    var uri = Uri.parse(subUrl);
+    // The server names its own address; on the relay, stay on the relay.
+    if (baseUrl == Relay.base) uri = Relay.alternate(uri) ?? uri;
+    final res = await Relay.get(
+      _http,
+      uri,
+      headers: _headers(),
+      timeout: const Duration(seconds: 15),
+    );
     if (res.statusCode >= 400) {
       throw ApiException(res.statusCode, {'body': res.body});
     }
@@ -169,6 +179,13 @@ class ApiClient {
   /// (no route, DNS, TLS, timeout) advances to the next base and retries.
   Future<Map<String, dynamic>> _send(
       Future<http.Response> Function(String base) attempt) async {
+    // A fallback is for while the main address is unreachable: go back to it
+    // after a while. One drop (e.g. no internet at start-up) used to keep the
+    // whole session on the relay.
+    if (_active != 0 &&
+        DateTime.now().difference(_switchedAt) > const Duration(minutes: 10)) {
+      _active = 0;
+    }
     Object? lastErr;
     for (var i = 0; i < _bases.length; i++) {
       try {
@@ -185,6 +202,7 @@ class ApiClient {
         lastErr = e;
       }
       _active = (_active + 1) % _bases.length;
+      _switchedAt = DateTime.now();
     }
     throw ApiException(0, {'message': 'Server unreachable. Check your internet connection.', 'cause': '$lastErr'});
   }

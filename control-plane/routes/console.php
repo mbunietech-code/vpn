@@ -11,4 +11,5 @@ Schedule::command('mvpn:sweep-expired')->everyFiveMinutes()->withoutOverlapping(
 Schedule::command('mvpn:scan-anomalies')->everyMinute()->withoutOverlapping();
 Schedule::command('auth:clear-resets')->daily();
 Schedule::command('mvpn:dedupe-devices')->hourly()->withoutOverlapping();
+Schedule::command('mvpn:prune-traffic')->hourly()->withoutOverlapping();
 Schedule::command('mvpn:remind-expiring')->hourly()->withoutOverlapping();

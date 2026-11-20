@@ -11,9 +11,52 @@ set -eu
 HERE=/Library/PrivilegedHelperTools/com.mbunie.mvpn
 RUN=/var/run/mvpn
 PID="$RUN/sing-box.pid"
+# Dynamic-store service (not saved; gone after a reboot) that points the
+# system resolver into the tunnel while the engine runs.
+DNS_SVC=State:/Network/Service/com.mbunie.mvpn
+# Any address routed into the tun: sing-box hijacks DNS whatever the server.
+DNS_IP=1.1.1.1
+
+# sing-box does not set the system DNS on macOS. The Wi-Fi/LAN resolver is
+# usually a private address the tun does not route (route_exclude_address),
+# so lookups went out directly and came back poisoned in China
+# (www.youtube.com -> a Twitter IP). Make the tun the primary DNS service.
+dns_on() {
+  i=0
+  ifc=
+  while [ $i -lt 100 ]; do
+    kill -0 "$1" 2>/dev/null || return 0
+    ifc=$(route -n get "$DNS_IP" 2>/dev/null | awk '/interface:/ { print $2 }')
+    case "$ifc" in utun*) break ;; esac
+    sleep 0.1
+    i=$((i + 1))
+  done
+  case "$ifc" in utun*) ;; *) return 0 ;; esac
+  addr=$(ifconfig "$ifc" | awk '/inet / { print $2; exit }')
+  [ -n "$addr" ] || return 0
+  scutil <<EOF
+d.init
+d.add ServerAddresses * $DNS_IP
+d.add SupplementalMatchDomains * ""
+set $DNS_SVC/DNS
+d.init
+d.add Addresses * $addr
+d.add SubnetMasks * 255.255.255.252
+d.add InterfaceName $ifc
+d.add OverridePrimary # 1
+set $DNS_SVC/IPv4
+EOF
+}
+
+dns_off() {
+  scutil <<EOF
+remove $DNS_SVC/DNS
+remove $DNS_SVC/IPv4
+EOF
+}
 
 stop() {
-  [ -f "$PID" ] || return 0
+  [ -f "$PID" ] || { dns_off >/dev/null 2>&1; return 0; }
   p=$(cat "$PID")
   case "$(ps -p "$p" -o comm= 2>/dev/null || true)" in
     *sing-box)
@@ -24,6 +67,7 @@ stop() {
       ;;
   esac
   rm -f "$PID"
+  dns_off >/dev/null 2>&1
 }
 
 case "${1:-}" in
@@ -46,8 +90,23 @@ case "${1:-}" in
       echo "mvpn-engine: config not allowed (file options)" >&2
       exit 3
     fi
-    echo $$ > "$PID"
-    exec "$HERE/sing-box" run -c "$RUN/config.json" -D "$RUN" --disable-color
+    # Not exec: this shell stays to undo the DNS change when sing-box exits.
+    "$HERE/sing-box" run -c "$RUN/config.json" -D "$RUN" --disable-color &
+    child=$!
+    echo "$child" > "$PID"
+    trap 'kill -TERM "$child" 2>/dev/null || true' INT TERM HUP
+    set +e
+    dns_on "$child" >/dev/null 2>&1
+    wait "$child"
+    code=$?
+    # A trapped signal ends wait early; keep waiting until sing-box is gone.
+    while kill -0 "$child" 2>/dev/null; do
+      wait "$child"
+      code=$?
+    done
+    dns_off >/dev/null 2>&1
+    rm -f "$PID"
+    exit "$code"
     ;;
   *)
     echo "usage: mvpn-engine run <config.json> | stop | check" >&2

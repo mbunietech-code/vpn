@@ -47,6 +47,16 @@ const _map = <String, Map<String, String>>{
   'common.change': {'en': 'Change', 'sw': 'Badilisha', 'zh': '更改'},
   'common.check': {'en': 'Check', 'sw': 'Angalia', 'zh': '查看'},
   'common.close': {'en': 'Close', 'sw': 'Funga', 'zh': '关闭'},
+  'offline.title': {
+    'en': "Can't reach Mbunie VPN",
+    'sw': 'Imeshindwa kufikia Mbunie VPN',
+    'zh': '无法连接 Mbunie VPN',
+  },
+  'offline.body': {
+    'en': 'Your network may be blocking our server. Check your internet or try another network (Wi-Fi or mobile data). We keep trying every 30 seconds.',
+    'sw': 'Huenda mtandao wako unazuia server yetu. Angalia intaneti yako au jaribu mtandao mwingine (Wi-Fi au data ya simu). Tunaendelea kujaribu kila sekunde 30.',
+    'zh': '您的网络可能屏蔽了我们的服务器。请检查网络，或换一个网络（Wi-Fi 或移动数据）。我们每 30 秒自动重试。',
+  },
 
   // ---- auth ----
   'auth.tagline': {
@@ -105,9 +115,9 @@ const _map = <String, Map<String, String>>{
     'zh': '畅享完整互联网',
   },
   'plans.sub': {
-    'en': 'High speed · Tokyo server · multiple devices',
-    'sw': 'Kasi ya juu · seva Tokyo · vifaa vingi',
-    'zh': '高速 · 东京服务器 · 多设备',
+    'en': 'High speed · no traffic logs · multiple devices',
+    'sw': 'Kasi ya juu · hakuna kumbukumbu za matumizi · vifaa vingi',
+    'zh': '高速 · 无流量日志 · 多设备',
   },
   'plans.processing': {
     'en': 'Your payment is being processed…',
@@ -332,6 +342,20 @@ const _map = <String, Map<String, String>>{
   'home.updateAvailable': {'en': 'A new version ({}) is available with fixes and better speed.'},
   'home.updateRequired': {'en': 'This version is no longer supported. Update to keep using Mbunie VPN.'},
   'home.update': {'en': 'Update'},
+  'home.install': {'en': 'Install'},
+  'tray.connect': {'en': 'Connect'},
+  'tray.disconnect': {'en': 'Disconnect'},
+  'tray.open': {'en': 'Open Mbunie VPN'},
+  'tray.quit': {'en': 'Quit'},
+  'home.updateDownloading': {'en': 'Downloading version {}… {pct}%'},
+  'home.updateReady': {'en': 'Version {} is downloaded and ready to install.'},
+  'home.updateInstalling': {'en': 'Installing version {}… Mbunie VPN will reopen in a moment.'},
+  'update.failed': {'en': 'The download failed. Tap Update to try again.'},
+  'update.title': {'en': 'Update available'},
+  'update.body': {'en': 'Mbunie VPN {} is out with fixes and better speed. Update now?'},
+  'update.bodyRequired': {'en': 'Mbunie VPN {} is required: this version is no longer supported.'},
+  'update.later': {'en': 'Later'},
+  'update.now': {'en': 'Update now'},
   'home.pendingProof': {
     'en':
         'Your payment is awaiting admin approval. Access unlocks once approved.',
@@ -473,6 +497,56 @@ const _map = <String, Map<String, String>>{
     'sw': 'Itumie kwenye app ya OpenVPN Connect',
     'zh': '用于 OpenVPN Connect 应用',
   },
+  'iphone.title': {
+    'en': 'Use on iPhone',
+    'sw': 'Tumia kwenye iPhone',
+    'zh': '在 iPhone 上使用',
+  },
+  'iphone.sub': {
+    'en': 'Scan a code to set up the sing-box app',
+    'sw': 'Scan code ili kuweka app ya sing-box',
+    'zh': '扫码设置 sing-box 应用',
+  },
+  'iphone.step1': {
+    'en': 'On the iPhone, install sing-box from the App Store (it needs an Apple ID from outside mainland China).',
+    'sw': 'Kwenye iPhone, sakinisha sing-box kutoka App Store (inahitaji Apple ID ya nje ya China bara).',
+    'zh': '在 iPhone 上从 App Store 安装 sing-box（需要中国大陆以外的 Apple ID）。',
+  },
+  'iphone.appStore': {
+    'en': 'sing-box on the App Store',
+    'sw': 'sing-box kwenye App Store',
+    'zh': 'App Store 上的 sing-box',
+  },
+  'iphone.step2': {
+    'en': 'Scan this code with the iPhone camera, tap "Open in sing-box", then tap Create.',
+    'sw': 'Scan code hii kwa kamera ya iPhone, bonyeza "Open in sing-box", kisha Create.',
+    'zh': '用 iPhone 相机扫描此码，点击“在 sing-box 中打开”，然后点击“创建”。',
+  },
+  'iphone.step3': {
+    'en': 'In sing-box, open Dashboard and tap Start. Allow the VPN request the first time.',
+    'sw': 'Ndani ya sing-box, fungua Dashboard na bonyeza Start. Ruhusu ombi la VPN mara ya kwanza.',
+    'zh': '在 sing-box 中打开“仪表盘”并点击“启动”。首次请允许 VPN 请求。',
+  },
+  'iphone.private': {
+    'en': 'This code is your personal access. Do not share it.',
+    'sw': 'Code hii ni ufikiaji wako binafsi. Usiishiriki na wengine.',
+    'zh': '此码是您的个人访问凭证，请勿分享。',
+  },
+  'iphone.copy': {
+    'en': 'Copy iPhone link',
+    'sw': 'Nakili link ya iPhone',
+    'zh': '复制 iPhone 链接',
+  },
+  'iphone.copied': {
+    'en': 'iPhone link copied',
+    'sw': 'Link ya iPhone imenakiliwa',
+    'zh': '已复制 iPhone 链接',
+  },
+  'iphone.manual': {
+    'en': 'No camera? Send the link to the iPhone, then in sing-box tap Profiles → New Profile → Remote, paste it and tap Create.',
+    'sw': 'Hakuna kamera? Tuma link kwa iPhone, kisha ndani ya sing-box bonyeza Profiles → New Profile → Remote, ibandike na bonyeza Create.',
+    'zh': '无法扫码？把链接发到 iPhone，在 sing-box 中点击“配置”→“新建配置”→“远程”，粘贴后点击“创建”。',
+  },
   'settings.ovpnNotReady': {
     'en': 'Your OpenVPN profile is not ready yet. Try again in a minute.',
     'sw': 'Profile yako ya OpenVPN bado haijawa tayari. Jaribu tena baada ya dakika moja.',
@@ -491,6 +565,10 @@ const _map = <String, Map<String, String>>{
   'settings.language': {'en': 'Language', 'sw': 'Lugha', 'zh': '语言'},
   'settings.about': {'en': 'About', 'sw': 'Kuhusu', 'zh': '关于'},
   'settings.version': {'en': 'Version', 'sw': 'Toleo', 'zh': '版本'},
+  'settings.alwaysOn': {'en': 'Always-on VPN'},
+  'settings.alwaysOnSub': {
+    'en': 'Keep Mbunie VPN on all the time, even after a restart. Open Android VPN settings, tap the gear next to Mbunie VPN and turn on Always-on VPN. On Infinix, Tecno or Xiaomi phones also allow Mbunie VPN to auto-start and run without battery limits.',
+  },
   'settings.copyPeer': {
     'en': 'Copy Peer ID',
     'sw': 'Nakili Peer ID',
@@ -542,5 +620,56 @@ const _map = <String, Map<String, String>>{
     'en': 'Connection failed.',
     'sw': 'Muunganisho umeshindwa.',
     'zh': '连接失败。',
+  },
+  // Short messages for customers; the full reason goes to the admin.
+  'vpn.err.generic': {
+    'en': 'Could not connect. Please try again.',
+    'sw': 'Imeshindwa kuunganisha. Tafadhali jaribu tena.',
+    'zh': '无法连接，请重试。',
+  },
+  'vpn.err.offline': {
+    'en': 'No internet. Check your Wi-Fi or mobile data, then try again.',
+    'sw': 'Hakuna internet. Angalia Wi-Fi au data, kisha jaribu tena.',
+    'zh': '没有网络。请检查 Wi-Fi 或移动数据后重试。',
+  },
+  'vpn.err.noTraffic': {
+    'en': 'Connected, but the internet is not reachable. Check your network or try another server.',
+    'sw': 'Imeunganishwa, lakini internet haipatikani. Angalia mtandao wako au jaribu server nyingine.',
+    'zh': '已连接，但无法访问互联网。请检查网络或换一个服务器。',
+  },
+  'vpn.err.otherVpn': {
+    'en': 'Another VPN is on. Turn it off, then try again.',
+    'sw': 'VPN nyingine imewashwa. Izime, kisha jaribu tena.',
+    'zh': '另一个 VPN 正在运行。请先关闭它再重试。',
+  },
+  'vpn.err.admin': {
+    'en': 'Open Mbunie VPN as Administrator (right-click → Run as administrator), then try again.',
+    'sw': 'Fungua Mbunie VPN kama Administrator (right-click → Run as administrator), kisha jaribu tena.',
+    'zh': '请以管理员身份运行 Mbunie VPN（右键 → 以管理员身份运行）后重试。',
+  },
+  'vpn.err.macPassword': {
+    'en': 'Mbunie VPN needs your Mac password once. Press Connect and enter it.',
+    'sw': 'Mbunie VPN inahitaji password ya Mac mara moja. Bonyeza Connect na uiweke.',
+    'zh': 'Mbunie VPN 需要输入一次 Mac 密码。请点击连接并输入。',
+  },
+  'vpn.err.permission': {
+    'en': 'Allow the VPN request when your phone asks, then try again.',
+    'sw': 'Ruhusu ombi la VPN simu inapouliza, kisha jaribu tena.',
+    'zh': '手机询问时请允许 VPN 请求，然后重试。',
+  },
+  'vpn.err.reinstall': {
+    'en': 'Mbunie VPN is incomplete. Please reinstall it.',
+    'sw': 'Mbunie VPN haijakamilika. Tafadhali isakinishe upya.',
+    'zh': 'Mbunie VPN 安装不完整，请重新安装。',
+  },
+  'vpn.err.account': {
+    'en': 'Your plan could not be checked. Sign in again or contact support.',
+    'sw': 'Kifurushi chako hakijathibitishwa. Ingia tena au wasiliana na support.',
+    'zh': '无法验证您的套餐。请重新登录或联系客服。',
+  },
+  'vpn.err.deviceRemoved': {
+    'en': 'This device was removed from your account. Contact support@mbuniehub.com.',
+    'sw': 'Kifaa hiki kimeondolewa kwenye akaunti yako. Wasiliana na support@mbuniehub.com.',
+    'zh': '此设备已从您的账户中移除。请联系 support@mbuniehub.com。',
   },
 };

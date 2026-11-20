@@ -12,10 +12,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models.dart';
 import '../config.dart';
 import 'api_client.dart';
+import 'app_updater.dart';
 import 'sub_parser.dart';
+import 'tunnel/clash_traffic.dart';
 import 'vpn_controller.dart';
 
-enum AuthGate { loading, needsAuth, needsPlan, ready }
+/// [offline]: signed in, but the server could not be reached and no saved
+/// plan lets the app start without it.
+enum AuthGate { loading, needsAuth, needsPlan, ready, offline }
 
 class AppState extends ChangeNotifier with WidgetsBindingObserver {
   AppState({ApiClient? api, VpnController? vpn})
@@ -24,11 +28,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     // Forward VPN state changes to app-wide listeners.
     this.vpn.addListener(notifyListeners);
     this.vpn.addListener(_onVpnChanged);
+    updater.addListener(notifyListeners);
   }
 
   @override
   void dispose() {
     _beatTimer?.cancel();
+    _updateTimer?.cancel();
+    _offlineRetry?.cancel();
+    updater.removeListener(notifyListeners);
+    updater.dispose();
     vpn.removeListener(_onVpnChanged);
     vpn.removeListener(notifyListeners);
     vpn.dispose();
@@ -38,6 +47,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   // ---- device heartbeat (admin "who is online now") ---------------------
 
   String? _deviceId;
+  Future<void> _idReady = Future.value();
   Timer? _beatTimer;
   bool? _lastBeatConnected;
   String? _lastReportedError;
@@ -47,7 +57,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   void _onVpnChanged() {
     // Diagnostics: report each new failure (same one at most every 2 min, so a
     // reconnect loop doesn't flood the server).
-    final err = vpn.status == VpnStatus.error ? vpn.error : null;
+    final err = vpn.status == VpnStatus.error ? vpn.error : vpn.noInternetDetail;
     if (err != null &&
         (err != _lastReportedError ||
             _lastReportedAt == null ||
@@ -60,6 +70,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     final connected = vpn.isConnected;
     if (connected == _lastBeatConnected) return;
     _lastBeatConnected = connected;
+    if (connected) unawaited(_askBatteryExemptionOnce());
     _beat();
     _beatTimer?.cancel();
     if (connected) {
@@ -79,7 +90,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         connected: vpn.isConnected,
         protocol: vpn.protocol.name,
         appVersion: MvpnConfig.appVersion,
-        error: error,
+        // The server keeps up to 2000 characters.
+        error: error != null && error.length > 1990 ? error.substring(0, 1990) : error,
         model: info['model'],
         osVersion: info['os_version'],
       );
@@ -90,6 +102,21 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     } catch (_) {
       // Best effort: telemetry must never get in the way of the tunnel.
     }
+  }
+
+  /// Android: battery savers (Infinix/Tecno XOS, Xiaomi, Huawei...) stop the
+  /// VPN in the background unless the app is exempt. Asked once, after the
+  /// first connect. Not in the Play build (its policy limits this request).
+  Future<void> _askBatteryExemptionOnce() async {
+    if (!Platform.isAndroid || MvpnConfig.playStore) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('mvpn_battery_asked') ?? false) return;
+      const ch = MethodChannel('com.hiddify.app/platform');
+      if (await ch.invokeMethod<bool>('is_ignoring_battery_optimizations') ?? true) return;
+      await prefs.setBool('mvpn_battery_asked', true);
+      await ch.invokeMethod<bool>('request_ignore_battery_optimizations');
+    } catch (_) {}
   }
 
   Future<Map<String, String>> _loadDeviceInfo() async {
@@ -192,9 +219,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
     _deviceId = legacy;
     ApiClient.deviceId = legacy;
-    // Looked up in the background so start-up never waits on it.
-    unawaited(_useHardwareId(legacy));
+    // Looked up in the background so start-up never waits on it (the update
+    // check does: the server answers per platform by this id).
+    _idReady = _useHardwareId(legacy);
+    _reconnectAfterUpdate = prefs.getBool(AppUpdater.reconnectKey) ?? false;
+    await prefs.remove(AppUpdater.reconnectKey);
     unawaited(checkForUpdate());
+    // The desktop app can sit in the tray for days without a "resumed".
+    _updateTimer = Timer.periodic(const Duration(hours: 6), (_) => checkForUpdate());
     _token = prefs.getString('mvpn_token');
     identifier = prefs.getString('mvpn_identifier');
     api.token = _token;
@@ -204,7 +236,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       notifyListeners();
       return;
     }
-    await refreshSubscription();
+    try {
+      await refreshSubscription();
+    } catch (_) {
+      // Never stay on the splash: it spun forever when the server could not
+      // be reached (Cloudflare is often blocked in China).
+      await _startOffline();
+    }
   }
 
   // ---- auth ---------------------------------------------------------------
@@ -277,14 +315,25 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   /// This build is below the server's minimum: it must update.
   bool updateRequired = false;
   DateTime? _lastUpdateCheck;
+  Timer? _updateTimer;
+
+  final updater = AppUpdater();
+
+  /// Set by the desktop shell: removes the tray icon before the app quits.
+  Future<void> Function()? beforeExit;
+
+  /// The installer restarted the app: bring the VPN back if it was on.
+  bool _reconnectAfterUpdate = false;
 
   Future<void> checkForUpdate() async {
-    // Play builds update through Google Play only (Play policy).
-    if (MvpnConfig.playStore) return;
+    // Play builds update through Google Play only (Play policy). iPhone
+    // apps cannot install from a link; updates come from TestFlight/App Store.
+    if (MvpnConfig.playStore || Platform.isIOS) return;
     final last = _lastUpdateCheck;
     if (last != null && DateTime.now().difference(last) < const Duration(hours: 6)) return;
     _lastUpdateCheck = DateTime.now();
     try {
+      await _idReady;
       final r = await api.appVersion();
       final latest = r['latest'] as String?;
       final min = r['min_supported'] as String?;
@@ -299,8 +348,42 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       notifyListeners();
     } catch (_) {
       // Offline or older server: try again next time.
+      return;
+    }
+    if (!AppUpdater.supported) return;
+    final v = updateVersion, url = updateUrl;
+    if (v == null || url == null) {
+      unawaited(updater.cleanUp());
+      return;
+    }
+    // Fetched ahead so "Update now" in the popup is quick; installing waits
+    // for the tap, unless this version is no longer supported.
+    await updater.download(v, url, auto: true);
+    if (updateRequired && updater.ready != null && Platform.isWindows) {
+      await installUpdate();
     }
   }
+
+  /// The notice's button where [AppUpdater.supported]: download (now, on
+  /// any network) and install.
+  Future<void> startUpdate() async {
+    final v = updateVersion, url = updateUrl;
+    if (v == null || url == null) return;
+    if (updater.ready == null || updater.version != v) await updater.download(v, url);
+    await installUpdate();
+  }
+
+  Future<void> installUpdate() => updater.install(
+    beforeQuit: () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(
+        AppUpdater.reconnectKey,
+        vpn.status == VpnStatus.connected || vpn.status == VpnStatus.reconnecting,
+      );
+      if (vpn.status != VpnStatus.disconnected) await vpn.disconnect();
+      await beforeExit?.call();
+    },
+  );
 
   /// "1.0.13" > "1.0.9" (numeric, part by part).
   static bool isNewerVersion(String a, String b) {
@@ -315,7 +398,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(checkForUpdate());
+    // Live traffic only while the app is on screen (saves CPU and battery).
+    // Phones; on desktop DesktopTray follows the window (hiding it to the
+    // tray also reports "inactive", which would read as on screen).
+    if (Platform.isAndroid || Platform.isIOS) {
+      ClashTraffic.visible.value =
+          state == AppLifecycleState.resumed || state == AppLifecycleState.inactive;
+    }
+    if (state == AppLifecycleState.resumed) {
+      unawaited(checkForUpdate());
+      updater.onResume();
+    }
     if (state == AppLifecycleState.resumed && _connectOnResume) {
       _connectOnResume = false;
       if (subStatus == 'active') unawaited(vpn.connect());
@@ -325,6 +418,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('mvpn_token');
+    await prefs.remove(_lastSubKey);
+    await prefs.remove(_lastNodesKey);
+    _offlineRetry?.cancel();
+    _offline = false;
     _token = null;
     api.token = null;
     gate = AuthGate.needsAuth;
@@ -398,44 +495,142 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   // ---- subscription ----------------------------------------------------
 
-  Future<void> refreshSubscription() async {
-    try {
-      final r = await api.subscription();
-      subStatus = r['status'] as String? ?? 'none';
-      planCode = r['plan'] as String?;
-      awaitingPayment = r['awaiting_payment'] == true;
-      pendingInvoice = r['pending_invoice'] as Map<String, dynamic>?;
-      expiresAt = r['expires_at'] != null
-          ? DateTime.tryParse(r['expires_at'] as String)
-          : null;
+  // The last good answer, so a customer whose plan is active can still
+  // connect while the server is unreachable; the VPN engines keep the last
+  // config for the same reason.
+  static const _lastSubKey = 'mvpn_last_subscription';
+  static const _lastNodesKey = 'mvpn_last_nodes';
+  static const _offlineRetryEvery = Duration(seconds: 30);
+  Timer? _offlineRetry;
+  bool _offline = false;
 
-      if (subStatus == 'active' && r['sub_url'] is String) {
-        final subUrl = r['sub_url'] as String;
-        vpn.setConnection(
-          subUrl: subUrl,
-          apiToken: _token ?? '',
-          apiBase: api.baseUrl,
-        );
-        await _loadNodesFrom(subUrl);
-        gate = AuthGate.ready;
-        unawaited(_beat());
-        vpn.maybeAutoConnect();
-      } else {
-        gate = AuthGate.needsPlan;
-      }
+  /// Running from the saved plan because the server could not be reached.
+  bool get offline => _offline;
+
+  Future<void> refreshSubscription() async {
+    final Map<String, dynamic> r;
+    try {
+      r = await api.subscription();
     } on ApiException catch (e) {
       if (e.status == 401 || e.deviceRevoked) {
         await _signedOut(e);
         return;
       }
+      if (e.status == 0 && (_offline || gate == AuthGate.offline)) {
+        _retryOffline();
+        return;
+      }
       rethrow;
     }
+    _offline = false;
+    _offlineRetry?.cancel();
+    await _applySubscription(r);
+    unawaited(_saveLastSubscription(r));
     notifyListeners();
   }
 
-  Future<void> _loadNodesFrom(String subUrl) async {
+  Future<void> _applySubscription(
+    Map<String, dynamic> r, {
+    bool fromCache = false,
+  }) async {
+    subStatus = r['status'] as String? ?? 'none';
+    planCode = r['plan'] as String?;
+    awaitingPayment = r['awaiting_payment'] == true;
+    pendingInvoice = r['pending_invoice'] as Map<String, dynamic>?;
+    expiresAt = r['expires_at'] != null
+        ? DateTime.tryParse(r['expires_at'] as String)
+        : null;
+
+    if (subStatus == 'active' && r['sub_url'] is String) {
+      final subUrl = r['sub_url'] as String;
+      vpn.setConnection(
+        subUrl: subUrl,
+        apiToken: _token ?? '',
+        apiBase: api.baseUrl,
+      );
+      await _loadNodesFrom(subUrl, fromCache: fromCache);
+      gate = AuthGate.ready;
+      if (!fromCache) unawaited(_beat());
+      vpn.maybeAutoConnect(force: _reconnectAfterUpdate);
+      _reconnectAfterUpdate = false;
+    } else {
+      gate = AuthGate.needsPlan;
+    }
+  }
+
+  /// Starts from the saved plan, or shows the "can't reach" screen, and keeps
+  /// trying the server in the background.
+  Future<void> _startOffline() async {
+    _offline = true;
+    Map<String, dynamic>? saved;
     try {
-      final body = await api.fetchSubscription(subUrl);
+      final raw = (await SharedPreferences.getInstance()).getString(_lastSubKey);
+      if (raw != null) saved = jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      saved = null;
+    }
+    final expiresRaw = saved?['expires_at'];
+    final expires = expiresRaw is String ? DateTime.tryParse(expiresRaw) : null;
+    if (saved != null &&
+        saved['status'] == 'active' &&
+        expires != null &&
+        expires.isAfter(DateTime.now())) {
+      await _applySubscription(saved, fromCache: true);
+    } else {
+      gate = AuthGate.offline;
+    }
+    notifyListeners();
+    _retryOffline();
+  }
+
+  void _retryOffline() {
+    _offlineRetry?.cancel();
+    _offlineRetry = Timer(_offlineRetryEvery, () {
+      unawaited(refreshSubscription().catchError((Object _) {}));
+    });
+  }
+
+  /// "Try again" on the can't-reach screen.
+  Future<void> retryNow() async {
+    _offlineRetry?.cancel();
+    try {
+      await refreshSubscription();
+    } catch (_) {
+      _retryOffline();
+    }
+  }
+
+  Future<void> _saveLastSubscription(Map<String, dynamic> r) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (r['status'] == 'active' && r['sub_url'] is String) {
+      await prefs.setString(
+        _lastSubKey,
+        jsonEncode({
+          'status': r['status'],
+          'plan': r['plan'],
+          'expires_at': r['expires_at'],
+          'sub_url': r['sub_url'],
+        }),
+      );
+    } else {
+      await prefs.remove(_lastSubKey);
+    }
+  }
+
+  Future<void> _loadNodesFrom(String subUrl, {bool fromCache = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? body;
+    if (!fromCache) {
+      try {
+        body = await api.fetchSubscription(subUrl);
+        await prefs.setString(_lastNodesKey, body);
+      } catch (_) {
+        body = null;
+      }
+    }
+    body ??= prefs.getString(_lastNodesKey);
+    if (body == null) return; // keep whatever nodes we have
+    try {
       final nodes = SubParser.parse(body);
       if (nodes.isNotEmpty) vpn.setNodes(nodes);
     } catch (_) {

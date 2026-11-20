@@ -138,7 +138,7 @@ class PartnerController extends Controller
             return $this->activationResponse($done, duplicate: true);
         }
 
-        $plan = Plan::where('code', $data['plan_code'])->where('is_active', true)->first();
+        $plan = Plan::where('code', $data['plan_code'])->where('is_active', true)->where('is_trial', false)->first();
         if (! $plan) {
             return response()->json(['error' => 'unknown_plan'], 422);
         }

@@ -2,24 +2,30 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart';
+import 'friendly_error.dart';
 import 'tunnel/android_hiddify_engine.dart';
+import 'tunnel/ios_engine.dart';
 import 'tunnel/simulated_engine.dart';
 import 'tunnel/singbox_engine.dart';
 import 'tunnel/tunnel_engine.dart';
 
 /// Connection state + live stats, backed by a [TunnelEngine].
 ///
-/// Android uses the embedded Hiddify mobile core; desktop uses the
-/// standalone sing-box process; unsupported platforms fall back to demo mode.
+/// Android uses the embedded Hiddify mobile core; iPhone runs libbox in a
+/// Network Extension; desktop uses the standalone sing-box process;
+/// unsupported platforms fall back to demo mode.
 class VpnController extends ChangeNotifier {
   VpnController({TunnelEngine? engine})
     : _engine =
           engine ??
           (Platform.isAndroid
               ? AndroidHiddifyEngine()
+              : IosEngine.supported
+              ? IosEngine()
               : SingboxEngine.supported
               ? SingboxEngine()
               : SimulatedEngine()) {
@@ -57,8 +63,23 @@ class VpnController extends ChangeNotifier {
   VpnStatus _status = VpnStatus.disconnected;
   VpnStatus get status => _status;
 
+  /// The full failure text: sent to Admin > Devices, never shown as is.
   String? _error;
   String? get error => _error;
+
+  /// What the customer sees for [error]: a short `vpn.err.*` message key.
+  String? get errorKey => _error == null ? null : friendlyErrorKey(_error);
+
+  /// Connected, but nothing gets through the tunnel (no internet on this
+  /// network, or the server is unreachable). Checked every 30 s while up.
+  bool _noInternet = false;
+  bool get noInternet => _noInternet && _status == VpnStatus.connected;
+  String? _probeDetail;
+
+  /// Admin detail for [noInternet].
+  String? get noInternetDetail => noInternet ? _probeDetail : null;
+  Timer? _probeTimer;
+  int _probeFails = 0;
 
   late List<VpnNode> _nodes;
   List<VpnNode> get nodes => List.unmodifiable(_nodes);
@@ -116,9 +137,10 @@ class VpnController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Called by AppState when a subscription becomes active.
-  void maybeAutoConnect() {
-    if (autoConnect && _status == VpnStatus.disconnected) {
+  /// Called by AppState when a subscription becomes active. [force]: the
+  /// VPN was on before the app restarted to update.
+  void maybeAutoConnect({bool force = false}) {
+    if ((autoConnect || force) && _status == VpnStatus.disconnected) {
       connect();
     }
   }
@@ -154,8 +176,9 @@ class VpnController extends ChangeNotifier {
   }
 
   Future<void> connect() async {
-    if (_status == VpnStatus.connecting || _status == VpnStatus.connected)
+    if (_status == VpnStatus.connecting || _status == VpnStatus.connected) {
       return;
+    }
     _userWantsConnected = true;
     _reconnectTimer?.cancel();
 
@@ -187,6 +210,7 @@ class VpnController extends ChangeNotifier {
     _userWantsConnected = false;
     _reconnectAttempts = 0;
     _reconnectTimer?.cancel();
+    _stopProbe();
     await _engine.stop();
     _connectedAt = null;
     _stats = SessionStats.empty;
@@ -197,8 +221,9 @@ class VpnController extends ChangeNotifier {
   }
 
   void _scheduleReconnect() {
-    if (!autoReconnect || !_userWantsConnected || _reconnectAttempts >= 5)
+    if (!autoReconnect || !_userWantsConnected || _reconnectAttempts >= 5) {
       return;
+    }
     _reconnectAttempts++;
     final delay = Duration(seconds: 2 * _reconnectAttempts);
     _reconnectTimer?.cancel();
@@ -276,13 +301,23 @@ class VpnController extends ChangeNotifier {
       case EngineStatus.up:
         _connectedAt ??= DateTime.now();
         _reconnectAttempts = 0;
+        // Also when the tunnel was already up (started before the app
+        // opened, from the Quick Settings tile, or after a reboot/update).
+        _userWantsConnected = true;
         _set(VpnStatus.connected);
+        _startProbe();
         // Re-apply the picked server: a new engine starts on "auto" (or on
         // what its cache remembers).
         unawaited(_applyServer());
       case EngineStatus.down:
+        _stopProbe();
         _connectedAt = null;
         _stats = SessionStats.empty;
+        if (r.external) {
+          _userWantsConnected = false;
+          _reconnectTimer?.cancel();
+          _reconnectAttempts = 0;
+        }
         if (_userWantsConnected && autoReconnect) {
           _set(VpnStatus.reconnecting);
           _scheduleReconnect();
@@ -290,6 +325,7 @@ class VpnController extends ChangeNotifier {
           _set(VpnStatus.disconnected);
         }
       case EngineStatus.error:
+        _stopProbe();
         _error = r.message ?? 'vpn.failed';
         _set(VpnStatus.error);
         _scheduleReconnect();
@@ -324,6 +360,71 @@ class VpnController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---- "connected, but no internet" probe ----------------------------
+
+  void _startProbe() {
+    _stopProbe();
+    if (!_engine.isReal) return;
+    _probeTimer = Timer(const Duration(seconds: 4), _probe);
+  }
+
+  void _stopProbe() {
+    _probeTimer?.cancel();
+    _probeTimer = null;
+    _probeFails = 0;
+    if (_noInternet) {
+      _noInternet = false;
+      _probeDetail = null;
+      notifyListeners();
+    }
+  }
+
+  /// One request through the tunnel via the engine's Clash API (the same
+  /// test URL the server's url-test groups use).
+  Future<void> _probe() async {
+    if (_status != VpnStatus.connected) return;
+    String? fail;
+    try {
+      final res = await http
+          .get(
+            Uri.parse(
+              'http://127.0.0.1:9095/proxies/proxy/delay?timeout=6000'
+              '&url=${Uri.encodeQueryComponent('https://www.apple.com/library/test/success.html')}',
+            ),
+          )
+          .timeout(const Duration(seconds: 9));
+      if (res.statusCode != 200) fail = 'HTTP ${res.statusCode} ${res.body}';
+    } catch (e) {
+      // iPhone: sing-box runs in the Network Extension; if the app cannot
+      // reach its Clash API at all, skip the check rather than warn falsely.
+      if (Platform.isIOS && e is SocketException) {
+        _probeTimer = null;
+        return;
+      }
+      fail = '$e';
+    }
+    if (_status != VpnStatus.connected) return;
+    if (fail == null) {
+      _probeFails = 0;
+      if (_noInternet) {
+        _noInternet = false;
+        _probeDetail = null;
+        notifyListeners();
+      }
+    } else if (++_probeFails >= 2 && !_noInternet) {
+      // Two in a row: one slow answer is not "no internet".
+      _noInternet = true;
+      _probeDetail =
+          'Connected, but nothing gets through the tunnel '
+          '(server ${_currentNode.name}): $fail';
+      notifyListeners();
+    }
+    _probeTimer = Timer(
+      Duration(seconds: fail == null || _noInternet ? 30 : 5),
+      _probe,
+    );
+  }
+
   void _set(VpnStatus s) {
     _status = s;
     notifyListeners();
@@ -332,17 +433,19 @@ class VpnController extends ChangeNotifier {
   @override
   void dispose() {
     _reconnectTimer?.cancel();
+    _probeTimer?.cancel();
     _repSub.cancel();
     _trafSub.cancel();
     _engine.dispose();
     super.dispose();
   }
 
+  // Shown until the account's server list loads; matches the live server.
   List<VpnNode> _seedNodes() => const [
     VpnNode(
-      id: 'tk1',
-      name: 'Tokyo',
-      code: 'JP-TK-01',
+      id: 'kl1',
+      name: 'Kuala Lumpur 1',
+      code: 'MY-KL-01',
       region: 'Asia-Pacific',
       latencyMs: 0,
       optimizedFor: 'China',

@@ -9,6 +9,7 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
 
 class EditUser extends EditRecord
 {
@@ -65,6 +66,18 @@ class EditUser extends EditRecord
                     $this->redirect(UserResource::getUrl('index'));
                 }),
         ];
+    }
+
+    /** Admin access is not mass-assignable (no API input may set it): set it here. */
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        if (array_key_exists('is_admin', $data)) {
+            $record->forceFill(['is_admin' => (bool) $data['is_admin']]);
+            unset($data['is_admin']);
+        }
+        $record->fill($data)->save();
+
+        return $record;
     }
 
     protected function getSavedNotificationTitle(): ?string

@@ -49,3 +49,6 @@ app.*.map.json
 
 # Bundled sing-box engine for macOS builds (macos/engine-scripts/fetch-engine.sh)
 /macos/engine/
+
+# Libbox for the iPhone tunnel (ios/engine-scripts/build-libbox.sh)
+/ios/Frameworks/
