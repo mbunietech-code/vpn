@@ -25,6 +25,9 @@ class NodeCapacityTest extends TestCase
         $this->seed(\Database\Seeders\MvpnSeeder::class);
         Mail::fake();
         User::factory()->create(['is_admin' => true, 'email' => 'owner@example.com']);
+        // The seeder adds a second admin; name the one recipient so "emailed
+        // once" means one email.
+        config(['services.mvpn.payment_alert_emails' => 'owner@example.com']);
     }
 
     private function node(array $attrs = []): Node
@@ -78,8 +81,10 @@ class NodeCapacityTest extends TestCase
 
     public function test_subscriber_alert(): void
     {
-        config(['services.mvpn.subscriber_alert' => 2]);
         $node = $this->node();
+        // Admins get their own always-on VPN subscription, which also uses the node.
+        $admins = $node->activeSubscriptionCount();
+        config(['services.mvpn.subscriber_alert' => $admins + 2]);
         foreach (range(1, 2) as $i) {
             $sub = User::factory()->create()->subscriptions()->create([
                 'plan_code' => 'm1', 'status' => 'active', 'sub_token' => "tok{$i}",
@@ -88,7 +93,7 @@ class NodeCapacityTest extends TestCase
             app(ProvisioningService::class)->syncPeers($sub);
         }
 
-        $this->assertSame(2, $node->activeSubscriptionCount(), 'three peers each, counted once');
+        $this->assertSame($admins + 2, $node->activeSubscriptionCount(), 'three peers each, counted once');
         $this->health(['rx_bytes' => 1, 'tx_bytes' => 1]);
 
         $this->assertTrue(Alert::where('source', 'node.subscribers')->where('node_id', $node->id)->exists());
