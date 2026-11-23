@@ -27,7 +27,8 @@ class WebhookProcessor
             [
                 'type' => $event['type'] ?? null,
                 'signature_status' => $signatureOk ? 'ok' : 'bad',
-                'payload' => $request->json()->all() ?: ['raw' => $request->getContent()],
+                // Pesapal notifies with a GET: keep its query string.
+                'payload' => $request->json()->all() ?: ($request->query() ?: ['raw' => $request->getContent()]),
             ]
         );
 
@@ -48,6 +49,30 @@ class WebhookProcessor
         $record->update(['processed' => true, 'result' => $result]);
 
         return ['status' => 200, 'body' => ['status' => $result]];
+    }
+
+    /**
+     * A status we fetched from the provider ourselves (buyer waiting on the
+     * VIP pass page). Recorded and applied exactly like a webhook.
+     */
+    public function applyConfirmed(string $provider, array $event): string
+    {
+        if (empty($event['event_id']) || ($event['type'] ?? 'ignored') === 'ignored') {
+            return 'ignored';
+        }
+
+        $record = WebhookEvent::firstOrCreate(
+            ['provider' => $provider, 'event_id' => $event['event_id']],
+            ['type' => $event['type'], 'signature_status' => 'ok', 'payload' => ['confirmed_by_api' => true] + $event],
+        );
+        if ($record->processed) {
+            return 'duplicate ignored';
+        }
+
+        $result = $this->apply($event);
+        $record->update(['processed' => true, 'result' => $result]);
+
+        return $result;
     }
 
     private function apply(array $event): string

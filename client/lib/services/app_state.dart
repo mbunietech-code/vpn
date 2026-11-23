@@ -234,6 +234,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (_token == null) {
       gate = AuthGate.needsAuth;
       notifyListeners();
+      _listenForLinks();
       return;
     }
     try {
@@ -243,6 +244,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       // be reached (Cloudflare is often blocked in China).
       await _startOffline();
     }
+    _listenForLinks();
   }
 
   // ---- auth ---------------------------------------------------------------
@@ -268,6 +270,73 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> verifyOtp(String code) async {
     final r = await api.verifyOtp(identifier!, code, _deviceName());
     await _storeSession(r['token'] as String);
+  }
+
+  // ---- VIP event pass (no account) -------------------------------------
+
+  /// What the VIP pass page copies when the app is downloaded or opened.
+  static final _vipTag = RegExp(r'MVPN-VIP:([A-Za-z0-9]{8})');
+  static const _links = MethodChannel('com.mbunie.mvpn/links');
+
+  /// A sign-in from a VIP link is running / failed (shown on the sign-in screen).
+  bool vipBusy = false;
+  String? vipError;
+
+  /// Signs this device in with a VIP pass code, then connects straight away.
+  Future<void> loginWithVip(String code) async {
+    await _idReady; // the pass counts devices by their id
+    final r = await api.claimVip(code.trim(), _deviceName(), Platform.operatingSystem);
+    identifier = ((r['user'] as Map?)?['identifier'] as String?) ?? 'VIP';
+    await _storeSession(r['token'] as String);
+    if (subStatus == 'active') connectAfterPayment();
+  }
+
+  /// The code the pass page left on the clipboard, if any.
+  Future<String?> vipCodeFromClipboard() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      return _vipTag.firstMatch(data?.text ?? '')?.group(1)?.toUpperCase();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Used once: don't sign in with it again on the next start.
+  Future<void> forgetClipboardVip() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      if (_vipTag.hasMatch(data?.text ?? '')) {
+        await Clipboard.setData(const ClipboardData(text: ''));
+      }
+    } catch (_) {}
+  }
+
+  /// Android: "Open the app" on the pass page sends mvpn://vip?code=…
+  void _listenForLinks() {
+    if (!Platform.isAndroid) return;
+    _links.setMethodCallHandler((call) async {
+      if (call.method == 'link') await _onLink(call.arguments as String?);
+    });
+    _links.invokeMethod<String>('initialLink').then(_onLink).catchError((_) {});
+  }
+
+  Future<void> _onLink(String? link) async {
+    final uri = link == null ? null : Uri.tryParse(link);
+    final code = uri?.host == 'vip' ? uri!.queryParameters['code'] : null;
+    if (code == null || code.isEmpty || vipBusy) return;
+    vipBusy = true;
+    vipError = null;
+    notifyListeners();
+    try {
+      await loginWithVip(code);
+      await forgetClipboardVip();
+    } on ApiException catch (e) {
+      vipError = e.message;
+    } catch (_) {
+      vipError = 'auth.netError';
+    }
+    vipBusy = false;
+    notifyListeners();
   }
 
   Future<void> _storeSession(String token) async {

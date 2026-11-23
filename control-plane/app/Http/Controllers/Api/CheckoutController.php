@@ -18,12 +18,14 @@ class CheckoutController extends Controller
     {
         $data = $request->validate([
             'plan' => ['required', 'string', 'exists:plans,code'],
-            'provider' => ['required', 'string', 'in:stripe,cryptomus,clickpesa'],
+            'provider' => ['required', 'string', 'in:stripe,cryptomus,clickpesa,pesapal'],
             'currency' => ['required', 'string', 'in:usd,cny,tzs'],
         ]);
 
         // Some providers only settle in one currency.
-        $forced = PaymentManager::CURRENCY[$data['provider']] ?? null;
+        $forced = $data['provider'] === 'pesapal'
+            ? PaymentManager::currencyFor('pesapal')
+            : (PaymentManager::CURRENCY[$data['provider']] ?? null);
         $currency = $forced ?? $data['currency'];
 
         $plan = Plan::where('code', $data['plan'])->where('is_active', true)->where('is_trial', false)->firstOrFail();

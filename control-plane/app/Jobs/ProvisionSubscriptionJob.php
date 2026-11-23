@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Invoice;
 use App\Models\AuditLog;
 use App\Services\ProvisioningService;
+use App\Services\VipPasses;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -22,7 +23,7 @@ class ProvisionSubscriptionJob implements ShouldQueue
 
     public function __construct(public int $invoiceId) {}
 
-    public function handle(ProvisioningService $provisioner): void
+    public function handle(ProvisioningService $provisioner, VipPasses $vip): void
     {
         $invoice = Invoice::with('user')->findOrFail($this->invoiceId);
 
@@ -31,7 +32,8 @@ class ProvisionSubscriptionJob implements ShouldQueue
             return;
         }
 
-        $sub = $provisioner->fulfill($invoice);
+        // A VIP event pass: runs until the event ends, not for a plan's days.
+        $sub = $vip->activateForInvoice($invoice) ?? $provisioner->fulfill($invoice);
 
         AuditLog::create([
             'actor' => 'system',

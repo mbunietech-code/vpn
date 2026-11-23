@@ -3,6 +3,7 @@
 namespace App\Payments\Drivers;
 
 use App\Models\Invoice;
+use App\Payments\ConfirmsPayment;
 use App\Payments\PaymentGateway;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Http;
  * Alipay / WeChat Pay require the invoice currency to be one Stripe supports
  * for them (cny works for both; usd works for card).
  */
-class StripeGateway implements PaymentGateway
+class StripeGateway implements ConfirmsPayment, PaymentGateway
 {
     private string $secret;
 
@@ -37,8 +38,8 @@ class StripeGateway implements PaymentGateway
 
         $payload = [
             'mode' => 'payment',
-            'success_url' => config('app.url').'/pay/return?invoice='.$invoice->id.'&status=ok',
-            'cancel_url' => config('app.url').'/pay/return?invoice='.$invoice->id.'&status=cancel',
+            'success_url' => $invoice->meta['return_url'] ?? config('app.url').'/pay/return?invoice='.$invoice->id.'&status=ok',
+            'cancel_url' => $invoice->meta['cancel_url'] ?? config('app.url').'/pay/return?invoice='.$invoice->id.'&status=cancel',
             'client_reference_id' => (string) $invoice->id,
             'payment_method_types' => $methods,
             'line_items' => [[
@@ -46,7 +47,7 @@ class StripeGateway implements PaymentGateway
                 'price_data' => [
                     'currency' => $invoice->currency,
                     'unit_amount' => $invoice->amount_cents,
-                    'product_data' => ['name' => 'Mbunie VPN - '.$invoice->plan_code],
+                    'product_data' => ['name' => $invoice->meta['description'] ?? 'Mbunie VPN - '.$invoice->plan_code],
                 ],
             ]],
             'metadata' => ['invoice_id' => (string) $invoice->id],
@@ -82,6 +83,36 @@ class StripeGateway implements PaymentGateway
         }
 
         return $wanted->isEmpty() ? ['card'] : $wanted->all();
+    }
+
+    /** Ask Stripe whether the Checkout Session behind this invoice is paid. */
+    public function confirm(Invoice $invoice): ?array
+    {
+        if (! $invoice->provider_ref) {
+            return null;
+        }
+
+        try {
+            $session = Http::withToken($this->secret)
+                ->get('https://api.stripe.com/v1/checkout/sessions/'.$invoice->provider_ref)
+                ->throw()
+                ->json();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
+
+        $paid = ($session['payment_status'] ?? null) === 'paid';
+
+        return [
+            'event_id' => $invoice->provider_ref.':'.($paid ? 'paid' : 'open'),
+            'type' => $paid ? 'paid' : 'ignored',
+            'provider_ref' => $invoice->provider_ref,
+            'amount_cents' => isset($session['amount_total']) ? (int) $session['amount_total'] : null,
+            'currency' => isset($session['currency']) ? strtolower($session['currency']) : null,
+            'invoice_id' => $invoice->id,
+        ];
     }
 
     public function verifySignature(Request $request): bool

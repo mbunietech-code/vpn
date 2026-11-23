@@ -30,4 +30,17 @@ class WebhookController extends Controller
 
         return response()->json($r['body'], $r['status']);
     }
+
+    /** Pesapal expects its own acknowledgement body back. */
+    public function pesapal(Request $request): JsonResponse
+    {
+        $r = $this->processor->handle('pesapal', $request);
+
+        return response()->json([
+            'orderNotificationType' => $request->input('OrderNotificationType', 'IPNCHANGE'),
+            'orderTrackingId' => $request->input('OrderTrackingId'),
+            'orderMerchantReference' => $request->input('OrderMerchantReference'),
+            'status' => $r['status'] === 200 ? 200 : 500,
+        ], $r['status'] === 200 ? 200 : 400);
+    }
 }

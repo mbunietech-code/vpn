@@ -58,6 +58,19 @@ return [
         'checksum_secret' => env('CLICKPESA_CHECKSUM_SECRET'),
     ],
 
+    // Pesapal API 3.0 (Visa / Mastercard). Sandbox keys: developer.pesapal.com.
+    'pesapal' => [
+        'consumer_key' => env('PESAPAL_CONSUMER_KEY'),
+        'consumer_secret' => env('PESAPAL_CONSUMER_SECRET'),
+        'sandbox' => (bool) env('PESAPAL_SANDBOX', false),
+        // Currency the merchant account charges in (usd | tzs | kes ...).
+        'currency' => env('PESAPAL_CURRENCY', 'usd'),
+        // Optional: an IPN id registered by hand; else registered automatically once.
+        'ipn_id' => env('PESAPAL_IPN_ID'),
+        // Receipt address when the buyer gave neither email nor phone.
+        'receipt_email' => env('PESAPAL_RECEIPT_EMAIL', 'support@mbuniehub.com'),
+    ],
+
     'anthropic' => [
         'key' => env('ANTHROPIC_API_KEY'),
         'alert_model' => env('MVPN_ALERT_MODEL', 'claude-sonnet-5'),

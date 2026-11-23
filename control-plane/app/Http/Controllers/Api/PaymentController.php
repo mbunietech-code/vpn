@@ -37,15 +37,11 @@ class PaymentController extends Controller
             ]);
 
         // Instant (hosted-checkout) providers that have credentials set.
-        $labels = [
-            'clickpesa' => 'M-Pesa · Tigo · Airtel · Bank (TZS)',
-            'stripe' => 'Card · Alipay · WeChat',
-            'cryptomus' => 'Crypto (USDT)',
-        ];
         $instant = collect($payments->available())->map(fn ($p) => [
             'provider' => $p,
-            'label' => $labels[$p] ?? $p,
-            'currency' => PaymentManager::CURRENCY[$p], // null = user picks usd/cny
+            'label' => PaymentManager::LABELS[$p] ?? $p,
+            // null = user picks usd/cny
+            'currency' => $p === 'pesapal' ? PaymentManager::currencyFor($p) : PaymentManager::CURRENCY[$p],
         ])->values();
 
         return response()->json([

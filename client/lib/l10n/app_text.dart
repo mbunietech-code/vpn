@@ -610,6 +610,19 @@ const _map = <String, Map<String, String>>{
   'auth.hubSignIn': {'en': 'Sign in', 'sw': 'Ingia', 'zh': '登录'},
   'auth.useCode': {'en': 'Use an email code instead', 'sw': 'Tumia code ya email badala yake', 'zh': '改用邮箱验证码'},
 
+  'auth.vip': {'en': 'I have a VIP code', 'sw': 'Nina VIP code', 'zh': '我有 VIP 兑换码'},
+  'auth.vipHint': {
+    'en': 'Type the code from your VIP pass page. No account needed.',
+    'sw': 'Andika code iliyo kwenye ukurasa wa VIP pass yako. Huhitaji akaunti.',
+    'zh': '输入 VIP 通行证页面上的兑换码，无需注册账户。',
+  },
+  'auth.vipSignIn': {'en': 'Start VPN', 'sw': 'Washa VPN', 'zh': '开始使用 VPN'},
+  'auth.vipBusy': {
+    'en': 'Signing in with your VIP pass…',
+    'sw': 'Inaingia kwa VIP pass yako…',
+    'zh': '正在使用 VIP 通行证登录…',
+  },
+
   // ---- vpn controller messages ----
   'vpn.noSub': {
     'en': 'No active subscription. Buy a plan first.',

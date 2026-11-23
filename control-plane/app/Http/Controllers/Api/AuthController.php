@@ -8,6 +8,8 @@ use App\Http\Middleware\RejectRevokedDevice;
 use App\Models\User;
 use App\Services\FreeTrial;
 use App\Services\OtpDelivery;
+use App\Services\VipClaimException;
+use App\Services\VipPasses;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -112,6 +114,44 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'identifier' => $identifier,
                 'preferred_currency' => $user->preferred_currency,
+            ],
+        ]);
+    }
+
+    /**
+     * VIP event pass: the code from the pass page signs this device in, no
+     * account and no OTP. One code works on as many devices as were paid for.
+     */
+    public function vip(Request $request, VipPasses $passes): JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:32'],
+            'device_name' => ['nullable', 'string', 'max:80'],
+            'platform' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        try {
+            ['user' => $user, 'pass' => $pass] = $passes->claim($data['code'], [
+                (string) $request->header(RejectRevokedDevice::HEADER, ''),
+                (string) $request->header(RejectRevokedDevice::PREVIOUS_HEADER, ''),
+            ], $data['platform'] ?? null, $data['device_name'] ?? null);
+        } catch (VipClaimException $e) {
+            return response()->json(['error' => $e->errorCode, 'message' => $e->getMessage()], $e->status);
+        }
+
+        $token = $user->createToken($data['device_name'] ?? 'mvpn-app')->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'identifier' => 'VIP · '.$pass->event->name,
+                'preferred_currency' => $user->preferred_currency,
+            ],
+            'vip' => [
+                'event' => $pass->event->name,
+                'devices' => $pass->devices,
+                'ends_at' => $pass->event->ends_at?->toIso8601String(),
             ],
         ]);
     }

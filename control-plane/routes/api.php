@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->middleware(RejectRevokedDevice::class)->group(function () {
     Route::post('otp/request', [AuthController::class, 'requestOtp'])->middleware('throttle:10,1');
     Route::post('otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:10,1');
+    // VIP event pass code (from the QR pass page): signs in with no account.
+    Route::post('vip', [AuthController::class, 'vip'])->middleware('throttle:10,1,vip-claim');
 });
 
 Route::get('plans', [PlanController::class, 'index']);

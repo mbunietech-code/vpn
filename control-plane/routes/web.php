@@ -3,6 +3,7 @@
 use App\Http\Controllers\BinaryController;
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\SubscriptionLinkController;
+use App\Http\Controllers\VipController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Middleware\RejectRevokedDevice;
 use App\Models\Invoice;
@@ -28,6 +29,19 @@ Route::get('/bin/sing-box-version', [BinaryController::class, 'version']);
 Route::post('/webhooks/stripe', [WebhookController::class, 'stripe']);
 Route::post('/webhooks/cryptomus', [WebhookController::class, 'cryptomus']);
 Route::post('/webhooks/clickpesa', [WebhookController::class, 'clickpesa']);
+// Pesapal IPN: unsigned "order X changed" (GET by default); status re-checked on its API.
+Route::match(['get', 'post'], '/webhooks/pesapal', [WebhookController::class, 'pesapal'])->name('webhooks.pesapal');
+
+// VIP event passes: scan the QR, pay per device, the app signs in with the code.
+Route::prefix('vip')->controller(VipController::class)->group(function () {
+    Route::get('p/{token}', 'pass')->name('vip.pass');
+    Route::get('p/{token}/status', 'status')->name('vip.pass.status')->middleware('throttle:60,1,vip-status');
+    Route::post('p/{token}/proof', 'proof')->name('vip.pass.proof')->middleware('throttle:10,60,vip-proof');
+    Route::get('p/{token}/qr.svg', 'passQr')->name('vip.pass.qr');
+    Route::get('{event:slug}', 'event')->name('vip.event');
+    Route::post('{event:slug}/checkout', 'checkout')->name('vip.checkout')->middleware('throttle:10,1,vip-checkout');
+    Route::get('{event:slug}/qr.svg', 'eventQr')->name('vip.event.qr');
+});
 
 // Payment-proof image — admins only
 Route::get('/admin/invoice/{invoice}/proof', function (Invoice $invoice) {

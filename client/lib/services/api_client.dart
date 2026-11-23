@@ -57,6 +57,15 @@ class ApiClient {
         'device_name': deviceName,
       });
 
+  /// VIP event pass: the code from the pass page signs this device in (no account).
+  Future<Map<String, dynamic>> claimVip(
+          String code, String deviceName, String platform) =>
+      _post('/api/auth/vip', {
+        'code': code,
+        'device_name': deviceName,
+        'platform': platform,
+      });
+
   Future<Map<String, dynamic>> me() => _get('/api/me');
 
   Future<Map<String, dynamic>> plans() => _get('/api/plans');

@@ -22,7 +22,7 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
   // "Sign in with MbunieHub" stays hidden until EduHub's browser (PKCE)
   // login is live on the VPN side.
   static const _hubLoginEnabled = false;
@@ -30,11 +30,54 @@ class _AuthScreenState extends State<AuthScreen> {
   final _id = TextEditingController();
   final _code = TextEditingController();
   final _password = TextEditingController();
+  final _vipCode = TextEditingController();
+  bool _vip = false; // "I have a VIP code" (event pass, no account)
   bool _sent = false;
   bool _hub = false; // "Sign in with MbunieHub" (email + password)
   bool _busy = false;
   String? _error;
   String? _debugHint;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Downloaded from a VIP pass page: its code is on the clipboard. Android
+    // only lets a focused app read it, so wait a moment after start.
+    Future.delayed(const Duration(milliseconds: 600), _checkClipboard);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkClipboard();
+  }
+
+  Future<void> _checkClipboard() async {
+    if (!mounted || _busy) return;
+    final state = MvpnScope.read(context);
+    if (state.vipBusy) return;
+    final code = await state.vipCodeFromClipboard();
+    if (code == null || !mounted || _busy) return;
+    setState(() {
+      _vip = true;
+      _hub = false;
+      _sent = false;
+      _vipCode.text = code;
+    });
+    await _vipSignIn();
+  }
+
+  Future<void> _vipSignIn() => _run(() async {
+        final state = MvpnScope.read(context);
+        await state.loginWithVip(_vipCode.text);
+        await state.forgetClipboardVip();
+      });
 
   @override
   void didChangeDependencies() {
@@ -121,16 +164,20 @@ class _AuthScreenState extends State<AuthScreen> {
                   AutofillGroup(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 220),
-                      child: _hub
+                      child: state.vipBusy
+                          ? _vipLinkBusy(c)
+                          : _vip
+                          ? _vipStep(c)
+                          : _hub
                           ? _hubStep(c)
                           : _sent
                               ? _verifyStep(state, c)
                               : _idStep(c),
                     ),
                   ),
-                  if (_error != null) ...[
+                  if ((_error ?? state.vipError) != null) ...[
                     const SizedBox(height: 16),
-                    Text(context.tr.t(_error!),
+                    Text(context.tr.t((_error ?? state.vipError)!),
                         textAlign: TextAlign.center,
                         style: TextStyle(color: c.danger, fontSize: 13)),
                   ],
@@ -175,6 +222,17 @@ class _AuthScreenState extends State<AuthScreen> {
           onPressed: _busy || _id.text.trim().isEmpty ? null : _send0,
           child: _busy ? const BtnSpinner() : Text(context.tr.t('auth.sendCode')),
         ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _busy
+              ? null
+              : () => setState(() {
+                    _vip = true;
+                    _error = null;
+                  }),
+          icon: const Icon(Icons.confirmation_number_rounded, size: 18),
+          label: Text(context.tr.t('auth.vip')),
+        ),
         if (_hubLoginEnabled) ...[
           const SizedBox(height: 10),
           OutlinedButton.icon(
@@ -188,6 +246,66 @@ class _AuthScreenState extends State<AuthScreen> {
             label: Text(context.tr.t('auth.hub')),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _vipLinkBusy(MvpnColors c) {
+    return Column(
+      key: const ValueKey('vipLink'),
+      children: [
+        const CircularProgressIndicator(),
+        const SizedBox(height: 14),
+        Text(context.tr.t('auth.vipBusy'),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13.5, color: c.textSecondary)),
+      ],
+    );
+  }
+
+  Widget _vipStep(MvpnColors c) {
+    final ready = _vipCode.text.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').length >= 8;
+    return Column(
+      key: const ValueKey('vip'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(context.tr.t('auth.vipHint'),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, height: 1.4, color: c.textSecondary)),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _vipCode,
+          autofocus: _vipCode.text.isEmpty,
+          textAlign: TextAlign.center,
+          textCapitalization: TextCapitalization.characters,
+          autocorrect: false,
+          enableSuggestions: false,
+          maxLength: 20,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 4),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9\- :]')),
+            TextInputFormatter.withFunction(
+                (_, v) => v.copyWith(text: v.text.toUpperCase())),
+          ],
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) => ready && !_busy ? _vipSignIn() : null,
+          decoration: const InputDecoration(counterText: '', hintText: 'XXXX-XXXX'),
+        ),
+        const SizedBox(height: 14),
+        ElevatedButton(
+          onPressed: _busy || !ready ? null : _vipSignIn,
+          child: _busy ? const BtnSpinner() : Text(context.tr.t('auth.vipSignIn')),
+        ),
+        TextButton(
+          onPressed: _busy
+              ? null
+              : () => setState(() {
+                    _vip = false;
+                    _vipCode.clear();
+                    _error = null;
+                  }),
+          child: Text(context.tr.t('auth.useCode')),
+        ),
       ],
     );
   }

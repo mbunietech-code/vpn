@@ -3,6 +3,7 @@
 namespace App\Payments\Drivers;
 
 use App\Models\Invoice;
+use App\Payments\ConfirmsPayment;
 use App\Payments\PaymentGateway;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -23,7 +24,7 @@ use RuntimeException;
  * API before activating anything (checksum verification is fiddly and their
  * dashboard config varies).
  */
-class ClickPesaGateway implements PaymentGateway
+class ClickPesaGateway implements ConfirmsPayment, PaymentGateway
 {
     private const BASE = 'https://api.clickpesa.com';
 
@@ -149,6 +150,23 @@ class ClickPesaGateway implements PaymentGateway
     public function parseEvent(Request $request): array
     {
         $ref = $this->orderRef($request);
+        $event = $this->status($ref);
+        $event['event_id'] = $request->input('id') ?? $request->input('data.id') ?? $ref;
+
+        return $event;
+    }
+
+    public function confirm(Invoice $invoice): ?array
+    {
+        $event = $this->status($invoice->provider_ref ?: 'MVPN'.$invoice->id);
+        $event['event_id'] = $event['provider_ref'].':'.$event['type'];
+
+        return $event;
+    }
+
+    /** Ask ClickPesa what happened to an order (webhooks can be spoofed). */
+    private function status(?string $ref): array
+    {
         $invoiceId = $ref ? (int) preg_replace('/\D/', '', $ref) : null;
 
         $status = 'ignored';
@@ -160,6 +178,11 @@ class ClickPesaGateway implements PaymentGateway
                 $resp = Http::withHeaders(['Authorization' => $this->token()])
                     ->get(self::BASE . '/third-parties/payments/' . $ref);
                 $data = $resp->json();
+                // The endpoint answers with a list of payment attempts.
+                if (is_array($data) && array_is_list($data)) {
+                    $data = collect($data)->first(fn ($p) => in_array(strtoupper((string) ($p['status'] ?? '')), ['SUCCESS', 'PAID', 'COMPLETED', 'SETTLED'], true))
+                        ?? ($data[0] ?? []);
+                }
                 $s = strtoupper((string) ($data['status'] ?? $data['data']['status'] ?? ''));
                 $status = match (true) {
                     in_array($s, ['SUCCESS', 'PAID', 'COMPLETED', 'SETTLED'], true) => 'paid',
@@ -177,7 +200,7 @@ class ClickPesaGateway implements PaymentGateway
         }
 
         return [
-            'event_id' => $request->input('id') ?? $request->input('data.id') ?? $ref,
+            'event_id' => $ref,
             'type' => $status,
             'provider_ref' => $ref,
             'amount_cents' => $amountCents,

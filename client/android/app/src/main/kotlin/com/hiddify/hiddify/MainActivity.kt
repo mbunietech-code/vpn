@@ -18,6 +18,7 @@ import com.hiddify.hiddify.constant.ServiceMode
 import com.hiddify.hiddify.constant.Status
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -40,6 +41,10 @@ class MainActivity : FlutterActivity(), ServiceConnection.Callback {
     val serviceStatus = MutableLiveData(Status.Stopped)
     val serviceAlerts = MutableLiveData<ServiceEvent?>(null)
 
+    // mvpn://vip?code=… from the VIP pass page: the app signs in with the code.
+    private var linkChannel: MethodChannel? = null
+    private var pendingLink: String? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         instance = this
@@ -48,10 +53,31 @@ class MainActivity : FlutterActivity(), ServiceConnection.Callback {
         flutterEngine.plugins.add(PlatformSettingsHandler())
         flutterEngine.plugins.add(EventHandler())
         flutterEngine.plugins.add(LogHandler())
+        pendingLink = mvpnLink(intent)
+        linkChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.mbunie.mvpn/links").apply {
+            setMethodCallHandler { call, result ->
+                if (call.method == "initialLink") {
+                    result.success(pendingLink)
+                    pendingLink = null
+                } else {
+                    result.notImplemented()
+                }
+            }
+        }
 //        flutterEngine.plugins.add(GroupsChannel(lifecycleScope))
 //        flutterEngine.plugins.add(ActiveGroupsChannel(lifecycleScope))
 //        flutterEngine.plugins.add(StatsChannel(lifecycleScope))
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val link = mvpnLink(intent) ?: return
+        setIntent(intent)
+        linkChannel?.invokeMethod("link", link) ?: run { pendingLink = link }
+    }
+
+    private fun mvpnLink(intent: Intent?): String? =
+        intent?.data?.takeIf { it.scheme == "mvpn" }?.toString()
 
     fun reconnect() {
         connection.reconnect()
