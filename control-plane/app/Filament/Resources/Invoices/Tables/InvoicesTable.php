@@ -25,9 +25,7 @@ class InvoicesTable
 {
     public static function amount(Invoice $r): string
     {
-        $decimals = $r->currency === 'tzs' ? 0 : 2;
-
-        return strtoupper($r->currency).' '.number_format($r->amount_cents / 100, $decimals);
+        return \App\Services\RevenueSummary::money((int) $r->amount_cents, (string) $r->currency);
     }
 
     public static function configure(Table $table): Table
@@ -37,6 +35,8 @@ class InvoicesTable
             ->columns([
                 TextColumn::make('user.email')
                     ->label('Customer')
+                    // VIP guests have no email: show their name ("VIP · Event · #3").
+                    ->default(fn (Invoice $record) => $record->user?->label())
                     ->searchable()
                     // Phones: amount + plan under the customer (those columns are hidden there).
                     ->description(fn (Invoice $r) => self::amount($r).' · '.$r->plan_code),

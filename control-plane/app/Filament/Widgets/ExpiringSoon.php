@@ -32,6 +32,9 @@ class ExpiringSoon extends TableWidget
             ->withCount(['devices' => fn ($q) => $q->whereNull('revoked_at')])
             ->where('status', 'active')
             ->whereBetween('expires_at', [now(), now()->addDays(7)])
+            // Trials and VIP event passes don't renew.
+            ->where('plan_code', '!=', \App\Models\VipEvent::PLAN_CODE)
+            ->whereNotIn('plan_code', \App\Models\Plan::where('is_trial', true)->pluck('code'))
             ->orderBy('expires_at');
     }
 

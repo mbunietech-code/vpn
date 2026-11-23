@@ -27,7 +27,10 @@ class UsersTable
                 TextColumn::make('email')->label('Customer')->searchable()->placeholder('—')
                     ->description(fn (User $r) => $r->phone),
                 TextColumn::make('phone')->visibleFrom('md')->searchable()->placeholder('—'),
-                IconColumn::make('is_admin')->visibleFrom('md')->label('Admin')->boolean(),
+                IconColumn::make('is_admin')->visibleFrom('md')->label('Admin')
+                    ->icon(fn ($state) => $state ? 'heroicon-m-shield-check' : null)
+                    ->color('primary')
+                    ->tooltip(fn ($state) => $state ? 'Admin' : null),
                 TextColumn::make('status')->badge()
                     ->color(fn ($state) => $state === 'active' ? 'success' : 'danger'),
                 TextColumn::make('subscriptions_count')->visibleFrom('md')->label('Subs')->counts('subscriptions'),
@@ -35,6 +38,17 @@ class UsersTable
             ])
             ->filters([
                 SelectFilter::make('status')->options(['active' => 'Active', 'suspended' => 'Suspended']),
+                // VIP event guests are one-off passes, not customers: hidden unless asked for.
+                \Filament\Tables\Filters\TernaryFilter::make('vip_guests')
+                    ->label('VIP event guests')
+                    ->placeholder('Hide')
+                    ->trueLabel('Only VIP guests')
+                    ->falseLabel('Hide')
+                    ->queries(
+                        true: fn ($query) => $query->whereHas('vipPasses'),
+                        false: fn ($query) => $query->whereDoesntHave('vipPasses'),
+                        blank: fn ($query) => $query->whereDoesntHave('vipPasses'),
+                    ),
             ])
             ->recordActions([
                 ActionGroup::make([

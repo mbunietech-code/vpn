@@ -10,10 +10,12 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Html;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class VipEventForm
@@ -31,7 +33,16 @@ class VipEventForm
         $available = app(PaymentManager::class)->available();
 
         return $schema
+            // One column of full-width sections: side-by-side sections squeezed every field.
+            ->columns(1)
             ->components([
+                // Edit page: what is happening right now, before any field.
+                Section::make('Right now')
+                    ->visible(fn (?VipEvent $record) => $record !== null)
+                    ->schema([
+                        Html::make(fn (?VipEvent $record) => $record ? self::status($record) : ''),
+                    ]),
+
                 Section::make('Event')
                     ->columns(['default' => 1, 'md' => 2])
                     ->schema([
@@ -51,8 +62,7 @@ class VipEventForm
                             ->maxLength(60)
                             ->unique(ignoreRecord: true)
                             ->regex('/^[a-z0-9-]+$/')
-                            ->prefix(url('/vip').'/')
-                            ->helperText('The QR code opens this link. Changing it later breaks QR codes already printed.'),
+                            ->helperText(fn (Get $get) => url('/vip/'.($get('slug') ?: '…')).' — printed QR codes break if you change it.'),
                         Textarea::make('description')
                             ->label('Message on the page (optional)')
                             ->rows(3)
@@ -60,7 +70,7 @@ class VipEventForm
                     ]),
 
                 Section::make('VPN access')
-                    ->description('Every pass of this event works until the end time, then stops by itself.')
+                    ->description('Every pass stops by itself at the end time.')
                     ->columns(['default' => 1, 'md' => 2])
                     ->schema([
                         DateTimePicker::make('ends_at')
@@ -69,7 +79,7 @@ class VipEventForm
                             ->seconds(false)
                             ->timezone(fn (Get $get) => $get('timezone') ?: 'Asia/Shanghai')
                             ->default(now('Asia/Shanghai')->addDays(3)->setTime(23, 59))
-                            ->helperText('In the time zone chosen next to it. Moving it later moves every pass.'),
+                            ->helperText('Moving it moves every pass.'),
                         Select::make('timezone')
                             ->label('Time zone')
                             ->options(self::TIMEZONES)
@@ -78,17 +88,17 @@ class VipEventForm
                             ->live(),
                         Toggle::make('access_enabled')
                             ->label('VPN on for every pass')
-                            ->helperText('Off = every guest of this event is cut off within seconds. On again = they are back.')
+                            ->helperText('Off cuts every guest off within seconds.')
                             ->default(true),
                         Toggle::make('sales_open')
                             ->label('Selling')
-                            ->helperText('Off = the QR page stops selling. Passes already sold keep working.')
+                            ->helperText('Off stops new sales; sold passes keep working.')
                             ->default(true),
                     ]),
 
                 Section::make('Price per device')
-                    ->description('Type normal amounts (25 for ¥25). Each payment method charges in its own currency: Stripe/Alipay in CNY, Pesapal in '
-                        .strtoupper(PaymentManager::currencyFor('pesapal')).', ClickPesa in TZS. A method whose currency has price 0 is not offered.')
+                    ->description('Normal amounts (25 = ¥25). Stripe/Alipay charges CNY, Pesapal '
+                        .strtoupper(PaymentManager::currencyFor('pesapal')).', ClickPesa TZS. Price 0 hides that method.')
                     ->columns(['default' => 1, 'md' => 4])
                     ->schema([
                         self::price('price_cny_cents', 'CNY', '¥', 2)->default(2500),
@@ -111,14 +121,38 @@ class VipEventForm
                                 'stripe' => 'Stripe — Alipay + card (CNY)',
                                 'pesapal' => 'Pesapal — Visa / Mastercard',
                                 'clickpesa' => 'ClickPesa — M-Pesa, Tigo, Airtel, card (TZS)',
-                                'manual' => 'Manual QR (Admin › Payment methods, e.g. Alipay) — the guest uploads a screenshot, you approve it',
+                                'manual' => 'Manual QR (e.g. Alipay) — guest uploads a screenshot, you approve',
                             ])
                             ->descriptions(collect(VipEvent::PROVIDERS)->mapWithKeys(fn ($p) => [
-                                $p => in_array($p, $available, true) ? 'Keys set — ready' : 'No keys in .env yet — hidden until they are added',
+                                $p => in_array($p, $available, true) ? 'Ready' : 'Not set up (no keys) — hidden',
                             ])->all())
-                            ->helperText('Leave all unticked to offer every method that is set up.'),
+                            ->helperText('None ticked = offer every method that is set up.'),
                     ]),
             ]);
+    }
+
+    /** The "Right now" banner: on/off, sales, passes, and the public link. */
+    private static function status(VipEvent $e): HtmlString
+    {
+        $active = $e->passes()->where('status', 'active');
+        $passes = (clone $active)->count();
+        $devices = (int) (clone $active)->sum('devices');
+        $waiting = $e->passes()->where('status', 'pending')
+            ->whereHas('invoice', fn ($q) => $q->where('status', 'pending_review'))->count();
+        $vpnOn = $e->access_enabled && ! $e->hasEnded();
+        $url = $e->publicUrl();
+
+        $cell = fn (string $k, string $v, string $s = '', string $cls = '') => '<div class="cell"><div class="k">'.e($k).'</div>'
+            .'<div class="v '.$cls.'">'.e($v).'</div>'.($s !== '' ? '<div class="s">'.e($s).'</div>' : '').'</div>';
+
+        return new HtmlString('<div class="mvpn-vip-status">'
+            .$cell('VPN for guests', $e->hasEnded() ? 'Ended' : ($vpnOn ? 'On' : 'Off'), $e->hasEnded() ? $e->ends_at->diffForHumans() : 'ends '.$e->ends_at->diffForHumans(), $vpnOn ? 'on' : 'off')
+            .$cell('QR page', $e->isSelling() ? 'Selling' : 'Closed', $e->priceLabel('cny').' per device', $e->isSelling() ? 'on' : 'off')
+            .$cell('Passes', (string) $passes, $devices.' device'.($devices === 1 ? '' : 's'))
+            .$cell('To approve', (string) $waiting, $waiting ? 'Alipay screenshots waiting' : 'nothing waiting')
+            .'</div>'
+            .'<div class="mvpn-vip-link"><span style="flex:1">'.e($url).'</span>'
+            .'<a href="'.e($url).'" target="_blank" rel="noopener">Open</a></div>');
     }
 
     private static function price(string $field, string $label, string $prefix, int $decimals): TextInput

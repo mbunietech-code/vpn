@@ -172,7 +172,7 @@ class AdminSubscriptionActionsTest extends TestCase
         ]);
 
         Livewire::test(ListInvoices::class)
-            ->assertSee('TZS 20,000 · m1')
+            ->assertSee('TSh 20,000 · m1') // same money format as the dashboard
             ->callTableAction('approve', $invoice, ['note' => 'paid by M-Pesa'])
             ->assertHasNoTableActionErrors();
 

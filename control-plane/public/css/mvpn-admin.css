@@ -2,56 +2,140 @@
  * Mbunie VPN admin look. A plain stylesheet (Hostinger has no Node build),
  * loaded from AdminPanelProvider. It only styles Filament's own fi-* classes
  * and the mvpn-* classes our widgets add.
+ *
+ * Principles: one clear heading per page, calm surfaces, strong contrast,
+ * a visible keyboard focus, and nothing that pushes the page sideways on a
+ * phone.
  */
 
 :root {
-    --mvpn-navy: #0a1d2e;
-    --mvpn-navy-2: #12324d;
+    --mvpn-navy: #0b1b2b;
+    --mvpn-navy-2: #10263c;
     --mvpn-blue: #2563eb;
+    --mvpn-blue-dark: #1d4ed8;
     --mvpn-teal: #2dd4bf;
-    --mvpn-page: #f4f7fb;
-    --mvpn-card-shadow: 0 1px 2px rgba(10, 29, 46, .06), 0 8px 24px -12px rgba(10, 29, 46, .18);
+    --mvpn-page: #f3f5f9;
+    --mvpn-card: #ffffff;
+    --mvpn-line: #e3e8ef;
+    --mvpn-line-strong: #cfd7e3;
+    --mvpn-ink: #0f172a;
+    --mvpn-muted: #5b6678;
+    --mvpn-radius: .875rem;
+    --mvpn-radius-sm: .6rem;
+    --mvpn-shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 1px 3px rgba(15, 23, 42, .04);
+    --mvpn-shadow-hover: 0 2px 4px rgba(15, 23, 42, .06), 0 12px 28px -16px rgba(15, 23, 42, .28);
+    --mvpn-focus: #f5b400;
+}
+.dark {
+    --mvpn-page: #0a111d;
+    --mvpn-card: #111a29;
+    --mvpn-line: #1f2b3e;
+    --mvpn-line-strong: #2b3a52;
+    --mvpn-ink: #e8eef8;
+    --mvpn-muted: #95a2b8;
+    --mvpn-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    --mvpn-shadow-hover: 0 2px 4px rgba(0, 0, 0, .35), 0 14px 30px -16px rgba(0, 0, 0, .6);
+}
+
+/* ---------- Base ---------- */
+
+.fi-body { background: var(--mvpn-page) !important; -webkit-font-smoothing: antialiased; }
+.fi-main { padding-top: 1.25rem; }
+
+/* A focus you can always see (keyboard users, and "where am I?" on a phone). */
+.fi-body :is(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--mvpn-focus) !important;
+    outline-offset: 2px;
+    box-shadow: none;
 }
 
 /* ---------- Sign-in page ---------- */
 
 .fi-simple-layout {
     background:
-        radial-gradient(900px 480px at 50% -8%, rgba(37, 99, 235, .16), transparent 62%),
-        linear-gradient(180deg, #f6f8fc 0%, #eaf0fa 100%);
+        radial-gradient(1000px 520px at 50% -10%, rgba(37, 99, 235, .14), transparent 60%),
+        var(--mvpn-page);
 }
 .dark .fi-simple-layout {
     background:
-        radial-gradient(900px 480px at 50% -8%, rgba(45, 212, 191, .14), transparent 62%),
-        var(--mvpn-navy);
+        radial-gradient(1000px 520px at 50% -10%, rgba(45, 212, 191, .12), transparent 60%),
+        var(--mvpn-page);
 }
 .fi-simple-main {
-    border-radius: 1rem;
-    box-shadow: 0 24px 60px -24px rgba(10, 29, 46, .35);
+    border-radius: 1.1rem;
+    border: 1px solid var(--mvpn-line);
+    box-shadow: 0 30px 70px -30px rgba(15, 23, 42, .35);
+    padding: 2.25rem 2rem !important;
+    max-width: 26rem !important;
+}
+.fi-simple-header { margin-bottom: .5rem; }
+.fi-simple-header .fi-logo { height: 2.75rem !important; }
+.fi-simple-header-heading { font-size: 1.35rem !important; letter-spacing: -.01em; }
+.fi-simple-main .fi-btn { padding-block: .7rem; font-size: .95rem; }
+@media (max-width: 480px) {
+    /* Keep a gutter: the card no longer touches the screen edges. */
+    .fi-simple-main-ctn { padding-inline: 1rem; }
+    .fi-simple-main { padding: 1.75rem 1.25rem !important; border-radius: 1rem; }
 }
 
-/* ---------- Page and cards ---------- */
+/* ---------- Page header ---------- */
 
-.fi-body:not(.dark *) { background: var(--mvpn-page); }
-
-.fi-section,
-.fi-ta-ctn,
-.fi-wi-chart .fi-section,
-.fi-wi-stats-overview-stat {
-    border-radius: 1rem;
-    box-shadow: var(--mvpn-card-shadow);
-}
-
-.fi-header-heading { letter-spacing: -.02em; }
-.fi-header-subheading { max-width: 48rem; }
-/* Long subheading + several buttons: let the buttons drop below instead of squeezing the text. */
+.fi-header { gap: .75rem 1.5rem; }
+.fi-header-heading { font-size: 1.6rem !important; line-height: 1.2; letter-spacing: -.02em; font-weight: 700 !important; }
+.fi-header-subheading { max-width: 46rem; color: var(--mvpn-muted) !important; font-size: .925rem; line-height: 1.5; margin-top: .35rem; }
 @media (min-width: 640px) {
-    .fi-header { flex-wrap: wrap; row-gap: .75rem; }
-    .fi-header > div:first-child { flex: 1 1 20rem; }
+    /* Long subheading + several buttons: the buttons drop below instead of squeezing the text. */
+    .fi-header { flex-wrap: wrap; }
+    .fi-header > div:first-child { flex: 1 1 22rem; }
 }
-.fi-header-actions-ctn { flex-wrap: wrap; flex-shrink: 1; min-width: 0; max-width: 100%; }
+.fi-header-actions-ctn { flex-wrap: wrap; flex-shrink: 1; min-width: 0; max-width: 100%; gap: .5rem; }
+@media (max-width: 639px) {
+    .fi-header-heading { font-size: 1.4rem !important; }
+    /* Phone: header buttons in a tidy two-column grid. */
+    .fi-header-actions-ctn { width: 100%; }
+    .fi-header-actions-ctn > .fi-ac { display: grid !important; grid-template-columns: 1fr 1fr; gap: .5rem; width: 100%; }
+    .fi-header-actions-ctn > .fi-ac > * { min-width: 0; }
+    .fi-header-actions-ctn .fi-btn { width: 100%; justify-content: center; text-align: center; }
+    /* An odd last button spans the row instead of leaving a hole. */
+    .fi-header-actions-ctn > .fi-ac > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
 
-/* ---------- Sidebar: navy, brand teal for the open page (phone menu too) ---------- */
+/* ---------- Cards and sections ---------- */
+
+.fi-section:not(.fi-section-not-contained),
+.fi-ta-ctn,
+.fi-wi-stats-overview-stat,
+.fi-fo-repeater-item {
+    border-radius: var(--mvpn-radius) !important;
+    box-shadow: var(--mvpn-shadow) !important;
+    --tw-ring-color: var(--mvpn-line) !important;
+}
+.fi-section:not(.fi-section-not-contained) > .fi-section-header { padding-block: 1rem; }
+.fi-section-not-contained > .fi-section-header { padding: 0 0 .25rem; }
+.fi-section-header-heading { font-size: 1rem !important; font-weight: 650 !important; letter-spacing: -.005em; }
+.fi-section-header-description { color: var(--mvpn-muted) !important; font-size: .85rem; line-height: 1.45; }
+.fi-section:not(.fi-section-not-contained) .fi-section-content { padding: 1.25rem; }
+.fi-section-not-contained .fi-section-content { padding: 0; }
+
+/* ---------- Forms ---------- */
+
+.fi-fo-field-label-content { font-weight: 600; font-size: .875rem; }
+.fi-fo-field-wrp-helper-text,
+.fi-sc-text { color: var(--mvpn-muted) !important; font-size: .8rem; line-height: 1.45; }
+.fi-input-wrp { border-radius: var(--mvpn-radius-sm) !important; }
+.fi-input { font-size: .925rem; }
+.fi-fo-toggle + * { line-height: 1.35; }
+.fi-fo-checkbox-list-option-description { color: var(--mvpn-muted); }
+.fi-form-actions, .fi-ac { gap: .6rem; }
+
+/* ---------- Buttons and badges ---------- */
+
+.fi-btn { border-radius: var(--mvpn-radius-sm) !important; font-weight: 600 !important; }
+.fi-btn.fi-size-md, .fi-btn:not([class*="fi-size-"]) { padding-block: .55rem; }
+.fi-badge { border-radius: 999px !important; font-weight: 600 !important; padding-inline: .55rem !important; letter-spacing: .01em; }
+.fi-ta-text-item .fi-badge { font-size: .72rem; }
+
+/* ---------- Sidebar: navy, teal edge on the open page (phone menu too) ---------- */
 
 @media all {
     .fi-sidebar {
@@ -61,32 +145,40 @@
     .fi-sidebar-header {
         background: transparent;
         box-shadow: none;
-        border-bottom: 1px solid rgba(255, 255, 255, .08);
+        border-bottom: 1px solid rgba(255, 255, 255, .07);
     }
     .fi-sidebar .fi-logo-light { display: none !important; }
     .fi-sidebar .fi-logo-dark { display: flex !important; }
+    .fi-sidebar-nav { padding-top: 1rem; }
     .fi-sidebar-group-label,
-    .fi-sidebar-group-btn { color: rgba(226, 236, 248, .55); }
-    .fi-sidebar-group-label { text-transform: uppercase; letter-spacing: .08em; font-size: .7rem; }
-    .fi-sidebar-item-btn { border-radius: .65rem; }
+    .fi-sidebar-group-btn { color: rgba(214, 226, 242, .5); }
+    .fi-sidebar-group-label { text-transform: uppercase; letter-spacing: .09em; font-size: .68rem; font-weight: 700; }
+    .fi-sidebar-item-btn { border-radius: .6rem; padding-block: .5rem; }
+    .fi-sidebar-item-label { font-weight: 500; }
     .fi-sidebar-item-label,
-    .fi-sidebar-item-icon { color: rgba(226, 236, 248, .85) !important; }
-    .fi-sidebar-item-btn:hover { background: rgba(255, 255, 255, .07); }
+    .fi-sidebar-item-icon { color: rgba(226, 236, 248, .82) !important; }
+    .fi-sidebar-item-btn:hover { background: rgba(255, 255, 255, .06); }
     .fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
-        background: linear-gradient(90deg, rgba(45, 212, 191, .22), rgba(37, 99, 235, .18));
+        background: rgba(45, 212, 191, .13);
         box-shadow: inset 3px 0 0 var(--mvpn-teal);
     }
-    .fi-sidebar-item.fi-active .fi-sidebar-item-label,
-    .fi-sidebar-item.fi-active .fi-sidebar-item-icon { color: #fff !important; }
+    .fi-sidebar-item.fi-active .fi-sidebar-item-label { color: #fff !important; font-weight: 650; }
+    .fi-sidebar-item.fi-active .fi-sidebar-item-icon { color: var(--mvpn-teal) !important; }
+    .fi-sidebar-item .fi-badge { background: #f59e0b !important; color: #111827 !important; --tw-ring-color: transparent !important; }
     .fi-sidebar-group-collapse-btn,
     .fi-sidebar-close-collapse-sidebar-btn,
     .fi-sidebar-open-collapse-sidebar-btn { color: rgba(226, 236, 248, .6); }
 }
 
-.fi-topbar { box-shadow: 0 1px 0 rgba(10, 29, 46, .06); }
+.fi-topbar, .fi-topbar > nav {
+    background: color-mix(in srgb, var(--mvpn-card) 92%, transparent) !important;
+    backdrop-filter: saturate(1.4) blur(8px);
+    box-shadow: 0 1px 0 var(--mvpn-line) !important;
+}
 
-/* ---------- Stat cards: coloured top line and soft icon ---------- */
+/* ---------- Stat cards ---------- */
 
+.fi-wi-stats-overview-stat { padding: 1.15rem 1.25rem !important; }
 .fi-wi-stats-overview-stat.mvpn-stat {
     position: relative;
     overflow: hidden;
@@ -95,23 +187,24 @@
 .fi-wi-stats-overview-stat.mvpn-stat::before {
     content: "";
     position: absolute;
-    inset: 0 0 auto 0;
-    height: 3px;
+    inset: 0 auto 0 0;
+    width: 3px;
     background: var(--mvpn-accent, var(--mvpn-blue));
 }
 a.fi-wi-stats-overview-stat.mvpn-stat:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 1px 2px rgba(10, 29, 46, .08), 0 14px 30px -14px rgba(10, 29, 46, .32);
+    transform: translateY(-1px);
+    box-shadow: var(--mvpn-shadow-hover) !important;
 }
+.fi-wi-stats-overview-stat-label { font-weight: 600; color: var(--mvpn-muted) !important; }
 .mvpn-stat .fi-wi-stats-overview-stat-label-ctn > svg {
     width: 2rem;
     height: 2rem;
-    padding: .4rem;
-    border-radius: .6rem;
+    padding: .42rem;
+    border-radius: .55rem;
     color: var(--mvpn-accent, var(--mvpn-blue));
     background: color-mix(in srgb, var(--mvpn-accent, var(--mvpn-blue)) 12%, transparent);
 }
-.mvpn-stat .fi-wi-stats-overview-stat-value { letter-spacing: -.02em; }
+.fi-wi-stats-overview-stat-value { letter-spacing: -.025em; font-weight: 700 !important; }
 .mvpn-stat-blue { --mvpn-accent: #2563eb; }
 .mvpn-stat-teal { --mvpn-accent: #0d9488; }
 .mvpn-stat-green { --mvpn-accent: #16a34a; }
@@ -120,70 +213,109 @@ a.fi-wi-stats-overview-stat.mvpn-stat:hover {
 .mvpn-stat-violet { --mvpn-accent: #7c3aed; }
 .mvpn-stat-gray { --mvpn-accent: #64748b; }
 
+/* Charts: a card like every other, with room to breathe. */
+.fi-wi-chart .fi-section-content { padding-top: .5rem; }
+
 /* ---------- Tables ---------- */
 
-.fi-ta-header-cell { text-transform: uppercase; letter-spacing: .04em; font-size: .7rem; }
-.fi-ta-row:hover { background: rgba(37, 99, 235, .035); }
+.fi-ta-header-toolbar { padding: .75rem 1rem !important; }
+.fi-ta-header-cell {
+    font-size: .75rem !important;
+    font-weight: 650 !important;
+    color: var(--mvpn-muted) !important;
+    letter-spacing: .01em;
+    background: color-mix(in srgb, var(--mvpn-page) 60%, var(--mvpn-card));
+}
+.fi-ta-row { transition: background-color .12s ease; }
+.fi-ta-row:hover { background: color-mix(in srgb, var(--mvpn-blue) 4%, transparent) !important; }
+.fi-ta-cell { padding-block: .8rem !important; }
+.fi-ta-text-item-label { font-size: .875rem; }
+.fi-ta-cell .fi-ta-text-description { color: var(--mvpn-muted) !important; font-size: .78rem; line-height: 1.4; margin-top: .1rem; }
+.fi-ta-empty-state { padding-block: 3rem !important; }
+.fi-ta-empty-state-heading { font-size: 1rem !important; }
+.fi-pagination { padding: .6rem 1rem !important; }
 
 /* Drop the empty toolbar-actions row (it left a blank gap above the search box on phones). */
 .fi-ta-header-toolbar .fi-ta-actions:not(:has(*)) { display: none; }
 
-/* The first column (customer/name) and second lines wrap, so a long email never
-   pushes the table sideways next to the sidebar on tablets and laptops. */
+/* The first column (customer / name): its second line wraps, the main line
+   never pushes the table sideways. */
 .fi-ta-cell .fi-ta-text-description { white-space: normal; }
-:is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { max-width: 18rem; }
-:is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) :is(.fi-ta-col, .fi-ta-text, .fi-ta-text-item, .fi-ta-text-item-label, .fi-ta-text-description) {
+:is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { max-width: 20rem; }
+:is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) :is(.fi-ta-col, .fi-ta-text, .fi-ta-text-item, .fi-ta-text-description) {
     white-space: normal;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
-/* Phones: let long emails/names wrap instead of pushing the table sideways. */
+/* Tabs above tables (Payments: To review / Paid / ...): a segmented control. */
+.fi-resource-list-records-page .fi-tabs {
+    border-radius: .8rem;
+    padding: .3rem;
+    gap: .2rem;
+    box-shadow: var(--mvpn-shadow);
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.fi-resource-list-records-page .fi-tabs::-webkit-scrollbar { display: none; }
+.fi-resource-list-records-page .fi-tabs-item { border-radius: .55rem; font-weight: 600; white-space: nowrap; }
+.fi-resource-list-records-page .fi-tabs-item.fi-active {
+    background: color-mix(in srgb, var(--mvpn-blue) 12%, transparent);
+    color: var(--mvpn-blue);
+}
+.dark .fi-resource-list-records-page .fi-tabs-item.fi-active { color: #93b4ff; }
+
+/* ---------- Phones ---------- */
+
 @media (max-width: 640px) {
-    .fi-ta-cell { padding-left: .6rem; padding-right: .35rem; }
-    .fi-ta-cell:last-child { padding-right: .5rem; }
-    .fi-ta-selection-cell { padding-left: .5rem; padding-right: .1rem; width: 1%; }
+    .fi-main { padding-inline: .75rem !important; }
+    .fi-section:not(.fi-section-not-contained) .fi-section-content { padding: 1rem; }
+    /* Bulk-select boxes take a quarter of the row on a phone: use the ⋮ menu instead. */
+    .fi-ta-selection-cell, .fi-ta-group-selection-cell, .fi-ta-header-cell.fi-ta-selection-cell { display: none !important; }
+    .fi-ta-cell { padding-left: .75rem !important; padding-right: .4rem !important; }
+    .fi-ta-cell:last-child { padding-right: .6rem !important; }
     .fi-ta-cell :is(.fi-ta-col, .fi-ta-text, .fi-ta-text-description) { white-space: normal; }
-    :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { min-width: 7.75rem; max-width: 11.5rem; }
-    .fi-header-actions-ctn { width: 100%; }
-    .fi-header-actions-ctn .fi-btn { flex: 1 1 auto; justify-content: center; }
+    /* Main line on one line with "…"; the details line below wraps. */
+    .fi-ta-row .fi-ta-cell:first-child { min-width: 0; max-width: 62vw; }
+    .fi-ta-row .fi-ta-cell:first-child .fi-ta-text-item-label {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 60vw;
+    }
+    .fi-ta-header-toolbar { padding: .6rem .75rem !important; }
 }
-
-/* Very small phones (≤ 359px): tighter still. */
 @media (max-width: 359px) {
-    .fi-ta-cell { padding-left: .45rem; padding-right: .25rem; }
-    :is(.fi-ta-row .fi-ta-cell:first-child:not(.fi-ta-selection-cell), .fi-ta-row .fi-ta-selection-cell + .fi-ta-cell) { min-width: 7rem; }
+    .fi-ta-cell { padding-left: .55rem !important; }
     .fi-ta-cell .fi-ta-text-description { font-size: .72rem; }
 }
 
 /* ---------- Settings & Keys: a tab per area ---------- */
 
-.mvpn-settings-tabs { border-radius: 1rem; box-shadow: var(--mvpn-card-shadow); }
+.mvpn-settings-tabs { border-radius: var(--mvpn-radius); box-shadow: var(--mvpn-shadow); }
 .mvpn-settings-tabs > .fi-tabs {
     position: sticky;
     top: 4rem;
     z-index: 10;
     gap: .25rem;
     padding: .4rem;
-    border-radius: 1rem 1rem 0 0;
-    background: #fff;
-    border-bottom: 1px solid rgba(10, 29, 46, .08);
+    border-radius: var(--mvpn-radius) var(--mvpn-radius) 0 0;
+    background: var(--mvpn-card);
+    border-bottom: 1px solid var(--mvpn-line);
     overflow-x: auto;
+    scrollbar-width: none;
 }
-.dark .mvpn-settings-tabs > .fi-tabs { background: var(--mvpn-navy-2); border-color: rgba(255, 255, 255, .08); }
-.mvpn-settings-tabs .fi-tabs-item { border-radius: .7rem; padding: .55rem .9rem; font-weight: 600; white-space: nowrap; }
-.mvpn-settings-tabs .fi-tabs-item:hover { background: rgba(37, 99, 235, .06); }
+.mvpn-settings-tabs .fi-tabs-item { border-radius: .55rem; padding: .55rem .9rem; font-weight: 600; white-space: nowrap; }
+.mvpn-settings-tabs .fi-tabs-item:hover { background: color-mix(in srgb, var(--mvpn-blue) 6%, transparent); }
 .mvpn-settings-tabs .fi-tabs-item.fi-active {
-    background: linear-gradient(90deg, rgba(37, 99, 235, .12), rgba(45, 212, 191, .12));
+    background: color-mix(in srgb, var(--mvpn-blue) 12%, transparent);
     box-shadow: inset 0 -2px 0 var(--mvpn-blue);
 }
 .mvpn-settings-tabs .fi-sc-tabs-tab { padding: 1.25rem; }
 .mvpn-settings-tabs .fi-sc-tabs-tab > .fi-sc > * + * { margin-top: 1.25rem; }
-.mvpn-settings-tabs .fi-section { box-shadow: none; border: 1px solid rgba(10, 29, 46, .08); }
-.dark .mvpn-settings-tabs .fi-section { border-color: rgba(255, 255, 255, .08); }
-.mvpn-settings-tabs .fi-section-header-heading { font-size: 1rem; }
-.mvpn-settings-tabs .fi-fo-field-label-content { font-weight: 600; }
+.mvpn-settings-tabs .fi-section { box-shadow: none !important; border: 1px solid var(--mvpn-line); }
 .mvpn-settings-tabs .fi-fo-field-wrp-hint { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; }
-
 @media (max-width: 640px) {
     .mvpn-settings-tabs .fi-sc-tabs-tab { padding: .85rem; }
     .mvpn-settings-tabs .fi-tabs-item { padding: .5rem .7rem; }
@@ -198,16 +330,37 @@ a.fi-wi-stats-overview-stat.mvpn-stat:hover {
 .fi-ta-row.mvpn-alert-resolved { --mvpn-alert-edge: #94a3b8; }
 .fi-ta-row.mvpn-alert-resolved .fi-ta-text-item-label { color: #64748b; }
 .dark .fi-ta-row.mvpn-alert-critical { background: rgba(248, 113, 113, .07); }
-.fi-ta-row.mvpn-alert .fi-ta-text-description { line-height: 1.35; margin-top: .15rem; }
 .fi-ta-row.mvpn-alert .fi-ta-icon { width: 1.4rem; height: 1.4rem; }
 
-/* Tabs above tables (Alerts: Open / Critical / Resolved / All) */
-.fi-resource-list-records-page .fi-tabs {
-    border-radius: .9rem;
-    padding: .3rem;
-    box-shadow: var(--mvpn-card-shadow);
+/* ---------- VIP event: status banner ---------- */
+
+.mvpn-vip-status {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .75rem;
 }
-.fi-resource-list-records-page .fi-tabs-item { border-radius: .6rem; font-weight: 600; }
-.fi-resource-list-records-page .fi-tabs-item.fi-active {
-    background: linear-gradient(90deg, rgba(37, 99, 235, .12), rgba(45, 212, 191, .12));
+.mvpn-vip-status .cell {
+    border: 1px solid var(--mvpn-line);
+    border-radius: var(--mvpn-radius-sm);
+    padding: .8rem .95rem;
+    background: color-mix(in srgb, var(--mvpn-page) 55%, var(--mvpn-card));
 }
+.mvpn-vip-status .k { font-size: .75rem; font-weight: 600; color: var(--mvpn-muted); }
+.mvpn-vip-status .v { font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; margin-top: .15rem; color: var(--mvpn-ink); }
+.mvpn-vip-status .v.on { color: #16a34a; }
+.mvpn-vip-status .v.off { color: #dc2626; }
+.mvpn-vip-status .s { font-size: .75rem; color: var(--mvpn-muted); margin-top: .1rem; }
+.mvpn-vip-link {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-top: .9rem;
+    padding: .7rem .9rem;
+    border: 1px dashed var(--mvpn-line-strong);
+    border-radius: var(--mvpn-radius-sm);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .85rem;
+    overflow-wrap: anywhere;
+}
+.mvpn-vip-link a { color: var(--mvpn-blue); font-weight: 600; font-family: inherit; }
+@media (max-width: 900px) { .mvpn-vip-status { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

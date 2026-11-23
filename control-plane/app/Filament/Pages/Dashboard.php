@@ -15,12 +15,13 @@ class Dashboard extends BaseDashboard
     {
         $hour = (int) now('Africa/Dar_es_Salaam')->format('G');
         $greeting = match (true) {
-            $hour < 12 => 'Habari za asubuhi',
-            $hour < 17 => 'Habari za mchana',
-            default => 'Habari za jioni',
+            $hour < 12 => 'Good morning',
+            $hour < 17 => 'Good afternoon',
+            default => 'Good evening',
         };
+        $name = strtok((string) auth()->user()?->name, ' ');
 
-        return $greeting.', '.strtok((string) auth()->user()?->name, ' ').'. Mauzo, malipo yanayosubiri na hali ya mtandao kwa haraka.';
+        return $greeting.($name ? ', '.$name : '').'. Sales, payments to approve and the network at a glance.';
     }
 
     protected function getHeaderActions(): array

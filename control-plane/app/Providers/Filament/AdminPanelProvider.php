@@ -39,7 +39,7 @@ class AdminPanelProvider extends PanelProvider
             ->darkModeBrandLogo(asset('images/mvpn-logo-dark.svg').'?v=5')
             ->brandLogoHeight('2.25rem')
             ->favicon(asset('images/favicon-64.png').'?v=5')
-            ->login()
+            ->login(\App\Filament\Pages\Auth\Login::class)
             // Brand look (plain stylesheet: no theme build on Hostinger).
             ->renderHook(PanelsRenderHook::HEAD_END, function (): string {
                 $file = public_path('css/mvpn-admin.css');
@@ -55,6 +55,8 @@ class AdminPanelProvider extends PanelProvider
             ->font('Inter')
             ->spa()
             ->sidebarCollapsibleOnDesktop()
+            // "Payments › List" said nothing: the page title and the menu are enough.
+            ->breadcrumbs(false)
             ->navigationGroups([
                 NavigationGroup::make('Sales'),
                 NavigationGroup::make('Network'),

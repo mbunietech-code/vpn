@@ -64,6 +64,24 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Invoice::class);
     }
 
+    /** @return HasMany<VipPass> */
+    public function vipPasses(): HasMany
+    {
+        return $this->hasMany(VipPass::class);
+    }
+
+    /** A VIP event guest (no email or phone; signs in with a pass code). */
+    public function isVipGuest(): bool
+    {
+        return $this->email === null && $this->phone === null && str_starts_with((string) $this->name, 'VIP · ');
+    }
+
+    /** How the admin shows this customer: email, else phone, else name. */
+    public function label(): string
+    {
+        return $this->email ?: ($this->phone ?: ($this->name ?: 'Customer #'.$this->id));
+    }
+
     public function activeSubscription(): ?Subscription
     {
         return $this->subscriptions()

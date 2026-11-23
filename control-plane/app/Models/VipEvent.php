@@ -73,12 +73,7 @@ class VipEvent extends Model
     /** 2500, cny → "¥25";  900000, tzs → "TSh 9,000";  350, usd → "$3.50". */
     public static function money(int $cents, string $currency): string
     {
-        return match ($currency) {
-            'cny' => '¥'.number_format($cents / 100, $cents % 100 ? 2 : 0),
-            'tzs' => 'TSh '.number_format($cents / 100),
-            'usd' => '$'.number_format($cents / 100, 2),
-            default => strtoupper($currency).' '.number_format($cents / 100, 2),
-        };
+        return \App\Services\RevenueSummary::money($cents, $currency);
     }
 
     /**

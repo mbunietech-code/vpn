@@ -29,6 +29,8 @@ class SubscriptionsTable
             ->columns([
                 TextColumn::make('user.email')
                     ->label('Customer')
+                    // VIP guests have no email: show their name ("VIP · Event · #3").
+                    ->default(fn (Subscription $record) => $record->user?->label())
                     ->description(fn (Subscription $r) => $r->plan_code.($r->user?->phone ? ' · '.$r->user->phone : ''))
                     ->searchable(),
                 TextColumn::make('plan_code')->visibleFrom('md')->label('Plan')->badge(),

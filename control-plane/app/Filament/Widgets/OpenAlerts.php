@@ -15,7 +15,7 @@ class OpenAlerts extends TableWidget
 
     protected static ?int $sort = 7;
 
-    protected static ?string $heading = 'Tahadhari (hazijashughulikiwa)';
+    protected static ?string $heading = 'Open alerts';
 
     protected int|string|array $columnSpan = 'full';
 

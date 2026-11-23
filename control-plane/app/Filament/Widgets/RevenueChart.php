@@ -27,7 +27,7 @@ class RevenueChart extends ChartWidget
 
     protected function getType(): string
     {
-        return 'line';
+        return 'bar';
     }
 
     protected function getData(): array
@@ -44,13 +44,10 @@ class RevenueChart extends ChartWidget
             'datasets' => [[
                 'label' => 'USD',
                 'data' => $series->values()->all(),
-                'borderColor' => '#2563EB',
-                'backgroundColor' => 'rgba(37, 99, 235, 0.12)',
-                'fill' => true,
-                'tension' => 0.35,
-                'pointRadius' => 0,
-                'pointHoverRadius' => 4,
-                'borderWidth' => 2,
+                'backgroundColor' => '#2563EB',
+                'hoverBackgroundColor' => '#1D4ED8',
+                'borderRadius' => 4,
+                'maxBarThickness' => 22,
             ]],
             'labels' => $days->map(fn ($d) => $d->format('d/m'))->all(),
         ];

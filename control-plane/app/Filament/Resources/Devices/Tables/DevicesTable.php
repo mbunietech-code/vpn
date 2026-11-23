@@ -28,6 +28,7 @@ class DevicesTable
                 // Few, dense columns so the table never scrolls sideways:
                 // details sit in each cell's second line.
                 TextColumn::make('subscription.user.email')->label('Customer')->searchable()
+                    ->default(fn ($record) => $record->subscription?->user?->label())
                     ->description(fn (Device $r) => trim(($r->model ?? '').' · '.($r->os_version ?? ''), ' ·')
                         ?: $r->subscription?->user?->phone),
                 TextColumn::make('vpn_connected')->label('VPN now')
