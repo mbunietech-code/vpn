@@ -4,9 +4,9 @@ namespace App\Filament\Resources\PaymentMethods\Tables;
 
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
 
 class PaymentMethodsTable
@@ -21,7 +21,8 @@ class PaymentMethodsTable
                 TextColumn::make('type')->visibleFrom('md')->badge(),
                 TextColumn::make('currency')->visibleFrom('md')->badge()->placeholder('any'),
                 TextColumn::make('account_ref')->visibleFrom('md')->limit(24)->toggleable(),
-                IconColumn::make('is_active')->boolean(),
+                ToggleColumn::make('is_active')->label('On')
+                    ->tooltip('Off hides it everywhere: the app and VIP pages.'),
                 TextColumn::make('sort')->visibleFrom('md')->sortable(),
             ])
             ->recordActions([EditAction::make(), DeleteAction::make()]);

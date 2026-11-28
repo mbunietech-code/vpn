@@ -105,22 +105,24 @@ class VipEvent extends Model
             ];
         }
 
-        if (! $allowed || in_array('manual', $allowed, true)) {
-            PaymentMethod::where('is_active', true)->orderBy('sort')->get()
-                ->each(function (PaymentMethod $m) use (&$out) {
-                    $currency = in_array($m->currency, ['cny', 'usd', 'tzs'], true) ? $m->currency : 'cny';
-                    if ($this->priceCents($currency) <= 0) {
-                        return;
-                    }
-                    $out[] = [
-                        'key' => 'manual:'.$m->id,
-                        'label' => $m->label,
-                        'currency' => $currency,
-                        'amount_cents' => $this->priceCents($currency),
-                        'method_id' => $m->id,
-                    ];
-                });
-        }
+        // "manual:7" ticks one QR method; plain "manual" (older events) ticks all.
+        PaymentMethod::where('is_active', true)->orderBy('sort')->get()
+            ->filter(fn (PaymentMethod $m) => ! $allowed
+                || in_array('manual', $allowed, true)
+                || in_array('manual:'.$m->id, $allowed, true))
+            ->each(function (PaymentMethod $m) use (&$out) {
+                $currency = in_array($m->currency, ['cny', 'usd', 'tzs'], true) ? $m->currency : 'cny';
+                if ($this->priceCents($currency) <= 0) {
+                    return;
+                }
+                $out[] = [
+                    'key' => 'manual:'.$m->id,
+                    'label' => $m->label,
+                    'currency' => $currency,
+                    'amount_cents' => $this->priceCents($currency),
+                    'method_id' => $m->id,
+                ];
+            });
 
         return $out;
     }

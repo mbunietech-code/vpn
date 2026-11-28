@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\VipEvents\Schemas;
 
+use App\Models\PaymentMethod;
 use App\Models\VipEvent;
 use App\Payments\PaymentManager;
 use Filament\Forms\Components\CheckboxList;
@@ -114,21 +115,68 @@ class VipEventForm
                     ]),
 
                 Section::make('Payment methods')
+                    ->description('Tick what guests of this event can pay with. This does not change the normal app.')
                     ->schema([
                         CheckboxList::make('providers')
                             ->label('Offer')
-                            ->options([
-                                'stripe' => 'Stripe — Alipay + card (CNY)',
-                                'pesapal' => 'Pesapal — Visa / Mastercard',
-                                'clickpesa' => 'ClickPesa — M-Pesa, Tigo, Airtel, card (TZS)',
-                                'manual' => 'Manual QR (e.g. Alipay) — guest uploads a screenshot, you approve',
-                            ])
-                            ->descriptions(collect(VipEvent::PROVIDERS)->mapWithKeys(fn ($p) => [
-                                $p => in_array($p, $available, true) ? 'Ready' : 'Not set up (no keys) — hidden',
-                            ])->all())
-                            ->helperText('None ticked = offer every method that is set up.'),
+                            ->options(self::paymentChoices())
+                            ->descriptions(self::paymentHints($available))
+                            ->default(self::defaultPaymentChoices())
+                            // Older events saved "manual" (all QR methods) or nothing (everything).
+                            ->afterStateHydrated(function (CheckboxList $component, $state, ?VipEvent $record) {
+                                if (! $record) {
+                                    return;
+                                }
+                                $state = array_values((array) $state);
+                                $all = array_keys(self::paymentChoices());
+                                if ($state === []) {
+                                    $state = $all;
+                                } elseif (in_array('manual', $state, true)) {
+                                    $state = array_values(array_unique(array_merge(
+                                        array_diff($state, ['manual']),
+                                        array_filter($all, fn ($k) => str_starts_with($k, 'manual:')),
+                                    )));
+                                }
+                                $component->state($state);
+                            })
+                            ->required()
+                            ->validationMessages(['required' => 'Tick at least one payment method. To stop selling, switch "Selling" off.']),
                     ]),
             ]);
+    }
+
+    private const GATEWAYS = [
+        'stripe' => 'Stripe — Alipay + card (CNY)',
+        'pesapal' => 'Pesapal — Visa / Mastercard',
+        'clickpesa' => 'ClickPesa — M-Pesa, Tigo, Airtel, card (TZS)',
+    ];
+
+    /** Each QR method by name (Alipay, WeChat Pay, ...), then the online gateways. */
+    private static function paymentChoices(): array
+    {
+        return PaymentMethod::orderBy('sort')->orderBy('id')->get()
+            ->mapWithKeys(fn (PaymentMethod $m) => ['manual:'.$m->id => trim($m->label)])
+            ->all() + self::GATEWAYS;
+    }
+
+    private static function paymentHints(array $available): array
+    {
+        return PaymentMethod::get()->mapWithKeys(fn (PaymentMethod $m) => ['manual:'.$m->id => ! $m->is_active
+            ? 'Switched off in Setup › Payment Methods — hidden'
+            : 'Guest pays and uploads a screenshot; you approve'.($m->qr_path ? '' : ' (no QR image yet)'),
+        ])->all() + collect(VipEvent::PROVIDERS)->mapWithKeys(fn ($p) => [
+            $p => in_array($p, $available, true) ? 'Ready' : 'Not set up (no keys) — hidden',
+        ])->all();
+    }
+
+    /** A new event starts with Alipay and WeChat Pay. */
+    private static function defaultPaymentChoices(): array
+    {
+        $manual = PaymentMethod::where('is_active', true)->get();
+        $china = $manual->filter(fn (PaymentMethod $m) => in_array($m->type, ['alipay', 'wechat'], true)
+            || preg_match('/alipay|wechat/i', (string) $m->label));
+
+        return ($china->isNotEmpty() ? $china : $manual)->map(fn (PaymentMethod $m) => 'manual:'.$m->id)->values()->all();
     }
 
     /** The "Right now" banner: on/off, sales, passes, and the public link. */

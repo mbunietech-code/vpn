@@ -343,6 +343,7 @@ class VipEventTest extends TestCase
                 'price_usd_cents' => 3.5,
                 'price_tzs_cents' => 9000,
                 'max_devices_per_order' => 4,
+                'providers' => ['pesapal'],
             ])
             ->call('create')
             ->assertHasNoFormErrors();
@@ -403,5 +404,51 @@ class VipEventTest extends TestCase
             ->assertOk()
             ->assertSee('https://files.example.com/vip.apk', false)
             ->assertDontSee('Mbunie-VIP-Setup', false);
+    }
+
+    public function test_admin_ticks_alipay_and_wechat_only_for_an_event(): void
+    {
+        config(['services.pesapal.consumer_key' => '', 'services.stripe.secret' => '']);
+        PaymentMethod::query()->delete();
+        $make = fn (string $type, string $label) => PaymentMethod::create(
+            ['type' => $type, 'label' => $label, 'currency' => 'cny', 'is_active' => true]);
+        $alipay = $make('alipay', 'Alipay');
+        $wechat = $make('wechat', 'WeChat Pay');
+        $airtel = $make('other', 'Airtel Money');
+        $labels = fn () => array_column($this->event->fresh()->paymentOptions(), 'label');
+
+        // An older event that offers every manual method.
+        $this->event->update(['providers' => ['manual']]);
+        $this->assertSame(3, count($labels()));
+
+        $this->actingAs(User::where('is_admin', true)->first());
+        // Opening it shows every manual method ticked; untick Airtel and save.
+        Livewire::test(EditVipEvent::class, ['record' => $this->event->id])
+            ->assertSet('data.providers', fn ($v) => in_array('manual:'.$airtel->id, $v, true) && ! in_array('manual', $v, true))
+            ->fillForm(['providers' => ['manual:'.$alipay->id, 'manual:'.$wechat->id]])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame(['Alipay', 'WeChat Pay'], $labels());
+        $this->get('/vip/beijing-forum')->assertSee('WeChat Pay')->assertDontSee('Airtel Money');
+        // A guest cannot post an unticked method.
+        $this->post('/vip/beijing-forum/checkout', ['devices' => 1, 'method' => 'manual:'.$airtel->id])
+            ->assertSessionHasErrors('method');
+
+        // Switched off for everyone: gone from the event too.
+        $wechat->update(['is_active' => false]);
+        $this->assertSame(['Alipay'], $labels());
+
+        // Nothing ticked is refused (it used to mean "everything").
+        Livewire::test(EditVipEvent::class, ['record' => $this->event->id])
+            ->fillForm(['providers' => []])
+            ->call('save')
+            ->assertHasFormErrors(['providers']);
+
+        // A new event starts with Alipay and WeChat only.
+        $wechat->update(['is_active' => true]);
+        Livewire::test(CreateVipEvent::class)
+            ->assertSet('data.providers', ['manual:'.$alipay->id, 'manual:'.$wechat->id]);
+
+        $this->get('/admin/payment-methods')->assertOk();
     }
 }
