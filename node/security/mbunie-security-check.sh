@@ -24,11 +24,15 @@ done
 STATE=/var/lib/mbunie-security
 LOG=/var/log/mbunie-security.log
 ENV_FILE=/etc/mvpn/config/agent.env
-# --print is a dry run: nothing is written on the server (baseline in a temp folder).
-[ "$PRINT" = 1 ] && { STATE=$(mktemp -d); LOG=/dev/null; }
+# --print is a dry run: nothing is written on the server. It compares with a
+# copy of the baseline, so it shows what a real run would report.
+if [ "$PRINT" = 1 ]; then
+  copy=$(mktemp -d); cp -a "$STATE/." "$copy/" 2>/dev/null
+  STATE=$copy; LOG=/dev/null
+fi
 mkdir -p "$STATE"; chmod 700 "$STATE"
 FINDINGS=$(mktemp); CUR=$(mktemp -d)
-trap 'rm -rf "$FINDINGS" "$CUR"' EXIT
+trap 'rm -rf "$FINDINGS" "$CUR"; [ "$PRINT" = 1 ] && rm -rf "$STATE"' EXIT
 
 add() { # level title detail
   jq -cn --arg l "$1" --arg t "$2" --arg d "${3:-}" '{level:$l,title:$t,detail:($d|.[0:1900])}' >>"$FINDINGS"
@@ -112,12 +116,29 @@ compare ufw warn "Firewall rule added" warn "Firewall rule removed"
 # are skipped for the programs that open one per call/session: the VPN engines,
 # coturn, and LiveKit (a new media port in 50000-60000 for every live class,
 # which used to send a "New open port" email each time).
-ss -tulpnH 2>/dev/null | awk '{
-  split($7, p, "\""); proc=p[2]; addr=$5; n=split(addr, a, ":"); port=a[n]; host=substr(addr, 1, length(addr)-length(port)-1);
-  if (host ~ /^(127\.|\[::1\]|::1)/) next;
-  if ($1=="udp" && port>=32768 && proc ~ /sing-box|xray|turnserver|livekit-server/) next;
-  print $1"/"port" "proc
-}' | sort -u >"$CUR/listen"
+listeners() {
+  ss -tulpnH 2>/dev/null | awk '{
+    split($7, p, "\""); proc=p[2]; addr=$5; n=split(addr, a, ":"); port=a[n]; host=substr(addr, 1, length(addr)-length(port)-1);
+    if (host ~ /^(127\.|\[::1\]|::1)/) next;
+    if ($1=="udp" && port>=32768 && proc ~ /sing-box|xray|turnserver|livekit-server/) next;
+    print $1"/"port" "proc
+  }' | sort -u
+}
+listeners >"$CUR/listen"
+# A short-lived socket (a VPN session closing while ss looks it up has no
+# program name) is not a new service: report a new port only if it is still
+# open 15 seconds later.
+if [ -f "$STATE/listen" ] && [ -n "$(comm -13 "$STATE/listen" "$CUR/listen")" ]; then
+  sleep 15
+  listeners | awk '{print $1}' >"$CUR/still_open"
+  {
+    comm -12 "$STATE/listen" "$CUR/listen"
+    comm -13 "$STATE/listen" "$CUR/listen" | while read -r port proc; do
+      grep -qxF "$port" "$CUR/still_open" && echo "$port $proc"
+    done
+  } | sort -u >"$CUR/listen.confirmed"
+  mv "$CUR/listen.confirmed" "$CUR/listen"
+fi
 compare listen warn "New open port"
 
 # ------------------------------------------------------------- logins
