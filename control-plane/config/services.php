@@ -103,6 +103,10 @@ return [
         // Android can ship ahead of the desktop installers.
         'android_version' => env('MVPN_ANDROID_VERSION', '1.0.26'),
         'windows_version' => env('MVPN_WINDOWS_VERSION', '1.0.26'),
+        // The VIP event app (code sign-in only), offered on VIP pass pages.
+        // A platform left empty has no VIP installer and shows no button.
+        'download_vip_android' => env('MVPN_DOWNLOAD_VIP_ANDROID', '/storage/downloads/Mbunie-VIP-1.0.26.apk'),
+        'download_vip_windows' => env('MVPN_DOWNLOAD_VIP_WINDOWS', '/storage/downloads/Mbunie-VIP-Setup-1.0.26.exe'),
         // Apps older than this must update before they can be used (null = never forced).
         'min_app_version' => env('MVPN_MIN_APP_VERSION'),
         // Units of each currency per 1 USD, for rough revenue totals on the dashboard.

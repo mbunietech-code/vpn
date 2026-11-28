@@ -32,6 +32,14 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# VIP event app: set the MVPN_VIP environment variable together with
+# --dart-define=MVPN_VIP=true (own name, data folder and single-instance lock,
+# so it lives next to the normal app). Delete build/windows when switching.
+if(DEFINED ENV{MVPN_VIP})
+  message(STATUS "Building the Mbunie VIP app")
+  add_definitions(-DMVPN_VIP)
+endif()
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by

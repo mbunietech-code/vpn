@@ -98,7 +98,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     } on ApiException catch (e) {
       // Signed out remotely (admin removed a device): leave instead of
       // retrying with dead keys.
-      if (e.status == 401 || e.deviceRevoked) await _signedOut(e);
+      if (e.status == 401 || e.deviceRevoked) {
+        await _signedOut(e);
+      } else if (e.status == 403 && e.body['error'] == 'no_active_subscription') {
+        await checkVipPass();
+      }
     } catch (_) {
       // Best effort: telemetry must never get in the way of the tunnel.
     }
@@ -397,7 +401,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> checkForUpdate() async {
     // Play builds update through Google Play only (Play policy). iPhone
     // apps cannot install from a link; updates come from TestFlight/App Store.
-    if (MvpnConfig.playStore || Platform.isIOS) return;
+    // The VIP app is for one event: it never swaps itself for the normal app.
+    if (MvpnConfig.playStore || MvpnConfig.vip || Platform.isIOS) return;
     final last = _lastUpdateCheck;
     if (last != null && DateTime.now().difference(last) < const Duration(hours: 6)) return;
     _lastUpdateCheck = DateTime.now();
@@ -474,6 +479,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       ClashTraffic.visible.value =
           state == AppLifecycleState.resumed || state == AppLifecycleState.inactive;
     }
+    // VIP: the organiser may have ended or switched off the pass meanwhile.
+    if (state == AppLifecycleState.resumed) unawaited(checkVipPass());
     if (state == AppLifecycleState.resumed) {
       unawaited(checkForUpdate());
       updater.onResume();
@@ -481,6 +488,20 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed && _connectOnResume) {
       _connectOnResume = false;
       if (subStatus == 'active') unawaited(vpn.connect());
+    }
+  }
+
+  /// VIP app: ask the server whether the pass still runs. When it doesn't,
+  /// the VPN is switched off so the phone keeps its normal internet.
+  Future<void> checkVipPass() async {
+    if (!MvpnConfig.vip || _token == null) return;
+    try {
+      await refreshSubscription();
+    } catch (_) {
+      return; // offline: try again later
+    }
+    if (gate == AuthGate.needsPlan && vpn.status != VpnStatus.disconnected) {
+      await vpn.disconnect();
     }
   }
 

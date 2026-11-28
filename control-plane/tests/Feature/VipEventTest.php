@@ -146,9 +146,12 @@ class VipEventTest extends TestCase
         $this->assertTrue(Peer::where('subscription_id', $sub->id)->where('status', 'active')->exists());
 
         // The pass page now shows the code and the app download.
-        $this->get($pass->pageUrl())->assertOk()
+        $this->withHeader('User-Agent', 'Mozilla/5.0 (Linux; Android 14)')->get($pass->pageUrl())->assertOk()
             ->assertSee($pass->displayCode())
-            ->assertSee('mvpn://vip?code='.$pass->code, false);
+            ->assertSee('mvpnvip://vip?code='.$pass->code, false)
+            // Only the VIP app is offered, never the normal one.
+            ->assertSee('Mbunie-VIP-', false)
+            ->assertDontSee('Mbunie-VPN-', false);
 
         // A repeated IPN changes nothing.
         $this->ipn()->assertOk();

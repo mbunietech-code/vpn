@@ -53,6 +53,14 @@ class MvpnConfig {
   /// only shows the account's plan status — no prices, checkout or links.
   static const playStore = bool.fromEnvironment('MVPN_PLAY');
 
+  /// VIP event app (`--dart-define=MVPN_VIP=true`): the only way in is the
+  /// code from the VIP pass page. No email, plans, checkout or self-update.
+  /// Its own package (com.mbunie.mvpn.vip), so it installs next to the
+  /// normal app.
+  static const vip = bool.fromEnvironment('MVPN_VIP');
+
+  static const appName = vip ? 'Mbunie VIP' : 'Mbunie VPN';
+
   /// Payment providers surfaced in the app (control plane also enforces).
   static const providers = <String, String>{
     'stripe': 'Alipay · WeChat · Card',

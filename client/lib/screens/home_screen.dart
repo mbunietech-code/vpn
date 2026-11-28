@@ -69,7 +69,7 @@ class HomeScreen extends StatelessWidget {
           children: [
             const BrandMark(size: 30),
             const SizedBox(width: 10),
-            const Text('Mbunie VPN'),
+            const Text(MvpnConfig.appName),
           ],
         ),
         actions: [
@@ -115,7 +115,7 @@ class HomeScreen extends StatelessWidget {
                     ? tr.p('home.endsInHours', left.inHours < 1 ? 1 : left.inHours)
                     : tr.p('home.endsInDays', (left.inHours / 24).ceil()),
                 tone: NoticeTone.warning,
-                action: MvpnConfig.playStore ? null : tr.t('home.renew'),
+                action: MvpnConfig.playStore || MvpnConfig.vip ? null : tr.t('home.renew'),
                 onAction: openPlans,
               ),
             ),
@@ -139,7 +139,7 @@ class HomeScreen extends StatelessWidget {
                     ? tr.t('home.subExpired')
                     : tr.t('home.subSuspended'),
                 tone: NoticeTone.warning,
-                action: MvpnConfig.playStore ? null : tr.t('home.renew'),
+                action: MvpnConfig.playStore || MvpnConfig.vip ? null : tr.t('home.renew'),
                 onAction: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: (_) => const PlansScreen()),
                 ),

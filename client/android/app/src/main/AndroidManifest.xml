@@ -12,7 +12,7 @@
     <uses-permission android:name="${installPackagesPermission}" />
 
     <application
-        android:label="Mbunie VPN"
+        android:label="${appLabel}"
         android:name="com.hiddify.hiddify.Application"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -41,7 +41,7 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="mvpn" android:host="vip"/>
+                <data android:scheme="${linkScheme}" android:host="vip"/>
             </intent-filter>
         </activity>
         <service
@@ -72,7 +72,7 @@
             android:name="com.hiddify.hiddify.bg.TileService"
             android:exported="true"
             android:icon="@drawable/ic_stat_logo"
-            android:label="Mbunie VPN"
+            android:label="${appLabel}"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />

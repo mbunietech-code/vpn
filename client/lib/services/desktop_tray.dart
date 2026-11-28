@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../config.dart';
 import '../l10n/app_text.dart';
 import '../models.dart';
 import 'app_state.dart';
@@ -61,7 +62,7 @@ class DesktopTray with TrayListener, WindowListener {
       } else {
         await trayManager.setIcon(on ? 'assets/tray/on.ico' : 'assets/tray/off.ico');
       }
-      await trayManager.setToolTip('Mbunie VPN · $label');
+      await trayManager.setToolTip('${MvpnConfig.appName} · $label');
       await trayManager.setContextMenu(
         Menu(
           items: [

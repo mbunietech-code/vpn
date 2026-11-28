@@ -49,6 +49,8 @@ class SettingsScreen extends StatelessWidget {
                       ? '${state.planCode} · ${_expiry(state, tr)}'
                       : tr.t('settings.noPlan'),
                 ),
+                // VIP app: nothing to buy or upgrade.
+                if (!MvpnConfig.vip) ...[
                 Divider(color: c.border, height: 1),
                 SettingRow(
                   leading: _icon(c, Icons.workspace_premium_rounded),
@@ -63,6 +65,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                ],
                 Divider(color: c.border, height: 1),
                 SettingRow(
                   leading: _icon(c, Icons.logout_rounded, danger: true),
@@ -138,6 +141,8 @@ class SettingsScreen extends StatelessWidget {
                         p == null ? null : vpn.update(() => vpn.protocol = p),
                   ),
                 ),
+                // VIP app: no profile export, a pass is for the devices paid for.
+                if (!MvpnConfig.vip) ...[
                 Divider(color: c.border, height: 1),
                 SettingRow(
                   title: tr.t('settings.ovpn'),
@@ -149,8 +154,9 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   onTap: () => _downloadOvpn(context, vpn.subUrl, tr),
                 ),
+                ],
                 // iPhone: the sing-box app, until the Mbunie VPN iPhone app.
-                if (!Platform.isIOS) ...[
+                if (!Platform.isIOS && !MvpnConfig.vip) ...[
                   Divider(color: c.border, height: 1),
                   SettingRow(
                     title: tr.t('iphone.title'),

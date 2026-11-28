@@ -102,9 +102,11 @@ class VipController extends Controller
             'state' => $pass->state(),
             'method' => $method,
             'platform' => $platform,
-            'android' => url(config('services.mvpn.download_android')),
-            'windows' => url(config('services.mvpn.download_windows')),
-            'macos' => url(config('services.mvpn.download_macos')),
+            // Only the VIP app: the normal app asks for an email, not the pass code.
+            'downloads' => array_filter([
+                'android' => ($apk = config('services.mvpn.download_vip_android')) ? url($apk) : null,
+                'windows' => ($exe = config('services.mvpn.download_vip_windows')) ? url($exe) : null,
+            ]),
             'iosImport' => $iosProfile
                 ? 'sing-box://import-remote-profile?url='.rawurlencode($iosProfile).'#'.rawurlencode('Mbunie VPN')
                 : null,

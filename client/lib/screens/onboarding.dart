@@ -31,7 +31,7 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
   final _code = TextEditingController();
   final _password = TextEditingController();
   final _vipCode = TextEditingController();
-  bool _vip = false; // "I have a VIP code" (event pass, no account)
+  bool _vip = MvpnConfig.vip; // "I have a VIP code" (event pass, no account)
   bool _sent = false;
   bool _hub = false; // "Sign in with MbunieHub" (email + password)
   bool _busy = false;
@@ -145,7 +145,7 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                     child: const BrandMark(size: 68, shadow: true),
                   ),
                   const SizedBox(height: 20),
-                  Text('Mbunie VPN',
+                  Text(MvpnConfig.appName,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           fontSize: 26,
@@ -155,7 +155,7 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
                   Text(
                     _sent
                         ? context.tr.p('auth.sentTo', _id.text.trim())
-                        : context.tr.t('auth.tagline'),
+                        : context.tr.t(MvpnConfig.vip ? 'vip.tagline' : 'auth.tagline'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 13.5, height: 1.4, color: c.textSecondary),
@@ -296,16 +296,17 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
           onPressed: _busy || !ready ? null : _vipSignIn,
           child: _busy ? const BtnSpinner() : Text(context.tr.t('auth.vipSignIn')),
         ),
-        TextButton(
-          onPressed: _busy
-              ? null
-              : () => setState(() {
-                    _vip = false;
-                    _vipCode.clear();
-                    _error = null;
-                  }),
-          child: Text(context.tr.t('auth.useCode')),
-        ),
+        if (!MvpnConfig.vip)
+          TextButton(
+            onPressed: _busy
+                ? null
+                : () => setState(() {
+                      _vip = false;
+                      _vipCode.clear();
+                      _error = null;
+                    }),
+            child: Text(context.tr.t('auth.useCode')),
+          ),
       ],
     );
   }
@@ -409,6 +410,91 @@ class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
           child: Text(context.tr.t('auth.changeId')),
         ),
       ],
+    );
+  }
+}
+
+// ============================ VIP =====================================
+
+/// VIP app: the pass is over or switched off. Nothing to buy in the app;
+/// check again, or enter another code.
+class VipEndedScreen extends StatefulWidget {
+  const VipEndedScreen({super.key});
+
+  @override
+  State<VipEndedScreen> createState() => _VipEndedScreenState();
+}
+
+class _VipEndedScreenState extends State<VipEndedScreen> {
+  bool _busy = false;
+  String? _error;
+
+  Future<void> _check() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await MvpnScope.read(context).refreshSubscription();
+    } catch (_) {
+      _error = 'auth.netError';
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = MvpnScope.of(context);
+    final c = context.mvpn;
+    final key = switch (state.subStatus) {
+      'expired' => 'vip.ended',
+      'suspended' => 'vip.off',
+      _ => 'vip.none',
+    };
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Center(child: BrandMark(size: 68, shadow: true)),
+                  const SizedBox(height: 20),
+                  Text(context.tr.t(key),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 15, height: 1.5, color: c.textPrimary)),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(context.tr.t(_error!),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: c.danger, fontSize: 13)),
+                  ],
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _busy ? null : _check,
+                    child: _busy
+                        ? const BtnSpinner()
+                        : Text(context.tr.t('vip.checkAgain')),
+                  ),
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () async {
+                            await state.vpn.disconnect();
+                            await state.logout();
+                          },
+                    child: Text(context.tr.t('vip.newCode')),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

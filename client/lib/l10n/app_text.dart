@@ -623,6 +623,29 @@ const _map = <String, Map<String, String>>{
     'zh': '正在使用 VIP 通行证登录…',
   },
 
+  'vip.tagline': {
+    'en': 'VIP access. Enter the code from your pass page.',
+    'sw': 'VIP. Weka code uliyopewa kwenye ukurasa wa pass yako.',
+    'zh': 'VIP 通道。请输入通行证页面上的兑换码。',
+  },
+  'vip.ended': {
+    'en': 'Your VIP pass has ended. Thank you for using Mbunie VPN.',
+    'sw': 'VIP pass yako imeisha muda. Asante kwa kutumia Mbunie VPN.',
+    'zh': '您的 VIP 通行证已到期，感谢使用 Mbunie VPN。',
+  },
+  'vip.off': {
+    'en': 'Your VIP pass is switched off. Please contact the organiser.',
+    'sw': 'VIP pass yako imezimwa. Tafadhali wasiliana na mratibu.',
+    'zh': '您的 VIP 通行证已关闭，请联系主办方。',
+  },
+  'vip.none': {
+    'en': 'No active VIP pass on this device.',
+    'sw': 'Hakuna VIP pass inayofanya kazi kwenye kifaa hiki.',
+    'zh': '此设备上没有可用的 VIP 通行证。',
+  },
+  'vip.checkAgain': {'en': 'Check again', 'sw': 'Angalia tena', 'zh': '重新检查'},
+  'vip.newCode': {'en': 'Enter another code', 'sw': 'Weka code nyingine', 'zh': '输入其他兑换码'},
+
   // ---- vpn controller messages ----
   'vpn.noSub': {
     'en': 'No active subscription. Buy a plan first.',

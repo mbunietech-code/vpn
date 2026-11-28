@@ -8,11 +8,6 @@
 @php
   $invoice = $pass->invoice;
   $amount = $invoice ? \App\Models\VipEvent::money((int) $invoice->amount_cents, (string) $invoice->currency) : null;
-  $downloads = [
-    'android' => [$android, __('vip.download_android')],
-    'windows' => [$windows, __('vip.download_windows')],
-    'macos' => [$macos, __('vip.download_mac')],
-  ];
   $primary = $downloads[$platform] ?? null;
 @endphp
 <div class="wrap">
@@ -76,7 +71,7 @@
       <button class="btn ghost" type="button" data-copy="{{ $pass->displayCode() }}">{{ __('vip.copy_code') }}</button>
     </div>
 
-    @if ($platform !== 'ios')
+    @if ($platform !== 'ios' && $downloads)
       <div class="card">
         <ol class="steps">
           <li>{{ __('vip.step1') }}</li>
@@ -84,17 +79,16 @@
           <li>{{ __('vip.step3') }}</li>
         </ol>
         @if ($primary)
-          <a class="btn" href="{{ $primary[0] }}" data-tag="{{ $pass->clipboardTag() }}">⬇ {{ $primary[1] }}</a>
+          <a class="btn" href="{{ $primary }}" data-tag="{{ $pass->clipboardTag() }}">⬇ {{ __('vip.download_'.$platform) }}</a>
         @endif
-        <a class="btn ghost" href="{{ $pass->appLink() }}" data-tag="{{ $pass->clipboardTag() }}">{{ __('vip.open_app') }}</a>
+        @if ($platform === 'android')
+          <a class="btn ghost" href="{{ $pass->appLink() }}" data-tag="{{ $pass->clipboardTag() }}">{{ __('vip.open_app') }}</a>
+        @endif
         <p class="help">{{ __('vip.manual_code') }}</p>
-        <details style="margin-top:10px">
-          <summary class="muted">Android · Windows · Mac</summary>
-          @foreach ($downloads as $key => [$url, $label])
-            @continue($key === $platform)
-            <a class="btn ghost" href="{{ $url }}" data-tag="{{ $pass->clipboardTag() }}">⬇ {{ $label }}</a>
-          @endforeach
-        </details>
+        @foreach ($downloads as $key => $url)
+          @continue($key === $platform)
+          <a class="btn ghost" href="{{ $url }}" data-tag="{{ $pass->clipboardTag() }}">⬇ {{ __('vip.download_'.$key) }}</a>
+        @endforeach
       </div>
     @endif
 

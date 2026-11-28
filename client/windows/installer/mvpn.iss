@@ -2,17 +2,26 @@
 ; Build: flutter build windows --release   (with windows/engine/sing-box.exe present)
 ;        ISCC.exe windows\installer\mvpn.iss
 
-#define AppName "Mbunie VPN"
+; VIP event app: ISCC.exe /DVip windows\installer\mvpn.iss (after the VIP build).
+#ifdef Vip
+  #define AppName "Mbunie VIP"
+  #define AppGuid "{{B7A1D3E5-9C24-4F6A-8D17-3E5B9A2C7F10}"
+  #define OutputName "Mbunie-VIP-Setup"
+#else
+  #define AppName "Mbunie VPN"
+  #define AppGuid "{{6E0B7C2A-4F1D-4B8E-9C3A-2D5F8A1B7E44}"
+  #define OutputName "Mbunie-VPN-Setup"
+#endif
 #define AppVersion "1.0.26"
 #define AppExe "mvpn.exe"
 #define BuildDir "..\..\build\windows\x64\runner\Release"
 
 [Setup]
-AppId={{6E0B7C2A-4F1D-4B8E-9C3A-2D5F8A1B7E44}
+AppId={#AppGuid}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=Mbunie Tech
-DefaultDirName={autopf}\Mbunie VPN
+DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 ; The app runs as Administrator (TUN adapter), so install machine-wide.
@@ -20,7 +29,7 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\..\..\apps
-OutputBaseFilename=Mbunie-VPN-Setup-{#AppVersion}
+OutputBaseFilename={#OutputName}-{#AppVersion}
 SetupIconFile=..\runner\resources\app_icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
 Compression=lzma2/max

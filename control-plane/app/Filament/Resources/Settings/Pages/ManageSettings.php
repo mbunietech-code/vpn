@@ -49,6 +49,7 @@ class ManageSettings extends Page
         'mail_' => ['SMTP mailbox', 'The mailbox that sends login codes (OTP) and alerts, e.g. noreply@mbuniehub.com on smtp.hostinger.com, port 465.'],
         'brevo_' => ['Brevo (optional)', 'With a Brevo API key, emails go through Brevo instead of SMTP. They usually reach the inbox more reliably.'],
         'stripe_' => ['Stripe', 'Cards, Alipay and WeChat Pay.'],
+        'pesapal_' => ['Pesapal', 'Visa and Mastercard (app and VIP pages). Copy the keys from your Pesapal merchant account, then tick Pesapal on the VIP event.'],
         'cryptomus_' => ['Cryptomus', 'Crypto payments.'],
         'clickpesa_' => ['ClickPesa', 'Mobile money in Tanzania.'],
         'twilio_' => ['Twilio', 'Login codes by SMS. Email codes work without this.'],

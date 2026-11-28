@@ -97,8 +97,15 @@ class PassesRelationManager extends RelationManager
                         ->color('success')
                         ->visible(fn (VipPass $r) => $r->status === 'pending' && $r->invoice?->status === 'pending_review')
                         ->requiresConfirmation()
-                        ->modalDescription(fn (VipPass $r) => 'Check the screenshot first (Sales › Invoices). The pass works at once.'
-                            .($r->invoice?->proof_path ? '' : ' No screenshot was uploaded.'))
+                        ->modalDescription(fn (VipPass $r) => $r->invoice?->proof_path
+                            ? 'Check the screenshot, then approve. The pass works at once.'
+                            : 'No screenshot was uploaded. Approve only if you can see the money.')
+                        ->modalContent(fn (VipPass $r) => $r->invoice?->proof_path
+                            ? view('filament.invoice-proof', [
+                                'url' => route('admin.invoice.proof', $r->invoice),
+                                'note' => $r->invoice->meta['user_note'] ?? null,
+                            ])
+                            : null)
                         ->action(function (VipPass $r) {
                             app(ManualPaymentService::class)->approve($r->invoice, 'admin:'.auth()->id());
                             Notification::make()->success()->title('Approved — pass '.$r->displayCode().' is active')->send();

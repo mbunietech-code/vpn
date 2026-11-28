@@ -137,9 +137,9 @@ class VipPass extends Model
         return route('vip.pass', $this->page_token);
     }
 
-    /** Opens the installed app straight into the VPN with this code. */
+    /** Opens the installed VIP app straight into the VPN with this code. */
     public function appLink(): string
     {
-        return 'mvpn://vip?code='.$this->code;
+        return 'mvpnvip://vip?code='.$this->code;
     }
 }

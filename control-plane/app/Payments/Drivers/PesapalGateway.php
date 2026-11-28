@@ -41,7 +41,7 @@ class PesapalGateway implements ConfirmsPayment, PaymentGateway
 
     private function base(): string
     {
-        return config('services.pesapal.sandbox')
+        return filter_var(config('services.pesapal.sandbox'), FILTER_VALIDATE_BOOL)
             ? 'https://cybqa.pesapal.com/pesapalv3'
             : 'https://pay.pesapal.com/v3';
     }

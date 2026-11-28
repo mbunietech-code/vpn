@@ -34,10 +34,16 @@ if (keystorePropertiesFile != null && keystorePropertiesFile.exists()) {
 
 // Google Play build: --dart-define=MVPN_PLAY=true (Flutter passes the defines
 // to Gradle base64-encoded).
-val playBuild = (project.findProperty("dart-defines") as String?)
+fun hasDartDefine(wanted: String): Boolean = (project.findProperty("dart-defines") as String?)
     ?.split(",")
-    ?.any { define: String -> runCatching { String(Base64.getDecoder().decode(define)) }.getOrNull() == "MVPN_PLAY=true" }
+    ?.any { define: String -> runCatching { String(Base64.getDecoder().decode(define)) }.getOrNull() == wanted }
     ?: false
+
+val playBuild = hasDartDefine("MVPN_PLAY=true")
+
+// VIP event app (--dart-define=MVPN_VIP=true): its own package, name and link
+// scheme, so it installs next to the normal app.
+val vipBuild = hasDartDefine("MVPN_VIP=true")
 
 android {
     namespace = "com.mbunie.mvpn"
@@ -56,7 +62,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.mbunie.mvpn"
+        applicationId = if (vipBuild) "com.mbunie.mvpn.vip" else "com.mbunie.mvpn"
+        manifestPlaceholders["appLabel"] = if (vipBuild) "Mbunie VIP" else "Mbunie VPN"
+        manifestPlaceholders["linkScheme"] = if (vipBuild) "mvpnvip" else "mvpn"
         minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -65,7 +73,7 @@ android {
         // Only the sideloaded APK installs its own updates: Play forbids
         // REQUEST_INSTALL_PACKAGES for apps that are not app stores.
         manifestPlaceholders["installPackagesPermission"] =
-            if (playBuild) "com.mbunie.mvpn.permission.UNUSED" else "android.permission.REQUEST_INSTALL_PACKAGES"
+            if (playBuild || vipBuild) "com.mbunie.mvpn.permission.UNUSED" else "android.permission.REQUEST_INSTALL_PACKAGES"
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a")
         }

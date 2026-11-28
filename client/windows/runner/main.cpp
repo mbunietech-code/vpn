@@ -5,6 +5,14 @@
 #include "flutter_window.h"
 #include "utils.h"
 
+#ifdef MVPN_VIP
+#define APP_TITLE L"Mbunie VIP"
+#define APP_MUTEX L"Local\\MbunieVipSingleInstance"
+#else
+#define APP_TITLE L"Mbunie VPN"
+#define APP_MUTEX L"Local\\MbunieVpnSingleInstance"
+#endif
+
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
   // One copy only: the app stays in the tray when its window is closed, so
@@ -13,12 +21,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // closing, so wait for it then.
   const bool after_update = wcsstr(command_line, L"--after-update") != nullptr;
   HANDLE instance_mutex =
-      ::CreateMutexW(nullptr, FALSE, L"Local\\MbunieVpnSingleInstance");
+      ::CreateMutexW(nullptr, FALSE, APP_MUTEX);
   const DWORD owned =
       ::WaitForSingleObject(instance_mutex, after_update ? 20000 : 0);
   if (owned != WAIT_OBJECT_0 && owned != WAIT_ABANDONED) {
     HWND existing =
-        ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"Mbunie VPN");
+        ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", APP_TITLE);
     if (existing != nullptr) {
       ::ShowWindow(existing, ::IsIconic(existing) ? SW_RESTORE : SW_SHOW);
       ::SetForegroundWindow(existing);
@@ -46,7 +54,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"Mbunie VPN", origin, size)) {
+  if (!window.Create(APP_TITLE, origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

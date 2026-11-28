@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'config.dart';
 import 'l10n/app_text.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding.dart';
@@ -59,7 +60,7 @@ class _MvpnAppState extends State<MvpnApp> {
           return AppTextScope(
             code: code,
             child: MaterialApp(
-              title: 'Mbunie VPN',
+              title: MvpnConfig.appName,
               debugShowCheckedModeBanner: false,
               theme: MvpnTheme.light,
               darkTheme: MvpnTheme.dark,
@@ -89,7 +90,8 @@ class _Gate extends StatelessWidget {
     return switch (state.gate) {
       AuthGate.loading => const _Splash(),
       AuthGate.needsAuth => const AuthScreen(),
-      AuthGate.needsPlan => const PlansScreen(),
+      AuthGate.needsPlan =>
+        MvpnConfig.vip ? const VipEndedScreen() : const PlansScreen(),
       AuthGate.ready => const RootShell(),
       AuthGate.offline => const _Offline(),
     };

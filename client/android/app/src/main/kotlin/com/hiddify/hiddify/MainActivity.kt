@@ -77,7 +77,7 @@ class MainActivity : FlutterActivity(), ServiceConnection.Callback {
     }
 
     private fun mvpnLink(intent: Intent?): String? =
-        intent?.data?.takeIf { it.scheme == "mvpn" }?.toString()
+        intent?.data?.takeIf { it.scheme == "mvpn" || it.scheme == "mvpnvip" }?.toString()
 
     fun reconnect() {
         connection.reconnect()
