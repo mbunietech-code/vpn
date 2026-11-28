@@ -104,8 +104,8 @@ class VipController extends Controller
             'platform' => $platform,
             // Only the VIP app: the normal app asks for an email, not the pass code.
             'downloads' => array_filter([
-                'android' => ($apk = config('services.mvpn.download_vip_android')) ? url($apk) : null,
-                'windows' => ($exe = config('services.mvpn.download_vip_windows')) ? url($exe) : null,
+                'android' => $this->vipDownload('android'),
+                'windows' => $this->vipDownload('windows'),
             ]),
             'iosImport' => $iosProfile
                 ? 'sing-box://import-remote-profile?url='.rawurlencode($iosProfile).'#'.rawurlencode('Mbunie VPN')
@@ -162,6 +162,14 @@ class VipController extends Controller
     public function passQr(string $token): Response
     {
         return $this->svg($this->find($token)->pageUrl(), 'private, no-store');
+    }
+
+    /** The VIP app link set in Admin › Settings › App (or its default); "off" hides it. */
+    private function vipDownload(string $platform): ?string
+    {
+        $link = trim((string) config("services.mvpn.download_vip_{$platform}"));
+
+        return $link === '' || $link === 'off' ? null : url($link);
     }
 
     private function find(string $token): VipPass

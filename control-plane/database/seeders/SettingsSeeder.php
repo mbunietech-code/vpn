@@ -45,6 +45,8 @@ class SettingsSeeder extends Seeder
             ['alerts', 'payment_alert_emails', 'Emails for "payment to review" alerts, comma separated (empty = all VPN admins)', false],
 
             ['app', 'android_download_url', 'Android engine APK / release URL', false],
+            ['app', 'vip_android_link', 'VIP app for Android (full https:// link or /storage/downloads/file name; type off to hide the button)', false],
+            ['app', 'vip_windows_link', 'VIP app for Windows (full https:// link or /storage/downloads/file name; type off to hide the button)', false],
         ];
 
         foreach ($rows as $i => [$group, $key, $label, $secret]) {

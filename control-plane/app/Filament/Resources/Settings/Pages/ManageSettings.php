@@ -52,6 +52,7 @@ class ManageSettings extends Page
         'pesapal_' => ['Pesapal', 'Visa and Mastercard (app and VIP pages). Copy the keys from your Pesapal merchant account, then tick Pesapal on the VIP event.'],
         'cryptomus_' => ['Cryptomus', 'Crypto payments.'],
         'clickpesa_' => ['ClickPesa', 'Mobile money in Tanzania.'],
+        'vip_' => ['VIP app downloads', 'The download buttons guests see on their VIP pass page. Change these when you upload a new VIP app.'],
         'twilio_' => ['Twilio', 'Login codes by SMS. Email codes work without this.'],
         'anthropic_' => ['AI alerts', 'Explains network problems in plain words.'],
         'telegram_' => ['Telegram', 'Where alerts are posted.'],
@@ -222,6 +223,10 @@ class ManageSettings extends Page
         }
         if (Str::endsWith($s->key, '_url')) {
             $input->url();
+        }
+        if (Str::endsWith($s->key, '_link')) {
+            $input->regex('#^(https://\S+|/(?!/)\S+|off)$#')
+                ->validationMessages(['regex' => 'Use a link that starts with https:// or / (no spaces), or type off.']);
         }
 
         $fields = [$input];

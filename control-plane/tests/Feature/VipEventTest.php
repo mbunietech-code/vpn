@@ -371,4 +371,37 @@ class VipEventTest extends TestCase
 
         $this->get('/vip/shanghai-expo/qr.svg')->assertOk()->assertHeader('Content-Type', 'image/svg+xml');
     }
+
+    public function test_admin_sets_the_vip_app_links_in_settings(): void
+    {
+        $this->seed(\Database\Seeders\SettingsSeeder::class);
+        $this->actingAs(User::where('is_admin', true)->first());
+
+        $this->get('/admin/settings?tab=app')->assertOk()->assertSee('VIP app downloads');
+
+        // The default (a path on this server) is shown and saving it changes nothing.
+        Livewire::test(\App\Filament\Resources\Settings\Pages\ManageSettings::class)
+            ->assertSet('data.v_vip_android_link', config('services.mvpn.download_vip_android'))
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertNull(\App\Models\Setting::value('vip_android_link'));
+
+        Livewire::test(\App\Filament\Resources\Settings\Pages\ManageSettings::class)
+            ->fillForm(['v_vip_android_link' => 'javascript:alert(1)'])
+            ->call('save')
+            ->assertHasFormErrors(['v_vip_android_link']);
+
+        Livewire::test(\App\Filament\Resources\Settings\Pages\ManageSettings::class)
+            ->fillForm(['v_vip_android_link' => 'https://files.example.com/vip.apk', 'v_vip_windows_link' => 'off'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        // The next request reads the saved links (applied at boot).
+        (new \App\Providers\SettingsServiceProvider($this->app))->boot();
+        $pass = app(VipPasses::class)->give($this->event, 1, null, 'admin:1');
+        $this->withHeader('User-Agent', 'Mozilla/5.0 (Linux; Android 14)')->get($pass->pageUrl())
+            ->assertOk()
+            ->assertSee('https://files.example.com/vip.apk', false)
+            ->assertDontSee('Mbunie-VIP-Setup', false);
+    }
 }

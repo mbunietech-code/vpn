@@ -38,6 +38,9 @@ class SettingsServiceProvider extends ServiceProvider
         'clickpesa_api_key' => 'services.clickpesa.api_key',
         'clickpesa_merchant_id' => 'services.clickpesa.merchant_id',
         'clickpesa_checksum_secret' => 'services.clickpesa.checksum_secret',
+        // --- app ---
+        'vip_android_link' => 'services.mvpn.download_vip_android',
+        'vip_windows_link' => 'services.mvpn.download_vip_windows',
         // --- sms ---
         'twilio_sid' => 'services.twilio.sid',
         'twilio_token' => 'services.twilio.token',
